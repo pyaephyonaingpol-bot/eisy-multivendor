@@ -6,6 +6,7 @@ const nav = [
   { href: "/products", label: "Shop" },
   { href: "/vendors", label: "Stores" },
   { href: "/cart", label: "Cart" },
+  { href: "/orders", label: "Orders" },
   { href: "/account/wallet", label: "Wallet" },
 ];
 

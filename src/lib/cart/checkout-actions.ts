@@ -100,6 +100,7 @@ export async function checkoutWithUsdt(
   revalidatePath("/cart");
   revalidatePath("/checkout");
   revalidatePath("/account/wallet");
+  revalidatePath("/orders");
   revalidatePath("/vendor/wallet");
 
   redirect(`/checkout/success?orders=${orderIds.join(",")}`);

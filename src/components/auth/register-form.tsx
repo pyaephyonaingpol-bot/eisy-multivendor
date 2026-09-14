@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
+import { ClientOnly } from "@/components/client-only";
+import { FormSkeleton } from "@/components/form-skeleton";
 import { register, type AuthActionState } from "@/lib/auth/actions";
 
 const initialState: AuthActionState = null;
 
-export function RegisterForm() {
+function RegisterFormFields() {
   const [state, formAction, pending] = useActionState(register, initialState);
 
   return (
@@ -74,5 +76,13 @@ export function RegisterForm() {
         </Link>
       </p>
     </form>
+  );
+}
+
+export function RegisterForm() {
+  return (
+    <ClientOnly fallback={<FormSkeleton rows={4} />}>
+      <RegisterFormFields />
+    </ClientOnly>
   );
 }

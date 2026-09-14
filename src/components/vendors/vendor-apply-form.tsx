@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
+import { ClientOnly } from "@/components/client-only";
+import { FormSkeleton } from "@/components/form-skeleton";
 import { applyForVendor, type VendorActionState } from "@/lib/vendors/actions";
 import { slugifyStoreName } from "@/lib/vendors/slug";
 
@@ -10,7 +12,7 @@ type VendorApplyFormProps = {
   defaultName?: string;
 };
 
-export function VendorApplyForm({ defaultName = "" }: VendorApplyFormProps) {
+function VendorApplyFormFields({ defaultName = "" }: VendorApplyFormProps) {
   const [name, setName] = useState(defaultName);
   const [slugTouched, setSlugTouched] = useState(false);
   const [slug, setSlug] = useState(slugifyStoreName(defaultName));
@@ -93,5 +95,13 @@ export function VendorApplyForm({ defaultName = "" }: VendorApplyFormProps) {
         Your store starts as <strong>pending</strong> until an admin approves it.
       </p>
     </form>
+  );
+}
+
+export function VendorApplyForm(props: VendorApplyFormProps) {
+  return (
+    <ClientOnly fallback={<FormSkeleton rows={4} />}>
+      <VendorApplyFormFields {...props} />
+    </ClientOnly>
   );
 }

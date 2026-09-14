@@ -10,6 +10,10 @@ export type CartLineItem = {
   maxQuantity: number | null;
 };
 
+export type CartState = {
+  items: CartLineItem[];
+};
+
 export type CartCheckoutItem = {
   product_id: string;
   quantity: number;

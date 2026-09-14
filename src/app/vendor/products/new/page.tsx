@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ProductCreateForm } from "@/components/vendors/product-create-form";
 import { getSessionProfile } from "@/lib/auth/session";
+import { listActiveCategories } from "@/lib/categories/queries";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,8 @@ export default async function NewVendorProductPage() {
     redirect("/vendor/apply");
   }
 
+  const categories = await listActiveCategories();
+
   return (
     <section className="space-y-6">
       <div className="space-y-2">
@@ -28,7 +31,7 @@ export default async function NewVendorProductPage() {
         <h1 className="text-3xl font-semibold tracking-tight">Add product</h1>
         <p className="max-w-xl text-zinc-600">
           Create a physical or digital catalog item for <strong>{vendor.name}</strong>.
-          Draft products stay private; set status to active when you are ready to sell.
+          Choose a category, then set status to active when you are ready to sell.
         </p>
       </div>
 
@@ -39,7 +42,7 @@ export default async function NewVendorProductPage() {
         </div>
       ) : null}
 
-      <ProductCreateForm />
+      <ProductCreateForm categories={categories} />
 
       <p className="text-sm text-zinc-500">
         <Link href="/vendor/products" className="underline">

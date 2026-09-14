@@ -44,9 +44,21 @@ export type Vendor = {
   updated_at: string;
 };
 
+export type Category = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Product = {
   id: string;
   vendor_id: string;
+  category_id: string | null;
   name: string;
   slug: string;
   description: string | null;
@@ -134,6 +146,12 @@ export type Database = {
         Row: Vendor;
         Insert: Partial<Vendor> & Pick<Vendor, "owner_id" | "name" | "slug">;
         Update: Partial<Vendor>;
+        Relationships: [];
+      };
+      categories: {
+        Row: Category;
+        Insert: Partial<Category> & Pick<Category, "name" | "slug">;
+        Update: Partial<Category>;
         Relationships: [];
       };
       products: {

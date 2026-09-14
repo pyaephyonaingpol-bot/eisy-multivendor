@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { formatMoney } from "@/lib/money";
+import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
 import type { PublicProductSummary } from "@/lib/products/queries";
 
 export function ProductCard({ product }: { product: PublicProductSummary }) {
@@ -34,11 +34,11 @@ export function ProductCard({ product }: { product: PublicProductSummary }) {
         </div>
         <div className="mt-auto flex items-baseline justify-between gap-2">
           <p className="text-sm font-semibold text-zinc-950">
-            {formatMoney(Number(product.price), product.currency)}
+            {formatMoney(Number(product.price), MARKETPLACE_CURRENCY)}
           </p>
           {product.compare_at_price != null ? (
             <p className="text-xs text-zinc-400 line-through">
-              {formatMoney(Number(product.compare_at_price), product.currency)}
+              {formatMoney(Number(product.compare_at_price), MARKETPLACE_CURRENCY)}
             </p>
           ) : null}
         </div>

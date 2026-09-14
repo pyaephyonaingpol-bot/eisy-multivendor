@@ -8,6 +8,7 @@ import {
   type CheckoutActionState,
 } from "@/lib/cart/checkout-actions";
 import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
+import { BUYER_COUNTRY_OPTIONS } from "@/lib/sourcing/constants";
 
 const initialState: CheckoutActionState = null;
 
@@ -17,9 +18,10 @@ const fieldClassName =
 type CheckoutFormProps = {
   isSignedIn: boolean;
   usdtAvailable: number | null;
+  defaultCountry?: string;
 };
 
-export function CheckoutForm({ isSignedIn, usdtAvailable }: CheckoutFormProps) {
+export function CheckoutForm({ isSignedIn, usdtAvailable, defaultCountry = "MM" }: CheckoutFormProps) {
   const { items, subtotal, itemCount } = useCart();
   const [state, formAction, pending] = useActionState(checkoutWithUsdt, initialState);
 
@@ -113,12 +115,19 @@ export function CheckoutForm({ isSignedIn, usdtAvailable }: CheckoutFormProps) {
               <label htmlFor="country" className="text-sm font-medium text-zinc-700">
                 Country
               </label>
-              <input
+                            <select
                 id="country"
                 name="country"
-                defaultValue="MM"
+                defaultValue={defaultCountry}
                 className={fieldClassName}
-              />
+              >
+                {BUYER_COUNTRY_OPTIONS.map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <label htmlFor="line1" className="text-sm font-medium text-zinc-700">

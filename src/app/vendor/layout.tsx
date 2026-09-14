@@ -4,6 +4,7 @@ const links = [
   { href: "/vendor/dashboard", label: "Overview" },
   { href: "/vendor/apply", label: "Application" },
   { href: "/vendor/products", label: "Products" },
+  { href: "/vendor/sourcing", label: "Sourcing" },
   { href: "/vendor/import", label: "Import" },
   { href: "/vendor/wallet", label: "Wallet" },
   { href: "/vendor/orders", label: "Orders" },

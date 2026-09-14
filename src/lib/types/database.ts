@@ -26,6 +26,12 @@ export type WalletTxType =
   | "sale_credit"
   | "adjustment";
 export type WalletTxStatus = "pending" | "completed" | "rejected" | "cancelled";
+export type SupplierProviderKind =
+  | "internal"
+  | "cj_dropshipping"
+  | "dsers"
+  | "print_on_demand"
+  | "other";
 
 export type Profile = {
   id: string;
@@ -34,8 +40,69 @@ export type Profile = {
   avatar_url: string | null;
   phone: string | null;
   role: UserRole;
+  preferred_region_id: string | null;
+  preferred_country_code: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type SourcingRegion = {
+  id: string;
+  code: string;
+  name: string;
+  country_codes: string[];
+  is_default: boolean;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupplierProvider = {
+  id: string;
+  slug: string;
+  name: string;
+  kind: SupplierProviderKind;
+  default_origin_country: string;
+  supports_regions: string[];
+  is_active: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProductSupplierRoute = {
+  id: string;
+  product_id: string;
+  region_id: string;
+  provider_id: string;
+  external_sku: string | null;
+  warehouse_country: string;
+  shipping_days_min: number | null;
+  shipping_days_max: number | null;
+  shipping_cost_usdt: number;
+  priority: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ResolvedSupplierRoute = {
+  product_id: string;
+  source_product_id: string;
+  region_id: string;
+  region_code: string;
+  region_name: string;
+  provider_id: string | null;
+  provider_slug: string;
+  provider_name: string;
+  provider_kind: string;
+  route_id: string | null;
+  warehouse_country: string;
+  shipping_days_min: number | null;
+  shipping_days_max: number | null;
+  shipping_cost_usdt: number;
+  external_sku: string | null;
 };
 
 export type Vendor = {
@@ -124,6 +191,8 @@ export type Order = {
   total: number;
   currency: string;
   shipping_address: Record<string, unknown> | null;
+  buyer_region_id: string | null;
+  buyer_country_code: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -139,6 +208,12 @@ export type OrderItem = {
   unit_price: number;
   cost_unit_price: number | null;
   total_price: number;
+  supplier_provider_id: string | null;
+  supplier_route_id: string | null;
+  warehouse_country: string | null;
+  shipping_estimate_days_min: number | null;
+  shipping_estimate_days_max: number | null;
+  shipping_cost_usdt: number | null;
   created_at: string;
 };
 
@@ -251,6 +326,29 @@ export type Database = {
         Update: Partial<WalletTransaction>;
         Relationships: [];
       };
+      sourcing_regions: {
+        Row: SourcingRegion;
+        Insert: Partial<SourcingRegion> & Pick<SourcingRegion, "code" | "name">;
+        Update: Partial<SourcingRegion>;
+        Relationships: [];
+      };
+      supplier_providers: {
+        Row: SupplierProvider;
+        Insert: Partial<SupplierProvider> &
+          Pick<SupplierProvider, "slug" | "name" | "kind">;
+        Update: Partial<SupplierProvider>;
+        Relationships: [];
+      };
+      product_supplier_routes: {
+        Row: ProductSupplierRoute;
+        Insert: Partial<ProductSupplierRoute> &
+          Pick<
+            ProductSupplierRoute,
+            "product_id" | "region_id" | "provider_id" | "warehouse_country"
+          >;
+        Update: Partial<ProductSupplierRoute>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -285,7 +383,42 @@ export type Database = {
           total: number;
           currency: string;
           wallet_transaction_id: string;
+          buyer_region_code?: string;
+          buyer_country_code?: string;
+          shipping_total?: number;
         };
+      };
+      resolve_sourcing_region: {
+        Args: {
+          p_country_code: string;
+        };
+        Returns: SourcingRegion;
+      };
+      resolve_product_supplier_route: {
+        Args: {
+          p_product_id: string;
+          p_country_code: string;
+        };
+        Returns: ResolvedSupplierRoute;
+      };
+      set_preferred_sourcing_region: {
+        Args: {
+          p_country_code: string;
+          p_region_code?: string | null;
+        };
+        Returns: {
+          region_id: string;
+          region_code: string;
+          region_name: string;
+          country_code: string | null;
+          country_codes: string[];
+        };
+      };
+      ensure_recommended_supplier_routes: {
+        Args: {
+          p_product_id: string;
+        };
+        Returns: number;
       };
       import_dropship_product: {
         Args: {
@@ -341,6 +474,7 @@ export type Database = {
       wallet_currency: WalletCurrency;
       wallet_tx_type: WalletTxType;
       wallet_tx_status: WalletTxStatus;
+      supplier_provider_kind: SupplierProviderKind;
     };
     CompositeTypes: Record<string, never>;
   };

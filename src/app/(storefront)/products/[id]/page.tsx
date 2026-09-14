@@ -3,8 +3,13 @@ import { notFound } from "next/navigation";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 import { ImportToMyStorePanel } from "@/components/storefront/import-to-my-store-panel";
 import { ProductSpecificationsTable } from "@/components/storefront/product-specifications-table";
+import { RegionalShippingEstimate } from "@/components/storefront/regional-shipping-estimate";
 import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
 import { getPublicProductById } from "@/lib/products/queries";
+import {
+  getBuyerSourcingContext,
+  resolveProductSupplierRoute,
+} from "@/lib/sourcing/queries";
 import type { ProductType } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +36,11 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
   }
 
   const productType = product.product_type ?? "physical";
+  const sourcing = await getBuyerSourcingContext();
+  const supplierRoute =
+    productType === "physical"
+      ? await resolveProductSupplierRoute(product.id, sourcing.countryCode)
+      : null;
   const images = product.images ?? [];
   const heroImage = images[0] ?? null;
   const availableStock = product.available_stock;
@@ -139,6 +149,14 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
               </h2>
               <p className="whitespace-pre-wrap text-zinc-700">{product.description}</p>
             </div>
+          ) : null}
+
+          {productType === "physical" ? (
+            <RegionalShippingEstimate
+              route={supplierRoute}
+              countryCode={sourcing.countryCode}
+              regionName={sourcing.regionName}
+            />
           ) : null}
 
           <AddToCartButton

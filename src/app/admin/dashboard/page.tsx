@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { listVendorsForAdmin } from "@/lib/vendors/queries";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminDashboardPage() {
   const pending = await listVendorsForAdmin("pending");
 

@@ -3,6 +3,8 @@ import { VendorStatusBadge } from "@/components/vendors/admin-vendor-list";
 import { getSessionProfile } from "@/lib/auth/session";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 
+export const dynamic = "force-dynamic";
+
 export default async function VendorDashboardPage() {
   const session = await getSessionProfile();
   const vendor = session ? await getVendorForOwner(session.userId) : null;

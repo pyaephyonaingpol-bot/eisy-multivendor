@@ -23,6 +23,11 @@ export async function Header() {
               {item.label}
             </Link>
           ))}
+          {session?.role === "customer" ? (
+            <Link href="/vendor/apply" className="hover:text-zinc-950">
+              Sell with us
+            </Link>
+          ) : null}
           {session?.role === "vendor" || session?.role === "admin" ? (
             <Link href="/vendor/dashboard" className="hover:text-zinc-950">
               Vendor
@@ -60,7 +65,7 @@ export function Footer() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-6 text-sm text-zinc-500">
         <p>© {new Date().getFullYear()} EISY Marketplace</p>
         <div className="flex gap-4">
-          <Link href="/vendor/dashboard">Vendor</Link>
+          <Link href="/vendor/apply">Become a vendor</Link>
           <Link href="/admin/dashboard">Admin</Link>
         </div>
       </div>

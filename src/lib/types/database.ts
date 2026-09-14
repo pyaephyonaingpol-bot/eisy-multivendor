@@ -124,38 +124,73 @@ export type Database = {
         Row: Profile;
         Insert: Partial<Profile> & Pick<Profile, "id" | "email">;
         Update: Partial<Profile>;
+        Relationships: [];
       };
       vendors: {
         Row: Vendor;
         Insert: Partial<Vendor> & Pick<Vendor, "owner_id" | "name" | "slug">;
         Update: Partial<Vendor>;
+        Relationships: [];
       };
       products: {
         Row: Product;
         Insert: Partial<Product> & Pick<Product, "vendor_id" | "name" | "slug" | "price">;
         Update: Partial<Product>;
+        Relationships: [];
       };
       shipping_zones: {
         Row: ShippingZone;
         Insert: Partial<ShippingZone> & Pick<ShippingZone, "vendor_id" | "name">;
         Update: Partial<ShippingZone>;
+        Relationships: [];
       };
       orders: {
         Row: Order;
         Insert: Partial<Order> & Pick<Order, "customer_id" | "vendor_id">;
         Update: Partial<Order>;
+        Relationships: [];
       };
       order_items: {
         Row: OrderItem;
         Insert: Partial<OrderItem> &
           Pick<OrderItem, "order_id" | "product_name" | "quantity" | "unit_price" | "total_price">;
         Update: Partial<OrderItem>;
+        Relationships: [];
       };
       subscriptions: {
         Row: Subscription;
         Insert: Partial<Subscription> & Pick<Subscription, "user_id">;
         Update: Partial<Subscription>;
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
+    Functions: {
+      apply_for_vendor: {
+        Args: {
+          p_name: string;
+          p_slug: string;
+          p_description?: string | null;
+        };
+        Returns: string;
+      };
+      review_vendor: {
+        Args: {
+          p_vendor_id: string;
+          p_status: VendorStatus;
+        };
+        Returns: undefined;
+      };
+    };
+    Enums: {
+      user_role: UserRole;
+      vendor_status: VendorStatus;
+      product_status: ProductStatus;
+      order_status: OrderStatus;
+      payment_status: PaymentStatus;
+      subscription_plan: SubscriptionPlan;
+      subscription_status: SubscriptionStatus;
+    };
+    CompositeTypes: Record<string, never>;
   };
 };

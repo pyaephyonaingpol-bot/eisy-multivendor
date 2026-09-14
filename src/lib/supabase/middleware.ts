@@ -56,6 +56,7 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  const isVendorApply = pathname === "/vendor/apply";
   const isVendorRoute = pathname.startsWith("/vendor");
   const isAdminRoute = pathname.startsWith("/admin");
   const isAuthPage = pathname === "/login" || pathname === "/register";
@@ -73,6 +74,11 @@ export async function updateSession(request: NextRequest) {
 
   if (!user) {
     return loginRedirect(request, supabaseResponse, pathname);
+  }
+
+  // Any signed-in user can submit a vendor application.
+  if (isVendorApply) {
+    return supabaseResponse;
   }
 
   const { data: profile } = await supabase

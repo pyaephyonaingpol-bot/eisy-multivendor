@@ -97,7 +97,7 @@ export async function register(
     };
   }
 
-  redirect(role === "vendor" ? "/vendor/dashboard" : "/");
+  redirect(role === "vendor" ? "/vendor/apply" : "/");
 }
 
 export async function signOut(): Promise<void> {

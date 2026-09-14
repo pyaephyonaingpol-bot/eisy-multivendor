@@ -1,6 +1,10 @@
-import Link from "next/link";
+import { HomeHeroCtas } from "@/components/storefront/home-hero-ctas";
+import { getSessionProfile } from "@/lib/auth/session";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await getSessionProfile();
+  const vendorHref = session ? "/vendor/apply" : "/login?next=/vendor/apply";
+
   return (
     <section className="space-y-8">
       <div className="max-w-2xl space-y-4">
@@ -12,22 +16,10 @@ export default function HomePage() {
         </h1>
         <p className="text-lg text-zinc-600">
           Customers can shop immediately. Sellers apply at /vendor/apply — stores
-          stay <code className="rounded bg-zinc-100 px-1.5 py-0.5">pending</code> until an admin approves them.
+          stay <code className="rounded bg-zinc-100 px-1.5 py-0.5">pending</code> until an
+          admin approves them.
         </p>
-        <div className="flex gap-3">
-          <Link
-            href="/products"
-            className="rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-800"
-          >
-            Browse products
-          </Link>
-          <Link
-            href="/vendor/apply"
-            className="rounded-full border border-zinc-200 px-5 py-2.5 text-sm font-medium hover:bg-zinc-50"
-          >
-            Become a vendor
-          </Link>
-        </div>
+        <HomeHeroCtas vendorHref={vendorHref} />
       </div>
     </section>
   );

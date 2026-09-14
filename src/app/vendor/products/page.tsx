@@ -1,8 +1,134 @@
-export default function VendorProductsPage() {
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getSessionProfile } from "@/lib/auth/session";
+import { listProductsForVendor } from "@/lib/products/queries";
+import type { ProductStatus } from "@/lib/types/database";
+import { getVendorForOwner } from "@/lib/vendors/queries";
+
+export const dynamic = "force-dynamic";
+
+function statusLabel(status: ProductStatus) {
+  switch (status) {
+    case "active":
+      return "Active";
+    case "archived":
+      return "Archived";
+    default:
+      return "Draft";
+  }
+}
+
+function statusClassName(status: ProductStatus) {
+  switch (status) {
+    case "active":
+      return "bg-emerald-50 text-emerald-800 ring-emerald-200";
+    case "archived":
+      return "bg-zinc-100 text-zinc-600 ring-zinc-200";
+    default:
+      return "bg-amber-50 text-amber-900 ring-amber-200";
+  }
+}
+
+function formatMoney(amount: number, currency: string) {
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currency || "USD",
+    }).format(amount);
+  } catch {
+    return `${currency} ${amount.toFixed(2)}`;
+  }
+}
+
+export default async function VendorProductsPage() {
+  const session = await getSessionProfile();
+
+  if (!session) {
+    redirect("/login?next=/vendor/products");
+  }
+
+  const vendor = await getVendorForOwner(session.userId);
+
+  if (!vendor) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold tracking-tight">Your products</h1>
+        <p className="text-zinc-600">
+          Submit a vendor application before you can manage a catalog.
+        </p>
+        <Link
+          href="/vendor/apply"
+          className="inline-flex rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+        >
+          Apply as a vendor
+        </Link>
+      </div>
+    );
+  }
+
+  const products = await listProductsForVendor(vendor.id);
+
   return (
-    <div className="space-y-3">
-      <h1 className="text-2xl font-semibold tracking-tight">Your products</h1>
-      <p className="text-zinc-600">Manage catalog rows in the products table.</p>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-semibold tracking-tight">Your products</h1>
+          <p className="text-zinc-600">
+            Catalog for <strong>{vendor.name}</strong>.
+          </p>
+        </div>
+        <Link
+          href="/vendor/products/new"
+          className="inline-flex rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+        >
+          Add product
+        </Link>
+      </div>
+
+      {products.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-10 text-center">
+          <p className="text-zinc-700">No products yet.</p>
+          <p className="mt-1 text-sm text-zinc-500">
+            Add your first item to start building the catalog.
+          </p>
+          <Link
+            href="/vendor/products/new"
+            className="mt-4 inline-flex rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+          >
+            Add product
+          </Link>
+        </div>
+      ) : (
+        <ul className="divide-y divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 bg-white">
+          {products.map((product) => (
+            <li
+              key={product.id}
+              className="flex flex-wrap items-center justify-between gap-3 px-4 py-4"
+            >
+              <div className="min-w-0 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="truncate font-medium text-zinc-950">{product.name}</p>
+                  <span
+                    className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${statusClassName(product.status)}`}
+                  >
+                    {statusLabel(product.status)}
+                  </span>
+                </div>
+                <p className="text-sm text-zinc-500">
+                  /{product.slug}
+                  {product.sku ? ` · SKU ${product.sku}` : ""}
+                </p>
+              </div>
+              <div className="text-right text-sm">
+                <p className="font-medium text-zinc-950">
+                  {formatMoney(Number(product.price), product.currency)}
+                </p>
+                <p className="text-zinc-500">{product.stock_quantity} in stock</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

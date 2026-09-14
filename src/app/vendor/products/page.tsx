@@ -71,12 +71,20 @@ export default async function VendorProductsPage() {
             Catalog for <strong>{vendor.name}</strong>.
           </p>
         </div>
-        <Link
-          href="/vendor/products/new"
-          className="inline-flex rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
-        >
-          Add product
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/vendor/import"
+            className="inline-flex rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-100"
+          >
+            Import to My Store
+          </Link>
+          <Link
+            href="/vendor/products/new"
+            className="inline-flex rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+          >
+            Add product
+          </Link>
+        </div>
       </div>
 
       {products.length === 0 ? (
@@ -125,6 +133,11 @@ export default async function VendorProductsPage() {
                       <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 ring-1 ring-inset ring-zinc-200">
                         {typeLabel(productType)}
                       </span>
+                      {product.is_dropship ? (
+                        <span className="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-inset ring-emerald-200">
+                          Dropship
+                        </span>
+                      ) : null}
                       <span
                         className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${statusClassName(product.status)}`}
                       >
@@ -146,9 +159,11 @@ export default async function VendorProductsPage() {
                       {formatMoney(Number(product.price), product.currency)}
                     </p>
                     <p className="text-zinc-500">
-                      {productType === "digital"
-                        ? "Digital download"
-                        : `${product.stock_quantity} in stock`}
+                      {product.is_dropship
+                        ? "Dropship · supplier stock"
+                        : productType === "digital"
+                          ? "Digital download"
+                          : `${product.stock_quantity} in stock`}
                     </p>
                   </div>
                   <Link

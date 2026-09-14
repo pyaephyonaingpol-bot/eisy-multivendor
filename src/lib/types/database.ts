@@ -86,6 +86,9 @@ export type Product = {
   product_type: ProductType;
   download_url: string | null;
   download_label: string | null;
+  /** Original supplier product when this row is a dropship listing. */
+  source_product_id: string | null;
+  is_dropship: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -108,7 +111,10 @@ export type ShippingZone = {
 export type Order = {
   id: string;
   customer_id: string;
+  /** Fulfillment / supplier vendor. */
   vendor_id: string;
+  /** Storefront seller (dropshipper); equals vendor_id for direct sales. */
+  seller_vendor_id: string;
   status: OrderStatus;
   payment_status: PaymentStatus;
   subtotal: number;
@@ -126,9 +132,12 @@ export type OrderItem = {
   id: string;
   order_id: string;
   product_id: string | null;
+  listing_product_id: string | null;
+  source_product_id: string | null;
   product_name: string;
   quantity: number;
   unit_price: number;
+  cost_unit_price: number | null;
   total_price: number;
   created_at: string;
 };
@@ -276,6 +285,21 @@ export type Database = {
           total: number;
           currency: string;
           wallet_transaction_id: string;
+        };
+      };
+      import_dropship_product: {
+        Args: {
+          p_source_product_id: string;
+          p_price: number;
+          p_status?: ProductStatus;
+        };
+        Returns: {
+          product_id: string;
+          source_product_id: string;
+          updated: boolean;
+          price: number;
+          status: ProductStatus;
+          slug?: string;
         };
       };
       request_wallet_deposit: {

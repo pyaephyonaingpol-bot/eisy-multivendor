@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { resolveProductImages } from "@/lib/products/images";
 import { createClient } from "@/lib/supabase/server";
 import type { ProductStatus, ProductType } from "@/lib/types/database";
 import { getVendorForOwner } from "@/lib/vendors/queries";
@@ -51,10 +52,25 @@ function isValidHttpUrl(value: string) {
   }
 }
 
-export async function createProduct(
-  _prev: ProductActionState,
-  formData: FormData,
-): Promise<ProductActionState> {
+type ParsedProductFields =
+  | { error: string }
+  | {
+      name: string;
+      slug: string;
+      description: string;
+      sku: string;
+      currency: string;
+      price: number;
+      compareAtPrice: number | null;
+      productType: ProductType;
+      stockQuantity: number;
+      downloadUrl: string;
+      downloadLabel: string;
+      status: ProductStatus;
+      categoryId: string;
+    };
+
+function parseProductFields(formData: FormData): ParsedProductFields {
   const name = String(formData.get("name") ?? "").trim();
   const slugInput = String(formData.get("slug") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
@@ -109,6 +125,41 @@ export async function createProduct(
     }
   }
 
+  return {
+    name,
+    slug,
+    description,
+    sku,
+    currency,
+    price,
+    compareAtPrice,
+    productType,
+    stockQuantity,
+    downloadUrl,
+    downloadLabel,
+    status,
+    categoryId,
+  };
+}
+
+function revalidateProductPaths(productId?: string) {
+  revalidatePath("/vendor/products");
+  revalidatePath("/vendor/dashboard");
+  revalidatePath("/products");
+  if (productId) {
+    revalidatePath(`/vendor/products/${productId}/edit`);
+  }
+}
+
+export async function createProduct(
+  _prev: ProductActionState,
+  formData: FormData,
+): Promise<ProductActionState> {
+  const parsed = parseProductFields(formData);
+  if ("error" in parsed) {
+    return { error: parsed.error };
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -124,23 +175,28 @@ export async function createProduct(
     return { error: "Submit a vendor application before adding products." };
   }
 
+  const imageResult = await resolveProductImages(supabase, vendor.id, formData);
+  if (imageResult.error) {
+    return { error: imageResult.error };
+  }
+
   const { error } = await supabase.from("products").insert({
     vendor_id: vendor.id,
-    category_id: categoryId,
-    name,
-    slug,
-    description: description || null,
-    price,
-    compare_at_price: compareAtPrice,
-    currency,
-    sku: sku || null,
-    stock_quantity: stockQuantity,
-    status,
-    images: [],
-    product_type: productType,
-    download_url: productType === "digital" ? downloadUrl : null,
+    category_id: parsed.categoryId,
+    name: parsed.name,
+    slug: parsed.slug,
+    description: parsed.description || null,
+    price: parsed.price,
+    compare_at_price: parsed.compareAtPrice,
+    currency: parsed.currency,
+    sku: parsed.sku || null,
+    stock_quantity: parsed.stockQuantity,
+    status: parsed.status,
+    images: imageResult.images,
+    product_type: parsed.productType,
+    download_url: parsed.productType === "digital" ? parsed.downloadUrl : null,
     download_label:
-      productType === "digital" ? downloadLabel || null : null,
+      parsed.productType === "digital" ? parsed.downloadLabel || null : null,
   });
 
   if (error) {
@@ -150,8 +206,88 @@ export async function createProduct(
     return { error: error.message };
   }
 
-  revalidatePath("/vendor/products");
-  revalidatePath("/vendor/dashboard");
-  revalidatePath("/products");
+  revalidateProductPaths();
+  redirect("/vendor/products");
+}
+
+export async function updateProduct(
+  _prev: ProductActionState,
+  formData: FormData,
+): Promise<ProductActionState> {
+  const productId = String(formData.get("product_id") ?? "").trim();
+  if (!productId) {
+    return { error: "Missing product id." };
+  }
+
+  const parsed = parseProductFields(formData);
+  if ("error" in parsed) {
+    return { error: parsed.error };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be signed in to edit a product." };
+  }
+
+  const vendor = await getVendorForOwner(user.id);
+
+  if (!vendor) {
+    return { error: "Submit a vendor application before editing products." };
+  }
+
+  const { data: existing, error: loadError } = await supabase
+    .from("products")
+    .select("id")
+    .eq("id", productId)
+    .eq("vendor_id", vendor.id)
+    .maybeSingle();
+
+  if (loadError) {
+    return { error: loadError.message };
+  }
+
+  if (!existing) {
+    return { error: "Product not found in your catalog." };
+  }
+
+  const imageResult = await resolveProductImages(supabase, vendor.id, formData);
+  if (imageResult.error) {
+    return { error: imageResult.error };
+  }
+
+  const { error } = await supabase
+    .from("products")
+    .update({
+      category_id: parsed.categoryId,
+      name: parsed.name,
+      slug: parsed.slug,
+      description: parsed.description || null,
+      price: parsed.price,
+      compare_at_price: parsed.compareAtPrice,
+      currency: parsed.currency,
+      sku: parsed.sku || null,
+      stock_quantity: parsed.stockQuantity,
+      status: parsed.status,
+      images: imageResult.images,
+      product_type: parsed.productType,
+      download_url: parsed.productType === "digital" ? parsed.downloadUrl : null,
+      download_label:
+        parsed.productType === "digital" ? parsed.downloadLabel || null : null,
+    })
+    .eq("id", productId)
+    .eq("vendor_id", vendor.id);
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: "That product slug is already used in your catalog." };
+    }
+    return { error: error.message };
+  }
+
+  revalidateProductPaths(productId);
   redirect("/vendor/products");
 }

@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { isBootstrapAdminEmail } from "@/lib/auth/constants";
 import { createClient } from "@/lib/supabase/server";
 import type { UserRole } from "@/lib/types/database";
 
@@ -17,15 +18,8 @@ function safeNextPath(next: FormDataEntryValue | null): string {
   return next;
 }
 
-/** Allowlisted signup email that receives admin via DB trigger (not client metadata). */
-export const BOOTSTRAP_ADMIN_EMAIL = "pyaephyonaing.pol@gmail.com";
-
 function signupRole(value: FormDataEntryValue | null): Extract<UserRole, "customer" | "vendor"> {
   return value === "vendor" ? "vendor" : "customer";
-}
-
-function isBootstrapAdminEmail(email: string) {
-  return email.trim().toLowerCase() === BOOTSTRAP_ADMIN_EMAIL;
 }
 
 async function getSiteOrigin() {

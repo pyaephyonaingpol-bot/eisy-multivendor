@@ -55,6 +55,11 @@ export type Category = {
   updated_at: string;
 };
 
+export type ProductSpecification = {
+  key: string;
+  value: string;
+};
+
 export type Product = {
   id: string;
   vendor_id: string;
@@ -68,6 +73,7 @@ export type Product = {
   sku: string | null;
   stock_quantity: number;
   images: string[];
+  specifications: ProductSpecification[];
   status: ProductStatus;
   product_type: ProductType;
   download_url: string | null;

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { resolveProductImages } from "@/lib/products/images";
+import { parseProductSpecificationsFromFormData } from "@/lib/products/specifications";
 import { createClient } from "@/lib/supabase/server";
 import type { ProductStatus, ProductType } from "@/lib/types/database";
 import { getVendorForOwner } from "@/lib/vendors/queries";
@@ -68,6 +69,7 @@ type ParsedProductFields =
       downloadLabel: string;
       status: ProductStatus;
       categoryId: string;
+      specifications: { key: string; value: string }[];
     };
 
 function parseProductFields(formData: FormData): ParsedProductFields {
@@ -87,6 +89,7 @@ function parseProductFields(formData: FormData): ParsedProductFields {
   const downloadLabel = String(formData.get("download_label") ?? "").trim();
   const status = parseStatus(formData.get("status"));
   const categoryId = String(formData.get("category_id") ?? "").trim();
+  const specsResult = parseProductSpecificationsFromFormData(formData);
 
   if (!name) {
     return { error: "Product name is required." };
@@ -125,6 +128,10 @@ function parseProductFields(formData: FormData): ParsedProductFields {
     }
   }
 
+  if (specsResult.error) {
+    return { error: specsResult.error };
+  }
+
   return {
     name,
     slug,
@@ -139,6 +146,7 @@ function parseProductFields(formData: FormData): ParsedProductFields {
     downloadLabel,
     status,
     categoryId,
+    specifications: specsResult.specifications,
   };
 }
 
@@ -148,6 +156,7 @@ function revalidateProductPaths(productId?: string) {
   revalidatePath("/products");
   if (productId) {
     revalidatePath(`/vendor/products/${productId}/edit`);
+    revalidatePath(`/products/${productId}`);
   }
 }
 
@@ -193,6 +202,7 @@ export async function createProduct(
     stock_quantity: parsed.stockQuantity,
     status: parsed.status,
     images: imageResult.images,
+    specifications: parsed.specifications,
     product_type: parsed.productType,
     download_url: parsed.productType === "digital" ? parsed.downloadUrl : null,
     download_label:
@@ -273,6 +283,7 @@ export async function updateProduct(
       stock_quantity: parsed.stockQuantity,
       status: parsed.status,
       images: imageResult.images,
+      specifications: parsed.specifications,
       product_type: parsed.productType,
       download_url: parsed.productType === "digital" ? parsed.downloadUrl : null,
       download_label:

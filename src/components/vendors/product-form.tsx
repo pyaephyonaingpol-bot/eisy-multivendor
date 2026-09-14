@@ -9,7 +9,13 @@ import {
   type ProductActionState,
 } from "@/lib/products/actions";
 import { MAX_PRODUCT_IMAGES } from "@/lib/products/images";
-import type { Category, Product, ProductType } from "@/lib/types/database";
+import { MAX_PRODUCT_SPECIFICATIONS } from "@/lib/products/specifications";
+import type {
+  Category,
+  Product,
+  ProductSpecification,
+  ProductType,
+} from "@/lib/types/database";
 import { slugifyStoreName } from "@/lib/vendors/slug";
 
 const initialState: ProductActionState = null;
@@ -28,6 +34,16 @@ type PreviewItem = {
   file: File;
 };
 
+type SpecRow = ProductSpecification & { id: string };
+
+function createSpecRow(spec?: ProductSpecification): SpecRow {
+  return {
+    id: crypto.randomUUID(),
+    key: spec?.key ?? "",
+    value: spec?.value ?? "",
+  };
+}
+
 function ProductFormFields({ categories, product }: ProductFormProps) {
   const isEdit = Boolean(product);
   const serverAction = isEdit ? updateProduct : createProduct;
@@ -41,6 +57,12 @@ function ProductFormFields({ categories, product }: ProductFormProps) {
     () => product?.images ?? [],
   );
   const [newPreviews, setNewPreviews] = useState<PreviewItem[]>([]);
+  const [specRows, setSpecRows] = useState<SpecRow[]>(() => {
+    const existing = product?.specifications ?? [];
+    return existing.length > 0
+      ? existing.map((spec) => createSpecRow(spec))
+      : [createSpecRow()];
+  });
   const suggestedSlug = useMemo(() => slugifyStoreName(name), [name]);
   const totalImages = existingImages.length + newPreviews.length;
 
@@ -293,6 +315,85 @@ function ProductFormFields({ categories, product }: ProductFormProps) {
           JPEG, PNG, WebP, or GIF up to 2 MB each. Stored in Supabase Storage and linked on
           the product.
         </p>
+      </div>
+
+      <div className="space-y-3 rounded-lg border border-zinc-200 p-3">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="text-sm font-medium text-zinc-700">Specifications</p>
+            <p className="text-xs text-zinc-500">
+              Optional key/value details shown on the product page (color, size, storage…).
+            </p>
+          </div>
+          <span className="text-xs text-zinc-500">
+            {specRows.filter((row) => row.key.trim() || row.value.trim()).length}/
+            {MAX_PRODUCT_SPECIFICATIONS}
+          </span>
+        </div>
+
+        <ul className="space-y-2">
+          {specRows.map((row, index) => (
+            <li key={row.id} className="flex flex-wrap items-center gap-2">
+              <input
+                name="spec_key"
+                value={row.key}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setSpecRows((prev) =>
+                    prev.map((item) =>
+                      item.id === row.id ? { ...item, key: next } : item,
+                    ),
+                  );
+                }}
+                placeholder={index === 0 ? "Color" : "Name"}
+                aria-label={`Specification name ${index + 1}`}
+                className={`${fieldClassName} sm:flex-1`}
+              />
+              <input
+                name="spec_value"
+                value={row.value}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setSpecRows((prev) =>
+                    prev.map((item) =>
+                      item.id === row.id ? { ...item, value: next } : item,
+                    ),
+                  );
+                }}
+                placeholder={index === 0 ? "Matte black" : "Value"}
+                aria-label={`Specification value ${index + 1}`}
+                className={`${fieldClassName} sm:flex-1`}
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  setSpecRows((prev) => {
+                    const next = prev.filter((item) => item.id !== row.id);
+                    return next.length > 0 ? next : [createSpecRow()];
+                  })
+                }
+                className="rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50"
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+
+        <button
+          type="button"
+          disabled={specRows.length >= MAX_PRODUCT_SPECIFICATIONS}
+          onClick={() =>
+            setSpecRows((prev) =>
+              prev.length >= MAX_PRODUCT_SPECIFICATIONS
+                ? prev
+                : [...prev, createSpecRow()],
+            )
+          }
+          className="rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+        >
+          Add specification
+        </button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

@@ -4,7 +4,7 @@ import { useActionState, useMemo, useState } from "react";
 import { ClientOnly } from "@/components/client-only";
 import { FormSkeleton } from "@/components/form-skeleton";
 import { createProduct, type ProductActionState } from "@/lib/products/actions";
-import type { ProductType } from "@/lib/types/database";
+import type { Category, ProductType } from "@/lib/types/database";
 import { slugifyStoreName } from "@/lib/vendors/slug";
 
 const initialState: ProductActionState = null;
@@ -12,7 +12,11 @@ const initialState: ProductActionState = null;
 const fieldClassName =
   "w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-950";
 
-function ProductCreateFormFields() {
+type ProductCreateFormProps = {
+  categories: Category[];
+};
+
+function ProductCreateFormFields({ categories }: ProductCreateFormProps) {
   const [name, setName] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [slug, setSlug] = useState("");
@@ -100,6 +104,33 @@ function ProductCreateFormFields() {
           }
           className={fieldClassName}
         />
+      </div>
+
+      <div className="space-y-2">
+        <label htmlFor="category_id" className="text-sm font-medium text-zinc-700">
+          Category
+        </label>
+        <select
+          id="category_id"
+          name="category_id"
+          required
+          defaultValue=""
+          className={fieldClassName}
+        >
+          <option value="" disabled>
+            Select a category
+          </option>
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </select>
+        {categories.length === 0 ? (
+          <p className="text-xs text-amber-700">
+            No active categories yet. Ask an admin to create categories first.
+          </p>
+        ) : null}
       </div>
 
       <div className="space-y-2">
@@ -255,10 +286,10 @@ function ProductCreateFormFields() {
   );
 }
 
-export function ProductCreateForm() {
+export function ProductCreateForm(props: ProductCreateFormProps) {
   return (
     <ClientOnly fallback={<FormSkeleton rows={8} />}>
-      <ProductCreateFormFields />
+      <ProductCreateFormFields {...props} />
     </ClientOnly>
   );
 }

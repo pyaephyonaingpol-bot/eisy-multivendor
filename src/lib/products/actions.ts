@@ -70,9 +70,14 @@ export async function createProduct(
   const downloadUrl = String(formData.get("download_url") ?? "").trim();
   const downloadLabel = String(formData.get("download_label") ?? "").trim();
   const status = parseStatus(formData.get("status"));
+  const categoryId = String(formData.get("category_id") ?? "").trim();
 
   if (!name) {
     return { error: "Product name is required." };
+  }
+
+  if (!categoryId) {
+    return { error: "Select a category." };
   }
 
   if (!slug) {
@@ -121,6 +126,7 @@ export async function createProduct(
 
   const { error } = await supabase.from("products").insert({
     vendor_id: vendor.id,
+    category_id: categoryId,
     name,
     slug,
     description: description || null,

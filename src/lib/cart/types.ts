@@ -1,5 +1,6 @@
 export type CartLineItem = {
   productId: string;
+  vendorId: string;
   name: string;
   price: number;
   currency: string;
@@ -9,6 +10,7 @@ export type CartLineItem = {
   maxQuantity: number | null;
 };
 
-export type CartState = {
-  items: CartLineItem[];
+export type CartCheckoutItem = {
+  product_id: string;
+  quantity: number;
 };

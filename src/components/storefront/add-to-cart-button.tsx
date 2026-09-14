@@ -5,6 +5,7 @@ import { useCart } from "@/components/storefront/cart-provider";
 
 type AddToCartButtonProps = {
   productId: string;
+  vendorId: string;
   name: string;
   price: number;
   currency: string;
@@ -16,6 +17,7 @@ type AddToCartButtonProps = {
 
 export function AddToCartButton({
   productId,
+  vendorId,
   name,
   price,
   currency,
@@ -48,10 +50,11 @@ export function AddToCartButton({
       ) : null}
       <button
         type="button"
-        disabled={disabled}
+        disabled={disabled || !vendorId}
         onClick={() =>
           addItem({
             productId,
+            vendorId,
             name,
             price,
             currency,

@@ -124,6 +124,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
 
           <AddToCartButton
             productId={product.id}
+            vendorId={product.vendor_id}
             name={product.name}
             price={Number(product.price)}
             currency={MARKETPLACE_CURRENCY}

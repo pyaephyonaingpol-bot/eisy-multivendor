@@ -38,7 +38,12 @@ function readStoredItems(): CartLineItem[] {
       return [];
     }
     const parsed = JSON.parse(raw) as { items?: CartLineItem[] };
-    return Array.isArray(parsed.items) ? parsed.items : [];
+    return Array.isArray(parsed.items)
+      ? parsed.items.filter(
+          (item): item is CartLineItem =>
+            Boolean(item && item.productId && item.vendorId && item.quantity > 0),
+        )
+      : [];
   } catch {
     return [];
   }

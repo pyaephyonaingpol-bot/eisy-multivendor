@@ -9,34 +9,43 @@ export type SessionProfile = {
   role: UserRole | null;
 };
 
+/**
+ * Never throws — auth layout/header must not 500 the login/register pages
+ * when Supabase is misconfigured or unreachable.
+ */
 export async function getSessionProfile(): Promise<SessionProfile | null> {
   if (!getSupabasePublicEnv()) {
     return null;
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-  if (!user) {
+    if (userError || !user) {
+      return null;
+    }
+
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const profile = data as Profile | null;
+
+    return {
+      userId: user.id,
+      email: user.email,
+      profile,
+      role: profile?.role ?? null,
+    };
+  } catch {
     return null;
   }
-
-  const { data } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const profile = data as Profile | null;
-
-  return {
-    userId: user.id,
-    email: user.email,
-    profile,
-    role: profile?.role ?? null,
-  };
 }
 
 export function canAccessVendor(role: UserRole | null | undefined) {

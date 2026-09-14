@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { isBootstrapAdminEmail } from "@/lib/auth/constants";
 import { createClient } from "@/lib/supabase/server";
+import { getSupabaseConfigError, getSupabasePublicEnv } from "@/lib/supabase/env";
 import type { UserRole } from "@/lib/types/database";
 
 export type AuthActionState = {
@@ -45,11 +46,21 @@ export async function login(
     return { error: "Email and password are required." };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (!getSupabasePublicEnv()) {
+    return { error: getSupabaseConfigError() };
+  }
 
-  if (error) {
-    return { error: error.message };
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      return { error: error.message };
+    }
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Sign-in failed. Please try again.",
+    };
   }
 
   redirect(next);
@@ -72,30 +83,40 @@ export async function register(
     return { error: "Password must be at least 8 characters." };
   }
 
-  const origin = await getSiteOrigin();
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        full_name: fullName,
-        // Never send "admin" from the client. Bootstrap admin is assigned in
-        // handle_new_user() when email matches BOOTSTRAP_ADMIN_EMAIL.
-        role: isBootstrapAdminEmail(email) ? "customer" : role,
-      },
-      ...(origin ? { emailRedirectTo: `${origin}/auth/callback` } : {}),
-    },
-  });
-
-  if (error) {
-    return { error: error.message };
+  if (!getSupabasePublicEnv()) {
+    return { error: getSupabaseConfigError() };
   }
 
-  // Email confirmation may be enabled — no session until the user confirms.
-  if (!data.session) {
+  try {
+    const origin = await getSiteOrigin();
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          // Never send "admin" from the client. Bootstrap admin is assigned in
+          // handle_new_user() when email matches BOOTSTRAP_ADMIN_EMAIL.
+          role: isBootstrapAdminEmail(email) ? "customer" : role,
+        },
+        ...(origin ? { emailRedirectTo: `${origin}/auth/callback` } : {}),
+      },
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    // Email confirmation may be enabled — no session until the user confirms.
+    if (!data.session) {
+      return {
+        success: "Account created. Check your email to confirm, then sign in.",
+      };
+    }
+  } catch (error) {
     return {
-      success: "Account created. Check your email to confirm, then sign in.",
+      error: error instanceof Error ? error.message : "Registration failed. Please try again.",
     };
   }
 
@@ -107,7 +128,14 @@ export async function register(
 }
 
 export async function signOut(): Promise<void> {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
+  if (getSupabasePublicEnv()) {
+    try {
+      const supabase = await createClient();
+      await supabase.auth.signOut();
+    } catch {
+      // Still clear the local session route even if Supabase is unreachable.
+    }
+  }
+
   redirect("/");
 }

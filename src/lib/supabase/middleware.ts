@@ -33,69 +33,74 @@ export async function updateSession(request: NextRequest) {
 
   let supabaseResponse = NextResponse.next({ request });
 
-  const supabase = createServerClient(env.url, env.anonKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
+  try {
+    const supabase = createServerClient(env.url, env.anonKey, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => {
+            request.cookies.set(name, value);
+          });
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) => {
+            supabaseResponse.cookies.set(name, value, options);
+          });
+        },
       },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => {
-          request.cookies.set(name, value);
-        });
-        supabaseResponse = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) => {
-          supabaseResponse.cookies.set(name, value, options);
-        });
-      },
-    },
-  });
+    });
 
-  // Refresh the auth session cookie before any protected-route checks.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    // Refresh the auth session cookie before any protected-route checks.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
-  const isVendorApply = pathname === "/vendor/apply";
-  const isVendorRoute = pathname.startsWith("/vendor");
-  const isAdminRoute = pathname.startsWith("/admin");
-  const isAuthPage = pathname === "/login" || pathname === "/register";
+    const { pathname } = request.nextUrl;
+    const isVendorApply = pathname === "/vendor/apply";
+    const isVendorRoute = pathname.startsWith("/vendor");
+    const isAdminRoute = pathname.startsWith("/admin");
+    const isAuthPage = pathname === "/login" || pathname === "/register";
 
-  if (!isVendorRoute && !isAdminRoute && !isAuthPage) {
-    return supabaseResponse;
-  }
+    if (!isVendorRoute && !isAdminRoute && !isAuthPage) {
+      return supabaseResponse;
+    }
 
-  if (isAuthPage) {
-    if (user) {
+    if (isAuthPage) {
+      if (user) {
+        return homeRedirect(request, supabaseResponse);
+      }
+      return supabaseResponse;
+    }
+
+    if (!user) {
+      return loginRedirect(request, supabaseResponse, pathname);
+    }
+
+    // Any signed-in user can submit a vendor application.
+    if (isVendorApply) {
+      return supabaseResponse;
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle<{ role: UserRole }>();
+
+    const role = profile?.role ?? null;
+
+    if (isAdminRoute && role !== "admin") {
       return homeRedirect(request, supabaseResponse);
     }
+
+    if (isVendorRoute && role !== "vendor" && role !== "admin") {
+      return homeRedirect(request, supabaseResponse);
+    }
+
     return supabaseResponse;
+  } catch {
+    // Misconfigured/unreachable Auth must not 500 login, register, or other matched routes.
+    return NextResponse.next({ request });
   }
-
-  if (!user) {
-    return loginRedirect(request, supabaseResponse, pathname);
-  }
-
-  // Any signed-in user can submit a vendor application.
-  if (isVendorApply) {
-    return supabaseResponse;
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle<{ role: UserRole }>();
-
-  const role = profile?.role ?? null;
-
-  if (isAdminRoute && role !== "admin") {
-    return homeRedirect(request, supabaseResponse);
-  }
-
-  if (isVendorRoute && role !== "vendor" && role !== "admin") {
-    return homeRedirect(request, supabaseResponse);
-  }
-
-  return supabaseResponse;
 }

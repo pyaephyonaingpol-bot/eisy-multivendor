@@ -1,5 +1,7 @@
 import { RegisterForm } from "@/components/auth/register-form";
 
+export const dynamic = "force-dynamic";
+
 export default function RegisterPage() {
   return (
     <section className="mx-auto max-w-sm space-y-6">

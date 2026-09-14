@@ -18,6 +18,48 @@ export type PublicProductDetail = Product & {
   vendor: Pick<Vendor, "id" | "name" | "slug" | "status"> | null;
 };
 
+export type PublicProductSummary = PublicProductDetail;
+
+export async function listPublicProducts(limit = 24): Promise<PublicProductSummary[]> {
+  if (!getSupabasePublicEnv()) {
+    return [];
+  }
+
+  const supabase = await createClient();
+  const { data: productRows } = await supabase
+    .from("products")
+    .select("*")
+    .eq("status", "active")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  const products = ((productRows as Product[] | null) ?? []).map(normalizeProduct);
+  if (products.length === 0) {
+    return [];
+  }
+
+  const vendorIds = [...new Set(products.map((product) => product.vendor_id))];
+  const { data: vendorRows } = await supabase
+    .from("vendors")
+    .select("id, name, slug, status")
+    .in("id", vendorIds)
+    .eq("status", "approved");
+
+  const vendorsById = new Map(
+    ((vendorRows as Pick<Vendor, "id" | "name" | "slug" | "status">[] | null) ?? []).map(
+      (vendor) => [vendor.id, vendor],
+    ),
+  );
+
+  // Only surface products belonging to approved vendors on the public storefront.
+  return products
+    .map((product) => ({
+      ...product,
+      vendor: vendorsById.get(product.vendor_id) ?? null,
+    }))
+    .filter((product) => product.vendor != null);
+}
+
 export async function listProductsForVendor(vendorId: string): Promise<Product[]> {
   if (!getSupabasePublicEnv()) {
     return [];

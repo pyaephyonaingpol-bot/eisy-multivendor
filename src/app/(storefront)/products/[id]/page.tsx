@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 import { ProductSpecificationsTable } from "@/components/storefront/product-specifications-table";
-import { formatMoney } from "@/lib/money";
+import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
 import { getPublicProductById } from "@/lib/products/queries";
 import type { ProductType } from "@/lib/types/database";
 
@@ -23,10 +24,15 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
     notFound();
   }
 
+  // Hide products from non-approved vendors on the public storefront.
+  if (product.vendor && product.vendor.status !== "approved") {
+    notFound();
+  }
+
   const productType = product.product_type ?? "physical";
   const images = product.images ?? [];
   const heroImage = images[0] ?? null;
-  const vendorApproved = product.vendor?.status === "approved";
+  const outOfStock = productType === "physical" && product.stock_quantity <= 0;
 
   return (
     <article className="mx-auto max-w-5xl space-y-10">
@@ -74,7 +80,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
             <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
               {product.name}
             </h1>
-            {product.vendor && vendorApproved ? (
+            {product.vendor ? (
               <p className="text-sm text-zinc-600">
                 Sold by{" "}
                 <Link
@@ -89,11 +95,11 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
 
           <div className="space-y-1">
             <p className="text-2xl font-semibold text-zinc-950">
-              {formatMoney(Number(product.price), product.currency)}
+              {formatMoney(Number(product.price), MARKETPLACE_CURRENCY)}
             </p>
             {product.compare_at_price != null ? (
               <p className="text-sm text-zinc-500 line-through">
-                {formatMoney(Number(product.compare_at_price), product.currency)}
+                {formatMoney(Number(product.compare_at_price), MARKETPLACE_CURRENCY)}
               </p>
             ) : null}
             <p className="text-sm text-zinc-500">
@@ -115,6 +121,17 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
               <p className="whitespace-pre-wrap text-zinc-700">{product.description}</p>
             </div>
           ) : null}
+
+          <AddToCartButton
+            productId={product.id}
+            name={product.name}
+            price={Number(product.price)}
+            currency={MARKETPLACE_CURRENCY}
+            imageUrl={heroImage}
+            productType={productType}
+            maxQuantity={productType === "physical" ? product.stock_quantity : null}
+            disabled={outOfStock}
+          />
 
           <p className="text-sm text-zinc-500">
             <Link href="/products" className="underline">

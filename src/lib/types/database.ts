@@ -18,6 +18,14 @@ export type SubscriptionStatus =
   | "past_due"
   | "canceled"
   | "expired";
+export type WalletCurrency = "USDT" | "MMK";
+export type WalletTxType =
+  | "deposit"
+  | "withdrawal"
+  | "purchase"
+  | "sale_credit"
+  | "adjustment";
+export type WalletTxStatus = "pending" | "completed" | "rejected" | "cancelled";
 
 export type Profile = {
   id: string;
@@ -139,6 +147,33 @@ export type Subscription = {
   updated_at: string;
 };
 
+export type Wallet = {
+  id: string;
+  user_id: string;
+  currency: WalletCurrency;
+  available_balance: number;
+  pending_balance: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WalletTransaction = {
+  id: string;
+  wallet_id: string;
+  user_id: string;
+  currency: WalletCurrency;
+  tx_type: WalletTxType;
+  status: WalletTxStatus;
+  amount: number;
+  destination: string | null;
+  reference: string | null;
+  note: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -191,6 +226,22 @@ export type Database = {
         Update: Partial<Subscription>;
         Relationships: [];
       };
+      wallets: {
+        Row: Wallet;
+        Insert: Partial<Wallet> & Pick<Wallet, "user_id" | "currency">;
+        Update: Partial<Wallet>;
+        Relationships: [];
+      };
+      wallet_transactions: {
+        Row: WalletTransaction;
+        Insert: Partial<WalletTransaction> &
+          Pick<
+            WalletTransaction,
+            "wallet_id" | "user_id" | "currency" | "tx_type" | "amount"
+          >;
+        Update: Partial<WalletTransaction>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -209,6 +260,38 @@ export type Database = {
         };
         Returns: undefined;
       };
+      ensure_user_wallets: {
+        Args: {
+          p_user_id: string;
+        };
+        Returns: undefined;
+      };
+      request_wallet_deposit: {
+        Args: {
+          p_currency: WalletCurrency;
+          p_amount: number;
+          p_reference?: string | null;
+          p_note?: string | null;
+        };
+        Returns: string;
+      };
+      request_wallet_withdrawal: {
+        Args: {
+          p_currency: WalletCurrency;
+          p_amount: number;
+          p_destination: string;
+          p_note?: string | null;
+        };
+        Returns: string;
+      };
+      review_wallet_transaction: {
+        Args: {
+          p_tx_id: string;
+          p_approve: boolean;
+          p_note?: string | null;
+        };
+        Returns: undefined;
+      };
     };
     Enums: {
       user_role: UserRole;
@@ -219,6 +302,9 @@ export type Database = {
       payment_status: PaymentStatus;
       subscription_plan: SubscriptionPlan;
       subscription_status: SubscriptionStatus;
+      wallet_currency: WalletCurrency;
+      wallet_tx_type: WalletTxType;
+      wallet_tx_status: WalletTxStatus;
     };
     CompositeTypes: Record<string, never>;
   };

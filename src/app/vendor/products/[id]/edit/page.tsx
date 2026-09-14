@@ -76,6 +76,17 @@ export default async function EditVendorProductPage({
 
       <ProductForm categories={categoryOptions} product={product} />
 
+      <p className="text-sm text-zinc-600">
+        <Link
+          href={`/vendor/sourcing/${product.id}`}
+          className="font-medium text-zinc-950 underline"
+        >
+          Manage regional supplier routes
+        </Link>
+        {" "}
+        (CJ Dropshipping, DSers, Print-on-Demand, internal)
+      </p>
+
       <p className="text-sm text-zinc-500">
         <Link href="/vendor/products" className="underline">
           Back to products

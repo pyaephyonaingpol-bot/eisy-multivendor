@@ -83,6 +83,9 @@ export default async function VendorOrdersPage() {
                   <p className="text-sm text-zinc-600">
                     Seller: {order.seller?.name ?? "—"} · Fulfillment:{" "}
                     {order.fulfillment?.name ?? "—"}
+                    {order.buyer_country_code
+                      ? ` · Ship to ${order.buyer_country_code}`
+                      : ""}
                   </p>
                 </div>
                 <p className="text-right font-medium text-zinc-950">
@@ -106,6 +109,13 @@ export default async function VendorOrdersPage() {
                             Number(item.cost_unit_price) * item.quantity,
                             order.currency,
                           )}`
+                        : ""}
+                      {item.warehouse_country
+                        ? ` · via ${item.warehouse_country}`
+                        : ""}
+                      {item.shipping_estimate_days_min != null ||
+                      item.shipping_estimate_days_max != null
+                        ? ` · ETA ${item.shipping_estimate_days_min ?? "?"}–${item.shipping_estimate_days_max ?? "?"}d`
                         : ""}
                     </span>
                   </li>

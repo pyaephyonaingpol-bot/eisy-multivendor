@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { CartTrigger } from "@/components/storefront/cart-trigger";
+import { RegionSelector } from "@/components/storefront/region-selector";
 import { getSessionProfile } from "@/lib/auth/session";
+import { getBuyerSourcingContext } from "@/lib/sourcing/queries";
 
 const nav = [
   { href: "/", label: "Home" },
@@ -12,6 +14,9 @@ const nav = [
 
 export async function StorefrontHeader() {
   const session = await getSessionProfile();
+  const sourcing = await getBuyerSourcingContext(
+    session?.profile?.preferred_country_code ?? null,
+  );
 
   return (
     <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white/95 backdrop-blur">
@@ -30,6 +35,11 @@ export async function StorefrontHeader() {
         </div>
 
         <div className="flex items-center gap-3 text-sm text-zinc-600">
+          <RegionSelector
+            countryCode={sourcing.countryCode}
+            regionCode={sourcing.regionCode}
+            regionName={sourcing.regionName}
+          />
           <CartTrigger />
           {session?.role === "customer" ? (
             <Link href="/vendor/apply" className="hidden hover:text-zinc-950 sm:inline">

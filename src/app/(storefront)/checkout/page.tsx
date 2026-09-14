@@ -1,11 +1,15 @@
 import { CheckoutForm } from "@/components/storefront/checkout-form";
 import { getSessionProfile } from "@/lib/auth/session";
+import { getBuyerSourcingContext } from "@/lib/sourcing/queries";
 import { listWalletsForUser } from "@/lib/wallets/queries";
 
 export const dynamic = "force-dynamic";
 
 export default async function CheckoutPage() {
   const session = await getSessionProfile();
+  const sourcing = await getBuyerSourcingContext(
+    session?.profile?.preferred_country_code ?? null,
+  );
   let usdtAvailable: number | null = null;
 
   if (session) {
@@ -23,7 +27,11 @@ export default async function CheckoutPage() {
           successful debit.
         </p>
       </div>
-      <CheckoutForm isSignedIn={Boolean(session)} usdtAvailable={usdtAvailable} />
+      <CheckoutForm
+        isSignedIn={Boolean(session)}
+        usdtAvailable={usdtAvailable}
+        defaultCountry={sourcing.countryCode}
+      />
     </section>
   );
 }

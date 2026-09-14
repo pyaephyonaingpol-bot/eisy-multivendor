@@ -18,7 +18,7 @@ export type SubscriptionStatus =
   | "canceled"
   | "expired";
 
-export type User = {
+export type Profile = {
   id: string;
   email: string;
   full_name: string | null;
@@ -60,6 +60,21 @@ export type Product = {
   updated_at: string;
 };
 
+export type ShippingZone = {
+  id: string;
+  vendor_id: string;
+  name: string;
+  countries: string[];
+  regions: string[];
+  min_order_amount: number;
+  flat_rate: number;
+  estimated_days_min: number | null;
+  estimated_days_max: number | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Order = {
   id: string;
   customer_id: string;
@@ -69,6 +84,7 @@ export type Order = {
   subtotal: number;
   tax: number;
   shipping_fee: number;
+  shipping_zone_id: string | null;
   total: number;
   currency: string;
   shipping_address: Record<string, unknown> | null;
@@ -104,12 +120,42 @@ export type Subscription = {
 export type Database = {
   public: {
     Tables: {
-      users: { Row: User; Insert: Partial<User> & Pick<User, "id" | "email">; Update: Partial<User> };
-      vendors: { Row: Vendor; Insert: Partial<Vendor> & Pick<Vendor, "owner_id" | "name" | "slug">; Update: Partial<Vendor> };
-      products: { Row: Product; Insert: Partial<Product> & Pick<Product, "vendor_id" | "name" | "slug" | "price">; Update: Partial<Product> };
-      orders: { Row: Order; Insert: Partial<Order> & Pick<Order, "customer_id" | "vendor_id">; Update: Partial<Order> };
-      order_items: { Row: OrderItem; Insert: Partial<OrderItem> & Pick<OrderItem, "order_id" | "product_name" | "quantity" | "unit_price" | "total_price">; Update: Partial<OrderItem> };
-      subscriptions: { Row: Subscription; Insert: Partial<Subscription> & Pick<Subscription, "user_id">; Update: Partial<Subscription> };
+      profiles: {
+        Row: Profile;
+        Insert: Partial<Profile> & Pick<Profile, "id" | "email">;
+        Update: Partial<Profile>;
+      };
+      vendors: {
+        Row: Vendor;
+        Insert: Partial<Vendor> & Pick<Vendor, "owner_id" | "name" | "slug">;
+        Update: Partial<Vendor>;
+      };
+      products: {
+        Row: Product;
+        Insert: Partial<Product> & Pick<Product, "vendor_id" | "name" | "slug" | "price">;
+        Update: Partial<Product>;
+      };
+      shipping_zones: {
+        Row: ShippingZone;
+        Insert: Partial<ShippingZone> & Pick<ShippingZone, "vendor_id" | "name">;
+        Update: Partial<ShippingZone>;
+      };
+      orders: {
+        Row: Order;
+        Insert: Partial<Order> & Pick<Order, "customer_id" | "vendor_id">;
+        Update: Partial<Order>;
+      };
+      order_items: {
+        Row: OrderItem;
+        Insert: Partial<OrderItem> &
+          Pick<OrderItem, "order_id" | "product_name" | "quantity" | "unit_price" | "total_price">;
+        Update: Partial<OrderItem>;
+      };
+      subscriptions: {
+        Row: Subscription;
+        Insert: Partial<Subscription> & Pick<Subscription, "user_id">;
+        Update: Partial<Subscription>;
+      };
     };
   };
 };

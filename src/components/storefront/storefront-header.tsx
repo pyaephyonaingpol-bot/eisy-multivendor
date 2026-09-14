@@ -9,7 +9,10 @@ const nav = [
   { href: "/", label: "Home" },
   { href: "/products", label: "Shop" },
   { href: "/vendors", label: "Stores" },
+<<<<<<< HEAD
   { href: "/orders", label: "Orders" },
+=======
+>>>>>>> origin/cursor/auth-profiles-middleware-3d02
   { href: "/account/wallet", label: "Wallet" },
 ];
 

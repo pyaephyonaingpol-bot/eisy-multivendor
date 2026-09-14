@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { VendorFulfillmentForm } from "@/components/orders/vendor-fulfillment-form";
 import { redirect } from "next/navigation";
 import { getSessionProfile } from "@/lib/auth/session";
 import { formatMoney } from "@/lib/money";
@@ -121,6 +122,16 @@ export default async function VendorOrdersPage() {
                   </li>
                 ))}
               </ul>
+              {order.role === "fulfillment" || order.role === "both" ? (
+                <VendorFulfillmentForm
+                  orderId={order.id}
+                  currentStatus={order.status}
+                  trackingNumber={order.tracking_number}
+                  trackingCarrier={order.tracking_carrier}
+                  trackingUrl={order.tracking_url}
+                  supplierOrderRef={order.supplier_order_ref}
+                />
+              ) : null}
             </li>
           ))}
         </ul>

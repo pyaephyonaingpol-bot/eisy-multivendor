@@ -182,6 +182,14 @@ export type ShippingZone = {
   updated_at: string;
 };
 
+export type FulfillmentSyncSource =
+  | "manual"
+  | "supplier_webhook"
+  | "supplier_poll"
+  | "system";
+
+export type FulfillmentSyncStatus = "idle" | "pending" | "synced" | "error";
+
 export type Order = {
   id: string;
   customer_id: string;
@@ -202,8 +210,33 @@ export type Order = {
   buyer_country_code: string | null;
   /** 3% platform commission on dropship GMV (0 for direct sales). */
   platform_commission_usdt: number;
+  tracking_number: string | null;
+  tracking_carrier: string | null;
+  tracking_url: string | null;
+  shipped_at: string | null;
+  delivered_at: string | null;
+  supplier_order_ref: string | null;
+  fulfillment_sync_status: FulfillmentSyncStatus;
+  fulfillment_synced_at: string | null;
+  fulfillment_sync_error: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type OrderFulfillmentEvent = {
+  id: string;
+  order_id: string;
+  source: FulfillmentSyncSource;
+  previous_status: OrderStatus | null;
+  new_status: OrderStatus | null;
+  tracking_number: string | null;
+  tracking_carrier: string | null;
+  tracking_url: string | null;
+  supplier_order_ref: string | null;
+  payload: Record<string, unknown>;
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
 };
 
 export type OrderItem = {
@@ -365,6 +398,13 @@ export type Database = {
         Update: Partial<Order>;
         Relationships: [];
       };
+      order_fulfillment_events: {
+        Row: OrderFulfillmentEvent;
+        Insert: Partial<OrderFulfillmentEvent> &
+          Pick<OrderFulfillmentEvent, "order_id" | "source">;
+        Update: Partial<OrderFulfillmentEvent>;
+        Relationships: [];
+      };
       order_items: {
         Row: OrderItem;
         Insert: Partial<OrderItem> &
@@ -467,6 +507,28 @@ export type Database = {
           p_user_id: string;
         };
         Returns: undefined;
+      };
+      sync_order_fulfillment: {
+        Args: {
+          p_order_id: string;
+          p_status?: OrderStatus | null;
+          p_tracking_number?: string | null;
+          p_tracking_carrier?: string | null;
+          p_tracking_url?: string | null;
+          p_supplier_order_ref?: string | null;
+          p_source?: FulfillmentSyncSource | null;
+          p_payload?: Record<string, unknown> | null;
+          p_note?: string | null;
+        };
+        Returns: Order;
+      };
+      mark_order_fulfillment_sync: {
+        Args: {
+          p_order_id: string;
+          p_status: FulfillmentSyncStatus;
+          p_error?: string | null;
+        };
+        Returns: Order;
       };
       checkout_with_usdt: {
         Args: {
@@ -607,6 +669,8 @@ export type Database = {
       product_status: ProductStatus;
       product_type: ProductType;
       order_status: OrderStatus;
+      fulfillment_sync_source: FulfillmentSyncSource;
+      fulfillment_sync_status: FulfillmentSyncStatus;
       payment_status: PaymentStatus;
       subscription_plan: SubscriptionPlan;
       subscription_status: SubscriptionStatus;

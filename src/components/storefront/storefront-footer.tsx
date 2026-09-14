@@ -22,6 +22,9 @@ export function StorefrontFooter() {
             <Link href="/cart" className="hover:text-zinc-950">
               Cart
             </Link>
+            <Link href="/orders" className="hover:text-zinc-950">
+              Orders
+            </Link>
             <Link href="/account/wallet" className="hover:text-zinc-950">
               Wallet
             </Link>

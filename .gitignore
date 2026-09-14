@@ -33,6 +33,8 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
+# Common mistake: env file without the leading dot
+env.local
 
 # vercel
 .vercel

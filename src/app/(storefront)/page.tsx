@@ -11,9 +11,8 @@ export default function HomePage() {
           Shop from independent vendors in one place
         </h1>
         <p className="text-lg text-zinc-600">
-          Storefront, vendor dashboard, and admin routes are ready. Connect
-          Supabase with <code className="rounded bg-zinc-100 px-1.5 py-0.5">.env.local</code>{" "}
-          and run the SQL schema to start storing data.
+          Sign in with Supabase Auth to shop or sell. Vendor and admin areas are
+          gated by your <code className="rounded bg-zinc-100 px-1.5 py-0.5">profiles.role</code>.
         </p>
         <div className="flex gap-3">
           <Link

@@ -17,8 +17,15 @@ function safeNextPath(next: FormDataEntryValue | null): string {
   return next;
 }
 
+/** Allowlisted signup email that receives admin via DB trigger (not client metadata). */
+export const BOOTSTRAP_ADMIN_EMAIL = "pyaephyonaing.pol@gmail.com";
+
 function signupRole(value: FormDataEntryValue | null): Extract<UserRole, "customer" | "vendor"> {
   return value === "vendor" ? "vendor" : "customer";
+}
+
+function isBootstrapAdminEmail(email: string) {
+  return email.trim().toLowerCase() === BOOTSTRAP_ADMIN_EMAIL;
 }
 
 async function getSiteOrigin() {
@@ -79,8 +86,9 @@ export async function register(
     options: {
       data: {
         full_name: fullName,
-        // Never allow "admin" from the client — only customer | vendor.
-        role,
+        // Never send "admin" from the client. Bootstrap admin is assigned in
+        // handle_new_user() when email matches BOOTSTRAP_ADMIN_EMAIL.
+        role: isBootstrapAdminEmail(email) ? "customer" : role,
       },
       ...(origin ? { emailRedirectTo: `${origin}/auth/callback` } : {}),
     },
@@ -95,6 +103,10 @@ export async function register(
     return {
       success: "Account created. Check your email to confirm, then sign in.",
     };
+  }
+
+  if (isBootstrapAdminEmail(email)) {
+    redirect("/admin/dashboard");
   }
 
   redirect(role === "vendor" ? "/vendor/apply" : "/");

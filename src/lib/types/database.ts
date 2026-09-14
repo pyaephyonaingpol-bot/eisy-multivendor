@@ -266,6 +266,18 @@ export type Database = {
         };
         Returns: undefined;
       };
+      checkout_with_usdt: {
+        Args: {
+          p_items: { product_id: string; quantity: number }[];
+          p_shipping_address?: Record<string, unknown> | null;
+        };
+        Returns: {
+          order_ids: string[];
+          total: number;
+          currency: string;
+          wallet_transaction_id: string;
+        };
+      };
       request_wallet_deposit: {
         Args: {
           p_currency: WalletCurrency;

@@ -1,14 +1,140 @@
-type ProductPageProps = {
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { ProductSpecificationsTable } from "@/components/storefront/product-specifications-table";
+import { getPublicProductById } from "@/lib/products/queries";
+import type { ProductType } from "@/lib/types/database";
+
+export const dynamic = "force-dynamic";
+
+type ProductDetailPageProps = {
   params: Promise<{ id: string }>;
 };
 
-export default async function ProductDetailPage({ params }: ProductPageProps) {
+function formatMoney(amount: number, currency: string) {
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currency || "USD",
+    }).format(amount);
+  } catch {
+    return `${currency} ${amount.toFixed(2)}`;
+  }
+}
+
+function typeLabel(type: ProductType) {
+  return type === "digital" ? "Digital" : "Physical";
+}
+
+export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
   const { id } = await params;
+  const product = await getPublicProductById(id);
+
+  if (!product) {
+    notFound();
+  }
+
+  const productType = product.product_type ?? "physical";
+  const images = product.images ?? [];
+  const heroImage = images[0] ?? null;
+  const vendorApproved = product.vendor?.status === "approved";
 
   return (
-    <section className="space-y-3">
-      <h1 className="text-2xl font-semibold tracking-tight">Product</h1>
-      <p className="text-zinc-600">Product id: {id}</p>
-    </section>
+    <article className="mx-auto max-w-5xl space-y-10">
+      <div className="grid gap-8 lg:grid-cols-2">
+        <div className="space-y-3">
+          <div className="aspect-square overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50">
+            {heroImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={heroImage}
+                alt={product.name}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-zinc-400">
+                No image
+              </div>
+            )}
+          </div>
+          {images.length > 1 ? (
+            <ul className="grid grid-cols-4 gap-2">
+              {images.slice(0, 4).map((url) => (
+                <li
+                  key={url}
+                  className="aspect-square overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="" className="h-full w-full object-cover" />
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 ring-1 ring-inset ring-zinc-200">
+                {typeLabel(productType)}
+              </span>
+              {product.sku ? (
+                <span className="text-xs text-zinc-500">SKU {product.sku}</span>
+              ) : null}
+            </div>
+            <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
+              {product.name}
+            </h1>
+            {product.vendor && vendorApproved ? (
+              <p className="text-sm text-zinc-600">
+                Sold by{" "}
+                <Link
+                  href={`/vendors/${product.vendor.slug}`}
+                  className="font-medium text-zinc-950 underline"
+                >
+                  {product.vendor.name}
+                </Link>
+              </p>
+            ) : null}
+          </div>
+
+          <div className="space-y-1">
+            <p className="text-2xl font-semibold text-zinc-950">
+              {formatMoney(Number(product.price), product.currency)}
+            </p>
+            {product.compare_at_price != null ? (
+              <p className="text-sm text-zinc-500 line-through">
+                {formatMoney(Number(product.compare_at_price), product.currency)}
+              </p>
+            ) : null}
+            <p className="text-sm text-zinc-500">
+              {productType === "digital"
+                ? product.download_label
+                  ? `Digital download · ${product.download_label}`
+                  : "Digital download"
+                : product.stock_quantity > 0
+                  ? `${product.stock_quantity} in stock`
+                  : "Out of stock"}
+            </p>
+          </div>
+
+          {product.description ? (
+            <div className="space-y-2">
+              <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
+                Description
+              </h2>
+              <p className="whitespace-pre-wrap text-zinc-700">{product.description}</p>
+            </div>
+          ) : null}
+
+          <p className="text-sm text-zinc-500">
+            <Link href="/products" className="underline">
+              Back to products
+            </Link>
+          </p>
+        </div>
+      </div>
+
+      <ProductSpecificationsTable specifications={product.specifications} />
+    </article>
   );
 }

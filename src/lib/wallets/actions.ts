@@ -21,6 +21,7 @@ function revalidateWalletPaths() {
   revalidatePath("/account/wallet");
   revalidatePath("/vendor/wallet");
   revalidatePath("/admin/wallets");
+  revalidatePath("/admin/withdrawals");
   revalidatePath("/cart");
 }
 
@@ -117,6 +118,7 @@ export async function requestWalletWithdrawal(
 export async function reviewWalletTransaction(
   txId: string,
   approve: boolean,
+  note?: string | null,
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
   const {
@@ -130,7 +132,7 @@ export async function reviewWalletTransaction(
   const { error } = await supabase.rpc("review_wallet_transaction", {
     p_tx_id: txId,
     p_approve: approve,
-    p_note: null,
+    p_note: note?.trim() ? note.trim() : null,
   });
 
   if (error) {
@@ -138,5 +140,6 @@ export async function reviewWalletTransaction(
   }
 
   revalidateWalletPaths();
+  revalidatePath("/admin/withdrawals");
   return {};
 }

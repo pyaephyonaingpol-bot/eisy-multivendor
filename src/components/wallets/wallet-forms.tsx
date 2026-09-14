@@ -140,7 +140,7 @@ export function WalletWithdrawForm({
           rows={3}
           placeholder={
             currency === "MMK"
-              ? "Bank name, account name, account number / KBZPay / WavePay"
+              ? "KPay / WavePay / bank name, account name, account number"
               : "TRC20 / ERC20 address and network"
           }
           className={fieldClassName}

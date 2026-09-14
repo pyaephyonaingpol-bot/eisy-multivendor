@@ -72,6 +72,11 @@ export async function chargeAllInventoryFeesAction(
 
   const { data, error } = await supabase.rpc(
     "charge_all_dropship_inventory_fees",
+    {
+      p_billing_month: null,
+      p_trigger_source: "admin",
+      p_note: "Admin manual inventory fee run",
+    },
   );
 
   if (error) {

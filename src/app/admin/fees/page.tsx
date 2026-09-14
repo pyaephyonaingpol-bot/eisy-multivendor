@@ -5,6 +5,7 @@ import {
   getDropshipFeeSettings,
   getPlatformCommissionTotals,
   listAllDropshipInventoryFeeInvoices,
+  listDropshipFeeChargeRuns,
 } from "@/lib/fees/queries";
 import { formatMoney } from "@/lib/money";
 
@@ -46,10 +47,11 @@ export default async function AdminFeesPage() {
     redirect("/");
   }
 
-  const [settings, invoices, commissions] = await Promise.all([
+  const [settings, invoices, commissions, chargeRuns] = await Promise.all([
     getDropshipFeeSettings(),
     listAllDropshipInventoryFeeInvoices(),
     getPlatformCommissionTotals(),
+    listDropshipFeeChargeRuns(10),
   ]);
 
   const itemFee = settings?.item_fee_usdt ?? 1;
@@ -60,15 +62,13 @@ export default async function AdminFeesPage() {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Dropship fees
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Dropship fees</h1>
         <p className="max-w-2xl text-zinc-600">
           Inventory fee: {formatMoney(itemFee, "USDT")} per active item (minimum{" "}
           {minItems} items / {formatMoney(itemFee * minItems, "USDT")}/mo).
           Platform commission: {commissionPct}% on completed dropship
-          transactions. Wallet rules stay USDT deposit+withdraw, MMK
-          withdraw-only.
+          transactions. A Vercel Cron job runs on the 1st of each month at 01:00
+          UTC; you can also trigger billing manually below.
         </p>
       </div>
 
@@ -101,6 +101,47 @@ export default async function AdminFeesPage() {
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold tracking-tight">
+          Automated / manual charge runs
+        </h2>
+        {chargeRuns.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-zinc-300 bg-white px-4 py-8 text-center text-sm text-zinc-500">
+            No charge runs logged yet. Cron or a manual billing pass will appear
+            here with paid/failed/skipped counts.
+          </p>
+        ) : (
+          <ul className="divide-y divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 bg-white">
+            {chargeRuns.map((run) => (
+              <li
+                key={run.id}
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm"
+              >
+                <div className="space-y-1">
+                  <p className="font-medium text-zinc-950">
+                    {formatMonth(run.billing_month)} · {run.trigger_source}
+                  </p>
+                  <p className="text-zinc-500">
+                    {run.paid_count} paid · {run.failed_count} failed ·{" "}
+                    {run.skipped_count} skipped
+                    {run.note ? ` · ${run.note}` : ""}
+                  </p>
+                  <p className="text-xs text-zinc-400">
+                    Started {new Date(run.started_at).toLocaleString()}
+                    {run.finished_at
+                      ? ` · finished ${new Date(run.finished_at).toLocaleString()}`
+                      : " · in progress"}
+                  </p>
+                </div>
+                <p className="font-medium text-zinc-950">
+                  {formatMoney(run.total_charged_usdt, "USDT")}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold tracking-tight">
           Inventory fee invoices
         </h2>
         {invoices.length === 0 ? (
@@ -124,6 +165,9 @@ export default async function AdminFeesPage() {
                     {invoice.active_item_count} active →{" "}
                     {invoice.billable_item_count} billable
                     {invoice.note ? ` · ${invoice.note}` : ""}
+                    {invoice.charge_run_id
+                      ? ` · run ${invoice.charge_run_id.slice(0, 8)}`
+                      : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">

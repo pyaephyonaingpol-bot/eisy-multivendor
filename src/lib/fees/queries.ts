@@ -203,3 +203,26 @@ export async function getPlatformCommissionTotals(): Promise<{
     ),
   };
 }
+
+export async function listDropshipFeeChargeRuns(limit = 12) {
+  if (!getSupabasePublicEnv()) {
+    return [] as import("@/lib/types/database").DropshipFeeChargeRun[];
+  }
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("dropship_fee_charge_runs")
+    .select("*")
+    .order("started_at", { ascending: false })
+    .limit(limit);
+
+  return ((data as import("@/lib/types/database").DropshipFeeChargeRun[] | null) ?? []).map(
+    (row) => ({
+      ...row,
+      paid_count: Number(row.paid_count),
+      failed_count: Number(row.failed_count),
+      skipped_count: Number(row.skipped_count),
+      total_charged_usdt: Number(row.total_charged_usdt),
+    }),
+  );
+}

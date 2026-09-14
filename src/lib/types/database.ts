@@ -227,6 +227,24 @@ export type OrderItem = {
   created_at: string;
 };
 
+export type DropshipFeeChargeTrigger = "cron" | "admin" | "vendor";
+
+export type DropshipFeeChargeRun = {
+  id: string;
+  billing_month: string;
+  trigger_source: DropshipFeeChargeTrigger;
+  triggered_by: string | null;
+  started_at: string;
+  finished_at: string | null;
+  paid_count: number;
+  failed_count: number;
+  skipped_count: number;
+  total_charged_usdt: number;
+  errors: { vendor_id?: string; error?: string }[];
+  note: string | null;
+  created_at: string;
+};
+
 export type DropshipFeeSettings = {
   id: number;
   item_fee_usdt: number;
@@ -246,6 +264,8 @@ export type DropshipInventoryFeeInvoice = {
   status: DropshipFeeInvoiceStatus;
   wallet_transaction_id: string | null;
   charged_at: string | null;
+  charged_by: string | null;
+  charge_run_id: string | null;
   note: string | null;
   created_at: string;
   updated_at: string;
@@ -417,6 +437,13 @@ export type Database = {
         Update: Partial<DropshipInventoryFeeInvoice>;
         Relationships: [];
       };
+      dropship_fee_charge_runs: {
+        Row: DropshipFeeChargeRun;
+        Insert: Partial<DropshipFeeChargeRun> &
+          Pick<DropshipFeeChargeRun, "billing_month" | "trigger_source">;
+        Update: Partial<DropshipFeeChargeRun>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -469,6 +496,7 @@ export type Database = {
         Args: {
           p_vendor_id: string;
           p_billing_month?: string | null;
+          p_charge_run_id?: string | null;
         };
         Returns: {
           invoice_id: string;
@@ -479,18 +507,24 @@ export type Database = {
           amount_usdt: number;
           wallet_transaction_id?: string;
           message?: string;
+          charge_run_id?: string;
         };
       };
       charge_all_dropship_inventory_fees: {
         Args: {
           p_billing_month?: string | null;
+          p_trigger_source?: DropshipFeeChargeTrigger | null;
+          p_note?: string | null;
         };
         Returns: {
           billing_month: string;
           paid: number;
           failed: number;
           skipped: number;
+          total_charged_usdt?: number;
           errors: { vendor_id: string; error: string }[];
+          charge_run_id?: string;
+          trigger_source?: DropshipFeeChargeTrigger;
         };
       };
       resolve_sourcing_region: {
@@ -580,6 +614,7 @@ export type Database = {
       wallet_tx_type: WalletTxType;
       wallet_tx_status: WalletTxStatus;
       dropship_fee_invoice_status: DropshipFeeInvoiceStatus;
+      dropship_fee_charge_trigger: DropshipFeeChargeTrigger;
       supplier_provider_kind: SupplierProviderKind;
     };
     CompositeTypes: Record<string, never>;

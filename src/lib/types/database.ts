@@ -24,8 +24,15 @@ export type WalletTxType =
   | "withdrawal"
   | "purchase"
   | "sale_credit"
-  | "adjustment";
+  | "adjustment"
+  | "inventory_fee"
+  | "platform_commission";
 export type WalletTxStatus = "pending" | "completed" | "rejected" | "cancelled";
+export type DropshipFeeInvoiceStatus =
+  | "pending"
+  | "paid"
+  | "failed"
+  | "waived";
 export type SupplierProviderKind =
   | "internal"
   | "cj_dropshipping"
@@ -193,6 +200,8 @@ export type Order = {
   shipping_address: Record<string, unknown> | null;
   buyer_region_id: string | null;
   buyer_country_code: string | null;
+  /** 3% platform commission on dropship GMV (0 for direct sales). */
+  platform_commission_usdt: number;
   created_at: string;
   updated_at: string;
 };
@@ -214,7 +223,46 @@ export type OrderItem = {
   shipping_estimate_days_min: number | null;
   shipping_estimate_days_max: number | null;
   shipping_cost_usdt: number | null;
+  platform_commission_usdt: number;
   created_at: string;
+};
+
+export type DropshipFeeSettings = {
+  id: number;
+  item_fee_usdt: number;
+  min_billable_items: number;
+  commission_rate: number;
+  updated_at: string;
+};
+
+export type DropshipInventoryFeeInvoice = {
+  id: string;
+  vendor_id: string;
+  billing_month: string;
+  active_item_count: number;
+  billable_item_count: number;
+  unit_fee_usdt: number;
+  amount_usdt: number;
+  status: DropshipFeeInvoiceStatus;
+  wallet_transaction_id: string | null;
+  charged_at: string | null;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DropshipInventoryFeePreview = {
+  vendor_id: string;
+  billing_month: string;
+  is_dropshipper: boolean;
+  active_item_count: number;
+  billable_item_count: number;
+  unit_fee_usdt: number;
+  min_billable_items: number;
+  commission_rate: number;
+  amount_usdt: number;
+  invoice_id?: string | null;
+  invoice_status?: DropshipFeeInvoiceStatus | null;
 };
 
 export type Subscription = {
@@ -349,6 +397,26 @@ export type Database = {
         Update: Partial<ProductSupplierRoute>;
         Relationships: [];
       };
+      dropship_fee_settings: {
+        Row: DropshipFeeSettings;
+        Insert: Partial<DropshipFeeSettings> & Pick<DropshipFeeSettings, "id">;
+        Update: Partial<DropshipFeeSettings>;
+        Relationships: [];
+      };
+      dropship_inventory_fee_invoices: {
+        Row: DropshipInventoryFeeInvoice;
+        Insert: Partial<DropshipInventoryFeeInvoice> &
+          Pick<
+            DropshipInventoryFeeInvoice,
+            | "vendor_id"
+            | "billing_month"
+            | "billable_item_count"
+            | "unit_fee_usdt"
+            | "amount_usdt"
+          >;
+        Update: Partial<DropshipInventoryFeeInvoice>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -386,6 +454,43 @@ export type Database = {
           buyer_region_code?: string;
           buyer_country_code?: string;
           shipping_total?: number;
+          platform_commission_total?: number;
+          commission_rate?: number;
+        };
+      };
+      preview_dropship_inventory_fee: {
+        Args: {
+          p_vendor_id: string;
+          p_billing_month?: string | null;
+        };
+        Returns: DropshipInventoryFeePreview;
+      };
+      charge_dropship_inventory_fee: {
+        Args: {
+          p_vendor_id: string;
+          p_billing_month?: string | null;
+        };
+        Returns: {
+          invoice_id: string;
+          status: DropshipFeeInvoiceStatus | string;
+          billing_month?: string;
+          active_item_count?: number;
+          billable_item_count?: number;
+          amount_usdt: number;
+          wallet_transaction_id?: string;
+          message?: string;
+        };
+      };
+      charge_all_dropship_inventory_fees: {
+        Args: {
+          p_billing_month?: string | null;
+        };
+        Returns: {
+          billing_month: string;
+          paid: number;
+          failed: number;
+          skipped: number;
+          errors: { vendor_id: string; error: string }[];
         };
       };
       resolve_sourcing_region: {
@@ -474,6 +579,7 @@ export type Database = {
       wallet_currency: WalletCurrency;
       wallet_tx_type: WalletTxType;
       wallet_tx_status: WalletTxStatus;
+      dropship_fee_invoice_status: DropshipFeeInvoiceStatus;
       supplier_provider_kind: SupplierProviderKind;
     };
     CompositeTypes: Record<string, never>;

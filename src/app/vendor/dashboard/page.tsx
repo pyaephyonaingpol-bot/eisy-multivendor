@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { VendorStatusBadge } from "@/components/vendors/admin-vendor-list";
 import { getSessionProfile } from "@/lib/auth/session";
+import {
+  getVendorDropshipCommissionSummary,
+  previewDropshipInventoryFee,
+} from "@/lib/fees/queries";
+import { formatMoney } from "@/lib/money";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +31,13 @@ export default async function VendorDashboardPage() {
       </div>
     );
   }
+
+  const [feePreview, commissions] = await Promise.all([
+    previewDropshipInventoryFee(vendor.id),
+    getVendorDropshipCommissionSummary(vendor.id),
+  ]);
+  const commissionPct =
+    Math.round((commissions.commission_rate || 0.03) * 1000) / 10;
 
   return (
     <div className="space-y-6">
@@ -65,6 +77,44 @@ export default async function VendorDashboardPage() {
 
       {vendor.description ? (
         <p className="max-w-2xl text-zinc-600">{vendor.description}</p>
+      ) : null}
+
+      {feePreview?.is_dropshipper ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-xl border border-zinc-200 bg-white p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+              Monthly inventory fee
+            </p>
+            <p className="mt-2 text-2xl font-semibold text-zinc-950">
+              {formatMoney(feePreview.amount_usdt, "USDT")}
+            </p>
+            <p className="mt-2 text-sm text-zinc-600">
+              {feePreview.active_item_count} active → {feePreview.billable_item_count}{" "}
+              billable (min {feePreview.min_billable_items})
+              {feePreview.invoice_status
+                ? ` · ${feePreview.invoice_status}`
+                : ""}
+            </p>
+            <Link
+              href="/vendor/fees"
+              className="mt-3 inline-flex text-sm font-medium underline"
+            >
+              View fees & payouts
+            </Link>
+          </div>
+          <div className="rounded-xl border border-zinc-200 bg-white p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+              Dropship commissions paid
+            </p>
+            <p className="mt-2 text-2xl font-semibold text-zinc-950">
+              {formatMoney(commissions.commission_usdt, "USDT")}
+            </p>
+            <p className="mt-2 text-sm text-zinc-600">
+              {commissionPct}% platform fee across {commissions.order_count} paid
+              dropship order{commissions.order_count === 1 ? "" : "s"}
+            </p>
+          </div>
+        </div>
       ) : null}
     </div>
   );

@@ -13,6 +13,19 @@ function statusClass(status: string) {
   }
 }
 
+function formatTxType(txType: string) {
+  switch (txType) {
+    case "inventory_fee":
+      return "Inventory fee";
+    case "platform_commission":
+      return "Platform commission";
+    case "sale_credit":
+      return "Sale credit";
+    default:
+      return txType.replaceAll("_", " ");
+  }
+}
+
 export function WalletDashboard({
   wallets,
   transactions,
@@ -95,7 +108,7 @@ export function WalletDashboard({
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-medium capitalize text-zinc-950">
-                      {tx.tx_type.replace("_", " ")}
+                      {formatTxType(tx.tx_type)}
                     </p>
                     <span
                       className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${statusClass(tx.status)}`}

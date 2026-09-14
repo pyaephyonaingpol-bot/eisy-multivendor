@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { SignOutButton } from "@/components/auth/sign-out-button";
+import { getSessionProfile } from "@/lib/auth/session";
 
 const nav = [
   { href: "/products", label: "Products" },
@@ -6,7 +8,9 @@ const nav = [
   { href: "/cart", label: "Cart" },
 ];
 
-export function Header() {
+export async function Header() {
+  const session = await getSessionProfile();
+
   return (
     <header className="border-b border-zinc-200 bg-white">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
@@ -19,9 +23,31 @@ export function Header() {
               {item.label}
             </Link>
           ))}
-          <Link href="/login" className="rounded-full bg-zinc-950 px-4 py-1.5 text-white hover:bg-zinc-800">
-            Sign in
-          </Link>
+          {session?.role === "vendor" || session?.role === "admin" ? (
+            <Link href="/vendor/dashboard" className="hover:text-zinc-950">
+              Vendor
+            </Link>
+          ) : null}
+          {session?.role === "admin" ? (
+            <Link href="/admin/dashboard" className="hover:text-zinc-950">
+              Admin
+            </Link>
+          ) : null}
+          {session ? (
+            <div className="flex items-center gap-3">
+              <span className="hidden max-w-[10rem] truncate text-zinc-500 sm:inline">
+                {session.profile?.full_name ?? session.email}
+              </span>
+              <SignOutButton />
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className="rounded-full bg-zinc-950 px-4 py-1.5 text-white hover:bg-zinc-800"
+            >
+              Sign in
+            </Link>
+          )}
         </nav>
       </div>
     </header>

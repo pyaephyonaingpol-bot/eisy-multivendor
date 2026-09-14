@@ -1,7 +1,11 @@
 import { type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
-export async function middleware(request: NextRequest) {
+/**
+ * Next.js 16 renames Middleware → Proxy. Behavior is the same:
+ * refresh the Supabase session and enforce role gates on /vendor and /admin.
+ */
+export async function proxy(request: NextRequest) {
   return updateSession(request);
 }
 

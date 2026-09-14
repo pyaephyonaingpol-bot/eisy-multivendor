@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createServiceClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/types/database";
 
 export const PRODUCT_IMAGES_BUCKET = "product-images";
@@ -35,11 +36,25 @@ export function collectExistingImageUrls(formData: FormData): string[] {
 }
 
 export async function uploadProductImages(
-  supabase: SupabaseClient<Database>,
   vendorId: string,
   files: File[],
 ): Promise<{ urls: string[]; error?: string }> {
   const urls: string[] = [];
+
+  // Upload with the service role after the caller verified vendor ownership.
+  // Storage RLS policies in 008 still apply for direct client uploads.
+  let storage: SupabaseClient<Database>["storage"];
+  try {
+    storage = createServiceClient().storage;
+  } catch (error) {
+    return {
+      urls,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Storage is not configured for uploads.",
+    };
+  }
 
   for (const file of files) {
     if (!ALLOWED_MIME_TYPES.has(file.type)) {
@@ -59,13 +74,11 @@ export async function uploadProductImages(
     const ext = EXT_BY_MIME[file.type] ?? "bin";
     const path = `${vendorId}/${crypto.randomUUID()}.${ext}`;
 
-    const { error } = await supabase.storage
-      .from(PRODUCT_IMAGES_BUCKET)
-      .upload(path, file, {
-        contentType: file.type,
-        upsert: false,
-        cacheControl: "3600",
-      });
+    const { error } = await storage.from(PRODUCT_IMAGES_BUCKET).upload(path, file, {
+      contentType: file.type,
+      upsert: false,
+      cacheControl: "3600",
+    });
 
     if (error) {
       return {
@@ -74,10 +87,7 @@ export async function uploadProductImages(
       };
     }
 
-    const { data } = supabase.storage
-      .from(PRODUCT_IMAGES_BUCKET)
-      .getPublicUrl(path);
-
+    const { data } = storage.from(PRODUCT_IMAGES_BUCKET).getPublicUrl(path);
     urls.push(data.publicUrl);
   }
 
@@ -85,7 +95,6 @@ export async function uploadProductImages(
 }
 
 export async function resolveProductImages(
-  supabase: SupabaseClient<Database>,
   vendorId: string,
   formData: FormData,
   options?: { maxTotal?: number },
@@ -101,7 +110,7 @@ export async function resolveProductImages(
     };
   }
 
-  const uploaded = await uploadProductImages(supabase, vendorId, files);
+  const uploaded = await uploadProductImages(vendorId, files);
   if (uploaded.error) {
     return { images: [], error: uploaded.error };
   }

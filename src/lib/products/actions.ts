@@ -175,7 +175,7 @@ export async function createProduct(
     return { error: "Submit a vendor application before adding products." };
   }
 
-  const imageResult = await resolveProductImages(supabase, vendor.id, formData);
+  const imageResult = await resolveProductImages(vendor.id, formData);
   if (imageResult.error) {
     return { error: imageResult.error };
   }
@@ -254,7 +254,7 @@ export async function updateProduct(
     return { error: "Product not found in your catalog." };
   }
 
-  const imageResult = await resolveProductImages(supabase, vendor.id, formData);
+  const imageResult = await resolveProductImages(vendor.id, formData);
   if (imageResult.error) {
     return { error: imageResult.error };
   }

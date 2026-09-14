@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProductSpecificationsTable } from "@/components/storefront/product-specifications-table";
+import { formatMoney } from "@/lib/money";
 import { getPublicProductById } from "@/lib/products/queries";
 import type { ProductType } from "@/lib/types/database";
 
@@ -9,17 +10,6 @@ export const dynamic = "force-dynamic";
 type ProductDetailPageProps = {
   params: Promise<{ id: string }>;
 };
-
-function formatMoney(amount: number, currency: string) {
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency || "USD",
-    }).format(amount);
-  } catch {
-    return `${currency} ${amount.toFixed(2)}`;
-  }
-}
 
 function typeLabel(type: ProductType) {
   return type === "digital" ? "Digital" : "Physical";

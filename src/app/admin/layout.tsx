@@ -15,6 +15,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Link href="/admin/categories" className="hover:text-zinc-950">
             Categories
           </Link>
+          <Link href="/admin/wallets" className="hover:text-zinc-950">
+            Wallets
+          </Link>
           <Link href="/" className="pt-4 text-zinc-400 hover:text-zinc-950">
             ← Storefront
           </Link>

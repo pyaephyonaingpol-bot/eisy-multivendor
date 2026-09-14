@@ -10,6 +10,7 @@ import {
 } from "@/lib/products/actions";
 import { MAX_PRODUCT_IMAGES } from "@/lib/products/images";
 import { MAX_PRODUCT_SPECIFICATIONS } from "@/lib/products/specifications";
+import { MARKETPLACE_CURRENCY } from "@/lib/money";
 import type {
   Category,
   Product,
@@ -439,13 +440,16 @@ function ProductFormFields({ categories, product }: ProductFormProps) {
           <label htmlFor="currency" className="text-sm font-medium text-zinc-700">
             Currency
           </label>
+          <input type="hidden" name="currency" value={MARKETPLACE_CURRENCY} />
           <input
             id="currency"
-            name="currency"
-            defaultValue={product?.currency ?? "USD"}
-            maxLength={3}
-            className={fieldClassName}
+            value={MARKETPLACE_CURRENCY}
+            readOnly
+            className={`${fieldClassName} bg-zinc-50 text-zinc-700`}
           />
+          <p className="text-xs text-zinc-500">
+            All marketplace prices and checkouts settle in {MARKETPLACE_CURRENCY}.
+          </p>
         </div>
         <div className="space-y-2">
           <label htmlFor="sku" className="text-sm font-medium text-zinc-700">

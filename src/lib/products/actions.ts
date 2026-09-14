@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { MARKETPLACE_CURRENCY } from "@/lib/money";
 import { resolveProductImages } from "@/lib/products/images";
 import { parseProductSpecificationsFromFormData } from "@/lib/products/specifications";
 import { createClient } from "@/lib/supabase/server";
@@ -77,8 +78,8 @@ function parseProductFields(formData: FormData): ParsedProductFields {
   const slugInput = String(formData.get("slug") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const sku = String(formData.get("sku") ?? "").trim();
-  const currency =
-    String(formData.get("currency") ?? "USD").trim().toUpperCase() || "USD";
+  // Marketplace settlement is USDT-only (Eisy Myanmar policy).
+  const currency = MARKETPLACE_CURRENCY;
   const slug = slugifyStoreName(slugInput || name);
   const price = parseMoney(formData.get("price"));
   const compareAtPrice = parseMoney(formData.get("compare_at_price"));

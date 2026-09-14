@@ -6,6 +6,7 @@ const nav = [
   { href: "/products", label: "Products" },
   { href: "/vendors", label: "Vendors" },
   { href: "/cart", label: "Cart" },
+  { href: "/account/wallet", label: "Wallet" },
 ];
 
 export async function Header() {

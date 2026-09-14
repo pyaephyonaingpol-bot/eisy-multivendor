@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionProfile } from "@/lib/auth/session";
+import { formatMoney } from "@/lib/money";
 import { listProductsForVendor } from "@/lib/products/queries";
 import type { ProductStatus, ProductType } from "@/lib/types/database";
 import { getVendorForOwner } from "@/lib/vendors/queries";
@@ -31,17 +32,6 @@ function statusClassName(status: ProductStatus) {
 
 function typeLabel(type: ProductType | null | undefined) {
   return type === "digital" ? "Digital" : "Physical";
-}
-
-function formatMoney(amount: number, currency: string) {
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency || "USD",
-    }).format(amount);
-  } catch {
-    return `${currency} ${amount.toFixed(2)}`;
-  }
 }
 
 export default async function VendorProductsPage() {

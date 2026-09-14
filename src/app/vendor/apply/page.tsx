@@ -4,6 +4,8 @@ import { VendorApplyForm } from "@/components/vendors/vendor-apply-form";
 import { getSessionProfile } from "@/lib/auth/session";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 
+export const dynamic = "force-dynamic";
+
 export default async function VendorApplyPage() {
   const session = await getSessionProfile();
 

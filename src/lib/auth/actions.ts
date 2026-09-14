@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { isBootstrapAdminEmail } from "@/lib/auth/constants";
 import { createClient } from "@/lib/supabase/server";
 import type { UserRole } from "@/lib/types/database";
 
@@ -79,8 +80,9 @@ export async function register(
     options: {
       data: {
         full_name: fullName,
-        // Never allow "admin" from the client — only customer | vendor.
-        role,
+        // Never send "admin" from the client. Bootstrap admin is assigned in
+        // handle_new_user() when email matches BOOTSTRAP_ADMIN_EMAIL.
+        role: isBootstrapAdminEmail(email) ? "customer" : role,
       },
       ...(origin ? { emailRedirectTo: `${origin}/auth/callback` } : {}),
     },
@@ -95,6 +97,10 @@ export async function register(
     return {
       success: "Account created. Check your email to confirm, then sign in.",
     };
+  }
+
+  if (isBootstrapAdminEmail(email)) {
+    redirect("/admin/dashboard");
   }
 
   redirect(role === "vendor" ? "/vendor/apply" : "/");

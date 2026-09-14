@@ -2,6 +2,8 @@ import Link from "next/link";
 import { AdminVendorList } from "@/components/vendors/admin-vendor-list";
 import { listVendorsForAdmin } from "@/lib/vendors/queries";
 
+export const dynamic = "force-dynamic";
+
 type AdminVendorsPageProps = {
   searchParams: Promise<{ status?: string }>;
 };

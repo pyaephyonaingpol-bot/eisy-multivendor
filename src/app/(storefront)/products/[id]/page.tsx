@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
+import { ImportToMyStorePanel } from "@/components/storefront/import-to-my-store-panel";
 import { ProductSpecificationsTable } from "@/components/storefront/product-specifications-table";
 import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
 import { getPublicProductById } from "@/lib/products/queries";
@@ -32,7 +33,11 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
   const productType = product.product_type ?? "physical";
   const images = product.images ?? [];
   const heroImage = images[0] ?? null;
-  const outOfStock = productType === "physical" && product.stock_quantity <= 0;
+  const availableStock = product.available_stock;
+  const outOfStock =
+    productType === "physical" &&
+    Number.isFinite(availableStock) &&
+    availableStock <= 0;
 
   return (
     <article className="mx-auto max-w-5xl space-y-10">
@@ -73,6 +78,11 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
               <span className="inline-flex rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 ring-1 ring-inset ring-zinc-200">
                 {typeLabel(productType)}
               </span>
+              {product.is_dropship ? (
+                <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-inset ring-emerald-200">
+                  Dropship listing
+                </span>
+              ) : null}
               {product.sku ? (
                 <span className="text-xs text-zinc-500">SKU {product.sku}</span>
               ) : null}
@@ -89,6 +99,15 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
                 >
                   {product.vendor.name}
                 </Link>
+                {product.is_dropship && product.source_vendor ? (
+                  <>
+                    {" "}
+                    · Fulfilled by{" "}
+                    <span className="font-medium text-zinc-800">
+                      {product.source_vendor.name}
+                    </span>
+                  </>
+                ) : null}
               </p>
             ) : null}
           </div>
@@ -107,8 +126,8 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
                 ? product.download_label
                   ? `Digital download · ${product.download_label}`
                   : "Digital download"
-                : product.stock_quantity > 0
-                  ? `${product.stock_quantity} in stock`
+                : availableStock > 0
+                  ? `${Number.isFinite(availableStock) ? availableStock : "In"} in stock${product.is_dropship ? " (supplier)" : ""}`
                   : "Out of stock"}
             </p>
           </div>
@@ -130,8 +149,20 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
             currency={MARKETPLACE_CURRENCY}
             imageUrl={heroImage}
             productType={productType}
-            maxQuantity={productType === "physical" ? product.stock_quantity : null}
+            maxQuantity={
+              productType === "physical" && Number.isFinite(availableStock)
+                ? availableStock
+                : null
+            }
             disabled={outOfStock}
+          />
+
+          <ImportToMyStorePanel
+            productId={product.id}
+            productVendorId={product.vendor_id}
+            productPrice={Number(product.price)}
+            isDropshipListing={product.is_dropship}
+            sourceProductId={product.source_product_id}
           />
 
           <p className="text-sm text-zinc-500">

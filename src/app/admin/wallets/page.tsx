@@ -36,8 +36,12 @@ export default async function AdminWalletsPage() {
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">Wallet reviews</h1>
         <p className="text-zinc-600">
-          Approve USDT deposits and USDT/MMK withdrawals. MMK deposit requests are blocked
-          at the database layer.
+          Approve USDT deposits here. For USDT and MMK withdrawal approvals with
+          reviewer notes and audit history, use{" "}
+          <a href="/admin/withdrawals" className="underline">
+            Withdrawals
+          </a>
+          . MMK deposits remain blocked at the database layer.
         </p>
       </div>
 

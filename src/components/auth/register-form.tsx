@@ -44,7 +44,7 @@ export function RegisterForm() {
         </label>
         <label className="flex items-center gap-2">
           <input type="radio" name="role" value="vendor" />
-          Vendor — sell products (store starts as pending)
+          Vendor — continue to store application (pending approval)
         </label>
       </fieldset>
       {state?.error ? (

@@ -11,8 +11,8 @@ export default function HomePage() {
           Shop from independent vendors in one place
         </h1>
         <p className="text-lg text-zinc-600">
-          Sign in with Supabase Auth to shop or sell. Vendor and admin areas are
-          gated by your <code className="rounded bg-zinc-100 px-1.5 py-0.5">profiles.role</code>.
+          Customers can shop immediately. Sellers apply at /vendor/apply — stores
+          stay <code className="rounded bg-zinc-100 px-1.5 py-0.5">pending</code> until an admin approves them.
         </p>
         <div className="flex gap-3">
           <Link
@@ -22,7 +22,7 @@ export default function HomePage() {
             Browse products
           </Link>
           <Link
-            href="/register"
+            href="/vendor/apply"
             className="rounded-full border border-zinc-200 px-5 py-2.5 text-sm font-medium hover:bg-zinc-50"
           >
             Become a vendor

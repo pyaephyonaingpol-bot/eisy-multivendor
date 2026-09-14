@@ -8,7 +8,7 @@ import { getBuyerSourcingContext } from "@/lib/sourcing/queries";
 const nav = [
   { href: "/", label: "Home" },
   { href: "/products", label: "Shop" },
-  { href: "/vendors", label: "Vendors" },
+  { href: "/vendors", label: "Stores" },
   { href: "/account/wallet", label: "Wallet" },
 ];
 
@@ -41,27 +41,6 @@ export async function StorefrontHeader() {
             regionName={sourcing.regionName}
           />
           <CartTrigger />
-          {session?.role === "customer" ? (
-            <Link href="/vendor/apply" className="hidden hover:text-zinc-950 sm:inline">
-              Sell with us
-            </Link>
-          ) : null}
-          {session?.role === "vendor" || session?.role === "admin" ? (
-            <Link
-              href="/vendor/dashboard"
-              className="hidden hover:text-zinc-950 sm:inline"
-            >
-              Vendor
-            </Link>
-          ) : null}
-          {session?.role === "admin" ? (
-            <Link
-              href="/admin/dashboard"
-              className="hidden hover:text-zinc-950 lg:inline"
-            >
-              Admin
-            </Link>
-          ) : null}
           {session ? (
             <div className="flex items-center gap-3">
               <span className="hidden max-w-[9rem] truncate text-zinc-500 lg:inline">

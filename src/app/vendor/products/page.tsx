@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionProfile } from "@/lib/auth/session";
 import { listProductsForVendor } from "@/lib/products/queries";
-import type { ProductStatus } from "@/lib/types/database";
+import type { ProductStatus, ProductType } from "@/lib/types/database";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +27,10 @@ function statusClassName(status: ProductStatus) {
     default:
       return "bg-amber-50 text-amber-900 ring-amber-200";
   }
+}
+
+function typeLabel(type: ProductType | null | undefined) {
+  return type === "digital" ? "Digital" : "Physical";
 }
 
 function formatMoney(amount: number, currency: string) {
@@ -89,7 +93,7 @@ export default async function VendorProductsPage() {
         <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-10 text-center">
           <p className="text-zinc-700">No products yet.</p>
           <p className="mt-1 text-sm text-zinc-500">
-            Add your first item to start building the catalog.
+            Add your first physical or digital item to start building the catalog.
           </p>
           <Link
             href="/vendor/products/new"
@@ -100,33 +104,46 @@ export default async function VendorProductsPage() {
         </div>
       ) : (
         <ul className="divide-y divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 bg-white">
-          {products.map((product) => (
-            <li
-              key={product.id}
-              className="flex flex-wrap items-center justify-between gap-3 px-4 py-4"
-            >
-              <div className="min-w-0 space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="truncate font-medium text-zinc-950">{product.name}</p>
-                  <span
-                    className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${statusClassName(product.status)}`}
-                  >
-                    {statusLabel(product.status)}
-                  </span>
+          {products.map((product) => {
+            const productType = product.product_type ?? "physical";
+            return (
+              <li
+                key={product.id}
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-4"
+              >
+                <div className="min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate font-medium text-zinc-950">{product.name}</p>
+                    <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 ring-1 ring-inset ring-zinc-200">
+                      {typeLabel(productType)}
+                    </span>
+                    <span
+                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${statusClassName(product.status)}`}
+                    >
+                      {statusLabel(product.status)}
+                    </span>
+                  </div>
+                  <p className="text-sm text-zinc-500">
+                    /{product.slug}
+                    {product.sku ? ` · SKU ${product.sku}` : ""}
+                    {productType === "digital" && product.download_label
+                      ? ` · ${product.download_label}`
+                      : ""}
+                  </p>
                 </div>
-                <p className="text-sm text-zinc-500">
-                  /{product.slug}
-                  {product.sku ? ` · SKU ${product.sku}` : ""}
-                </p>
-              </div>
-              <div className="text-right text-sm">
-                <p className="font-medium text-zinc-950">
-                  {formatMoney(Number(product.price), product.currency)}
-                </p>
-                <p className="text-zinc-500">{product.stock_quantity} in stock</p>
-              </div>
-            </li>
-          ))}
+                <div className="text-right text-sm">
+                  <p className="font-medium text-zinc-950">
+                    {formatMoney(Number(product.price), product.currency)}
+                  </p>
+                  <p className="text-zinc-500">
+                    {productType === "digital"
+                      ? "Digital download"
+                      : `${product.stock_quantity} in stock`}
+                  </p>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

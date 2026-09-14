@@ -1,6 +1,7 @@
 export type UserRole = "customer" | "vendor" | "admin";
 export type VendorStatus = "pending" | "approved" | "suspended" | "rejected";
 export type ProductStatus = "draft" | "active" | "archived";
+export type ProductType = "physical" | "digital";
 export type OrderStatus =
   | "pending"
   | "paid"
@@ -56,6 +57,9 @@ export type Product = {
   stock_quantity: number;
   images: string[];
   status: ProductStatus;
+  product_type: ProductType;
+  download_url: string | null;
+  download_label: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -186,6 +190,7 @@ export type Database = {
       user_role: UserRole;
       vendor_status: VendorStatus;
       product_status: ProductStatus;
+      product_type: ProductType;
       order_status: OrderStatus;
       payment_status: PaymentStatus;
       subscription_plan: SubscriptionPlan;

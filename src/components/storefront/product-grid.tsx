@@ -53,7 +53,7 @@ export function ProductGrid({ products }: { products: PublicProductSummary[] }) 
       <div className="rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-14 text-center">
         <p className="text-sm font-medium text-zinc-950">No products available yet</p>
         <p className="mt-1 text-sm text-zinc-500">
-          Active products from approved vendors will appear here.
+          Active products will appear here when listings go live.
         </p>
       </div>
     );

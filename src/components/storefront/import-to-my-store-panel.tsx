@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getSessionProfile, canAccessVendor } from "@/lib/auth/session";
 import { getExistingDropshipListing } from "@/lib/dropship/queries";
 import { getVendorForOwner } from "@/lib/vendors/queries";
@@ -19,44 +18,15 @@ export async function ImportToMyStorePanel({
   isDropshipListing,
   sourceProductId,
 }: ImportToMyStorePanelProps) {
+  // Keep the public PDP buyer-focused: import UI only for approved vendors.
   const session = await getSessionProfile();
-
-  if (!session) {
-    return (
-      <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-        <Link
-          href={`/login?next=/products/${productId}`}
-          className="font-medium underline"
-        >
-          Sign in as a vendor
-        </Link>{" "}
-        to import this product to your store with your own price.
-      </div>
-    );
-  }
-
-  if (!canAccessVendor(session.role)) {
+  if (!session || !canAccessVendor(session.role)) {
     return null;
   }
 
   const vendor = await getVendorForOwner(session.userId);
-  if (!vendor) {
-    return (
-      <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-        <Link href="/vendor/apply" className="font-medium underline">
-          Apply as a vendor
-        </Link>{" "}
-        to start dropshipping this product.
-      </div>
-    );
-  }
-
-  if (vendor.status !== "approved") {
-    return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        Your vendor application must be approved before you can import products.
-      </div>
-    );
+  if (!vendor || vendor.status !== "approved") {
+    return null;
   }
 
   // Always import the original supplier SKU, even when viewing another dropship copy.

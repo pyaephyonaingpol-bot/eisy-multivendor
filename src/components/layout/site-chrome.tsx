@@ -3,8 +3,8 @@ import { SignOutButton } from "@/components/auth/sign-out-button";
 import { getSessionProfile } from "@/lib/auth/session";
 
 const nav = [
-  { href: "/products", label: "Products" },
-  { href: "/vendors", label: "Vendors" },
+  { href: "/products", label: "Shop" },
+  { href: "/vendors", label: "Stores" },
   { href: "/cart", label: "Cart" },
   { href: "/account/wallet", label: "Wallet" },
 ];
@@ -24,21 +24,6 @@ export async function Header() {
               {item.label}
             </Link>
           ))}
-          {session?.role === "customer" ? (
-            <Link href="/vendor/apply" className="hover:text-zinc-950">
-              Sell with us
-            </Link>
-          ) : null}
-          {session?.role === "vendor" || session?.role === "admin" ? (
-            <Link href="/vendor/dashboard" className="hover:text-zinc-950">
-              Vendor
-            </Link>
-          ) : null}
-          {session?.role === "admin" ? (
-            <Link href="/admin/dashboard" className="hover:text-zinc-950">
-              Admin
-            </Link>
-          ) : null}
           {session ? (
             <div className="flex items-center gap-3">
               <span className="hidden max-w-[10rem] truncate text-zinc-500 sm:inline">
@@ -63,12 +48,14 @@ export async function Header() {
 export function Footer() {
   return (
     <footer className="mt-auto border-t border-zinc-200 bg-white">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-6 text-sm text-zinc-500">
-        <p>© 2026 EISY Marketplace</p>
-        <div className="flex gap-4">
-          <Link href="/vendor/apply">Become a vendor</Link>
-          <Link href="/admin/dashboard">Admin</Link>
-        </div>
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm text-zinc-500">
+        <p>© 2026 EISY Marketplace · Checkout in USDT</p>
+        <Link
+          href="/vendor/dashboard"
+          className="text-xs text-zinc-400 transition hover:text-zinc-600"
+        >
+          Vendor &amp; Dropshipper Portal
+        </Link>
       </div>
     </footer>
   );

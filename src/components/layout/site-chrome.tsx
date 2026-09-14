@@ -63,7 +63,7 @@ export function Footer() {
   return (
     <footer className="mt-auto border-t border-zinc-200 bg-white">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-6 text-sm text-zinc-500">
-        <p>© {new Date().getFullYear()} EISY Marketplace</p>
+        <p>© 2026 EISY Marketplace</p>
         <div className="flex gap-4">
           <Link href="/vendor/apply">Become a vendor</Link>
           <Link href="/admin/dashboard">Admin</Link>

@@ -27,8 +27,8 @@ export default async function NewVendorProductPage() {
         </p>
         <h1 className="text-3xl font-semibold tracking-tight">Add product</h1>
         <p className="max-w-xl text-zinc-600">
-          Create a catalog item for <strong>{vendor.name}</strong>. Draft products stay
-          private; set status to active when you are ready to sell.
+          Create a physical or digital catalog item for <strong>{vendor.name}</strong>.
+          Draft products stay private; set status to active when you are ready to sell.
         </p>
       </div>
 

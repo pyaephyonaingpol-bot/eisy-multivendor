@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { ProductStatus } from "@/lib/types/database";
+import type { ProductStatus, ProductType } from "@/lib/types/database";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 import { slugifyStoreName } from "@/lib/vendors/slug";
 
@@ -38,6 +38,19 @@ function parseStatus(value: FormDataEntryValue | null): ProductStatus {
   return value === "active" || value === "archived" ? value : "draft";
 }
 
+function parseProductType(value: FormDataEntryValue | null): ProductType {
+  return value === "digital" ? "digital" : "physical";
+}
+
+function isValidHttpUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export async function createProduct(
   _prev: ProductActionState,
   formData: FormData,
@@ -51,7 +64,11 @@ export async function createProduct(
   const slug = slugifyStoreName(slugInput || name);
   const price = parseMoney(formData.get("price"));
   const compareAtPrice = parseMoney(formData.get("compare_at_price"));
-  const stockQuantity = parseStock(formData.get("stock_quantity"));
+  const productType = parseProductType(formData.get("product_type"));
+  const stockQuantity =
+    productType === "physical" ? parseStock(formData.get("stock_quantity")) : 0;
+  const downloadUrl = String(formData.get("download_url") ?? "").trim();
+  const downloadLabel = String(formData.get("download_label") ?? "").trim();
   const status = parseStatus(formData.get("status"));
 
   if (!name) {
@@ -74,8 +91,17 @@ export async function createProduct(
     return { error: "Enter a valid compare-at price, or leave it blank." };
   }
 
-  if (Number.isNaN(stockQuantity)) {
+  if (productType === "physical" && Number.isNaN(stockQuantity)) {
     return { error: "Stock must be a whole number of 0 or greater." };
+  }
+
+  if (productType === "digital") {
+    if (!downloadUrl) {
+      return { error: "Digital products need a download link or file URL." };
+    }
+    if (!isValidHttpUrl(downloadUrl)) {
+      return { error: "Download link must be a valid http(s) URL." };
+    }
   }
 
   const supabase = await createClient();
@@ -105,6 +131,10 @@ export async function createProduct(
     stock_quantity: stockQuantity,
     status,
     images: [],
+    product_type: productType,
+    download_url: productType === "digital" ? downloadUrl : null,
+    download_label:
+      productType === "digital" ? downloadLabel || null : null,
   });
 
   if (error) {

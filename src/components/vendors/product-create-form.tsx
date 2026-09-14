@@ -4,6 +4,7 @@ import { useActionState, useMemo, useState } from "react";
 import { ClientOnly } from "@/components/client-only";
 import { FormSkeleton } from "@/components/form-skeleton";
 import { createProduct, type ProductActionState } from "@/lib/products/actions";
+import type { ProductType } from "@/lib/types/database";
 import { slugifyStoreName } from "@/lib/vendors/slug";
 
 const initialState: ProductActionState = null;
@@ -15,11 +16,48 @@ function ProductCreateFormFields() {
   const [name, setName] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [slug, setSlug] = useState("");
+  const [productType, setProductType] = useState<ProductType>("physical");
   const [state, formAction, pending] = useActionState(createProduct, initialState);
   const suggestedSlug = useMemo(() => slugifyStoreName(name), [name]);
 
   return (
     <form action={formAction} className="mx-auto max-w-lg space-y-4">
+      <fieldset className="space-y-2 rounded-lg border border-zinc-200 p-3 text-sm">
+        <legend className="px-1 text-zinc-600">Product type</legend>
+        <label className="flex items-start gap-2">
+          <input
+            type="radio"
+            name="product_type"
+            value="physical"
+            checked={productType === "physical"}
+            onChange={() => setProductType("physical")}
+            className="mt-1"
+          />
+          <span>
+            <span className="font-medium text-zinc-950">Physical good</span>
+            <span className="block text-zinc-500">
+              Ships to customers — track stock quantity.
+            </span>
+          </span>
+        </label>
+        <label className="flex items-start gap-2">
+          <input
+            type="radio"
+            name="product_type"
+            value="digital"
+            checked={productType === "digital"}
+            onChange={() => setProductType("digital")}
+            className="mt-1"
+          />
+          <span>
+            <span className="font-medium text-zinc-950">Digital product</span>
+            <span className="block text-zinc-500">
+              Delivered via download link or hosted file URL.
+            </span>
+          </span>
+        </label>
+      </fieldset>
+
       <div className="space-y-2">
         <label htmlFor="name" className="text-sm font-medium text-zinc-700">
           Product name
@@ -36,7 +74,9 @@ function ProductCreateFormFields() {
               setSlug(slugifyStoreName(next));
             }
           }}
-          placeholder="Handmade ceramic mug"
+          placeholder={
+            productType === "digital" ? "UI kit ZIP" : "Handmade ceramic mug"
+          }
           className={fieldClassName}
         />
       </div>
@@ -54,7 +94,10 @@ function ProductCreateFormFields() {
             setSlugTouched(true);
             setSlug(event.target.value);
           }}
-          placeholder={suggestedSlug || "handmade-ceramic-mug"}
+          placeholder={
+            suggestedSlug ||
+            (productType === "digital" ? "ui-kit-zip" : "handmade-ceramic-mug")
+          }
           className={fieldClassName}
         />
       </div>
@@ -67,7 +110,11 @@ function ProductCreateFormFields() {
           id="description"
           name="description"
           rows={4}
-          placeholder="Materials, size, and what makes it special"
+          placeholder={
+            productType === "digital"
+              ? "What’s included in the download"
+              : "Materials, size, and what makes it special"
+          }
           className={fieldClassName}
         />
       </div>
@@ -104,7 +151,7 @@ function ProductCreateFormFields() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <label htmlFor="currency" className="text-sm font-medium text-zinc-700">
             Currency
@@ -118,8 +165,17 @@ function ProductCreateFormFields() {
           />
         </div>
         <div className="space-y-2">
+          <label htmlFor="sku" className="text-sm font-medium text-zinc-700">
+            SKU
+          </label>
+          <input id="sku" name="sku" placeholder="Optional" className={fieldClassName} />
+        </div>
+      </div>
+
+      {productType === "physical" ? (
+        <div className="space-y-2">
           <label htmlFor="stock_quantity" className="text-sm font-medium text-zinc-700">
-            Stock
+            Stock quantity
           </label>
           <input
             id="stock_quantity"
@@ -128,16 +184,47 @@ function ProductCreateFormFields() {
             min="0"
             step="1"
             defaultValue="0"
+            required
             className={fieldClassName}
           />
+          <p className="text-xs text-zinc-500">
+            Units available to ship. Set to 0 to mark as out of stock.
+          </p>
         </div>
-        <div className="space-y-2">
-          <label htmlFor="sku" className="text-sm font-medium text-zinc-700">
-            SKU
-          </label>
-          <input id="sku" name="sku" placeholder="Optional" className={fieldClassName} />
+      ) : (
+        <div className="space-y-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+          <div className="space-y-2">
+            <label htmlFor="download_url" className="text-sm font-medium text-zinc-700">
+              Download link / file URL
+            </label>
+            <input
+              id="download_url"
+              name="download_url"
+              type="url"
+              required
+              placeholder="https://files.example.com/product.zip"
+              className={fieldClassName}
+            />
+            <p className="text-xs text-zinc-500">
+              Use a direct HTTPS link to the file (storage bucket, CDN, or hosted download).
+            </p>
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="download_label" className="text-sm font-medium text-zinc-700">
+              File label
+            </label>
+            <input
+              id="download_label"
+              name="download_label"
+              placeholder="product-pack.zip"
+              className={fieldClassName}
+            />
+            <p className="text-xs text-zinc-500">
+              Optional name shown to buyers (defaults to the URL filename).
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       <fieldset className="space-y-2 rounded-lg border border-zinc-200 p-3 text-sm">
         <legend className="px-1 text-zinc-600">Status</legend>
@@ -170,7 +257,7 @@ function ProductCreateFormFields() {
 
 export function ProductCreateForm() {
   return (
-    <ClientOnly fallback={<FormSkeleton rows={6} />}>
+    <ClientOnly fallback={<FormSkeleton rows={8} />}>
       <ProductCreateFormFields />
     </ClientOnly>
   );

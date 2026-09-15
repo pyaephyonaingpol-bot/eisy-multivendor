@@ -1,0 +1,113 @@
+{
+  "brand": {
+    "short": "EISY",
+    "full": "EISY Marktplatz",
+    "tagline": "Multi-Vendor-Handel für Myanmar und darüber hinaus"
+  },
+  "nav": {
+    "home": "Start",
+    "shop": "Shop",
+    "stores": "Shops",
+    "cart": "Warenkorb",
+    "orders": "Bestellungen",
+    "wallet": "Wallet",
+    "signIn": "Anmelden",
+    "signOut": "Abmelden",
+    "vendorPortal": "Händler- & Dropship-Portal"
+  },
+  "vendorNav": {
+    "title": "Händler",
+    "overview": "Übersicht",
+    "storeBranding": "Shop-Branding",
+    "application": "Bewerbung",
+    "products": "Produkte",
+    "sourcing": "Sourcing",
+    "import": "Import",
+    "integrations": "Integrationen",
+    "fees": "Gebühren",
+    "wallet": "Wallet",
+    "orders": "Bestellungen",
+    "backToStorefront": "← Storefront"
+  },
+  "sourcing": {
+    "title": "Produkt-Sourcing",
+    "subtitle": "Durchsuchen Sie DSers, CJ, Spocket und POD, filtern Sie nach Region und Liefergeschwindigkeit und importieren Sie ab 10 Lagerstücken.",
+    "catalogTitle": "Multi-Lieferanten-Sourcing",
+    "catalogSubtitle": "Filtern Sie DSers, CJ, Spocket und POD an einem Ort.",
+    "search": "Suche",
+    "searchPlaceholder": "Produkte bei Lieferanten suchen",
+    "shipToRegion": "Lieferregion",
+    "deliverySpeed": "Liefergeschwindigkeit",
+    "anySpeed": "Beliebige Geschwindigkeit",
+    "fastDispatch": "Schneller Versand",
+    "fastDispatchFilter": "Schneller Versand (≤7 Tage)",
+    "localWarehouse": "Lokales Lager",
+    "searchButton": "Suchen",
+    "searching": "Suche…",
+    "previewImport": "Vorschau & Import",
+    "stockBelowMin": "Unter {min}-Stück-Minimum",
+    "stockLabel": "Lager {qty}",
+    "daysRange": "{min}–{max} Tage",
+    "emptySearch": "Suchen Sie, um Lieferantenprodukte zu laden.",
+    "emptySearchDev": "Suchen Sie, um Produkte zu laden (Mock-Kataloge ohne API-Schlüssel).",
+    "searchFailed": "Suche fehlgeschlagen.",
+    "catalogUnreachable": "Lieferantenkatalog-API nicht erreichbar.",
+    "sourceTabsLabel": "Lieferantenquelle",
+    "importSuccess": "In Ihren Shop importiert (Produkt {id}…). Bauen Sie auf {min} aktive Artikel für die Gebührenuntergrenze.",
+    "fastStrategiesTitle": "Strategien für schnellen Versand",
+    "fastStrategiesBody": "Bevorzugen Sie Regionallager, Filter ≤7 Tage sowie DHL, FedEx oder ePacket.",
+    "manageCredentials": "Lieferanten-Keys verwalten",
+    "routeManagerTitle": "Regionale Routen",
+    "routeManagerSubtitle": "Binden Sie CJ-, DSers-, Spocket- und POD-Routen je Käuferregion.",
+    "noSourceProducts": "Noch keine Quellprodukte.",
+    "manageRoutes": "Routen verwalten",
+    "importLimitReached": "Importlimit erreicht.",
+    "sources": {
+      "all": "Alle",
+      "dsers": "DSers",
+      "cj": "CJ Dropshipping",
+      "spocket": "Spocket",
+      "pod": "POD"
+    }
+  },
+  "escrow": {
+    "title": "Treuhand",
+    "held": "Gelder treuhänderisch gehalten",
+    "released": "Treuhand an Verkäufer freigegeben",
+    "pending": "Warte auf Lieferbestätigung",
+    "info": "Käuferzahlungen bleiben bis zur Lieferbestätigung im Treuhandkonto."
+  },
+  "checkout": {
+    "title": "Kasse",
+    "placeOrder": "Bestellung aufgeben",
+    "shipping": "Versand",
+    "payment": "Zahlung",
+    "usdtNote": "Sicher mit USDT bezahlen.",
+    "subtotal": "Zwischensumme",
+    "total": "Gesamt"
+  },
+  "regions": {
+    "label": "Lieferregion",
+    "mm": "Myanmar",
+    "sea": "Südostasien",
+    "cn": "China / Ostasien",
+    "eu": "Europa",
+    "us": "Nordamerika",
+    "global": "Rest der Welt"
+  },
+  "stores": {
+    "title": "Shops",
+    "openStore": "Shop öffnen",
+    "noStores": "Keine Shops gefunden."
+  },
+  "language": {
+    "label": "Sprache",
+    "switchTo": "Sprache wechseln"
+  },
+  "common": {
+    "loading": "Laden…",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "continue": "Weiter"
+  }
+}

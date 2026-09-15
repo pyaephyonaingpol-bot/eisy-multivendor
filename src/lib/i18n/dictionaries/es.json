@@ -1,0 +1,113 @@
+{
+  "brand": {
+    "short": "EISY",
+    "full": "Marketplace EISY",
+    "tagline": "Comercio multi-vendedor para Myanmar y más allá"
+  },
+  "nav": {
+    "home": "Inicio",
+    "shop": "Tienda",
+    "stores": "Tiendas",
+    "cart": "Carrito",
+    "orders": "Pedidos",
+    "wallet": "Billetera",
+    "signIn": "Iniciar sesión",
+    "signOut": "Cerrar sesión",
+    "vendorPortal": "Portal de vendedor y dropship"
+  },
+  "vendorNav": {
+    "title": "Vendedor",
+    "overview": "Resumen",
+    "storeBranding": "Marca de tienda",
+    "application": "Solicitud",
+    "products": "Productos",
+    "sourcing": "Abastecimiento",
+    "import": "Importar",
+    "integrations": "Integraciones",
+    "fees": "Comisiones",
+    "wallet": "Billetera",
+    "orders": "Pedidos",
+    "backToStorefront": "← Tienda"
+  },
+  "sourcing": {
+    "title": "Abastecimiento de productos",
+    "subtitle": "Explora DSers, CJ, Spocket y POD, filtra por región y velocidad, e importa con al menos 10 unidades.",
+    "catalogTitle": "Abastecimiento multi-proveedor",
+    "catalogSubtitle": "Filtra DSers, CJ, Spocket y POD en un solo lugar.",
+    "search": "Buscar",
+    "searchPlaceholder": "Buscar productos en proveedores",
+    "shipToRegion": "Región de envío",
+    "deliverySpeed": "Velocidad de entrega",
+    "anySpeed": "Cualquier velocidad",
+    "fastDispatch": "Envío rápido",
+    "fastDispatchFilter": "Envío rápido (≤7 días)",
+    "localWarehouse": "Almacén local",
+    "searchButton": "Buscar",
+    "searching": "Buscando…",
+    "previewImport": "Vista previa e importar",
+    "stockBelowMin": "Por debajo del mínimo de {min} unidades",
+    "stockLabel": "stock {qty}",
+    "daysRange": "{min}–{max} días",
+    "emptySearch": "Ejecute una búsqueda para cargar productos de proveedores.",
+    "emptySearchDev": "Ejecute una búsqueda para cargar productos (catálogos mock sin claves API).",
+    "searchFailed": "La búsqueda falló.",
+    "catalogUnreachable": "No se pudo alcanzar la API del catálogo de proveedores.",
+    "sourceTabsLabel": "Fuente del proveedor",
+    "importSuccess": "Importado a su tienda (producto {id}…). Siga hasta {min} artículos activos para el mínimo de tarifas.",
+    "fastStrategiesTitle": "Estrategias de envío rápido",
+    "fastStrategiesBody": "Prefiere almacenes regionales, filtro ≤7 días y transportistas como DHL, FedEx o ePacket.",
+    "manageCredentials": "Gestionar claves de proveedor",
+    "routeManagerTitle": "Rutas regionales",
+    "routeManagerSubtitle": "Vincula rutas CJ, DSers, Spocket y POD por región del comprador.",
+    "noSourceProducts": "Aún no hay productos fuente.",
+    "manageRoutes": "Gestionar rutas",
+    "importLimitReached": "Límite de importación alcanzado.",
+    "sources": {
+      "all": "Todos",
+      "dsers": "DSers",
+      "cj": "CJ Dropshipping",
+      "spocket": "Spocket",
+      "pod": "POD"
+    }
+  },
+  "escrow": {
+    "title": "Depósito",
+    "held": "Fondos en depósito",
+    "released": "Depósito liberado al vendedor",
+    "pending": "Esperando confirmación de entrega",
+    "info": "El pago permanece en depósito hasta confirmar la entrega."
+  },
+  "checkout": {
+    "title": "Pago",
+    "placeOrder": "Realizar pedido",
+    "shipping": "Envío",
+    "payment": "Pago",
+    "usdtNote": "Paga de forma segura con USDT.",
+    "subtotal": "Subtotal",
+    "total": "Total"
+  },
+  "regions": {
+    "label": "Región de envío",
+    "mm": "Myanmar",
+    "sea": "Sudeste asiático",
+    "cn": "China / Asia oriental",
+    "eu": "Europa",
+    "us": "Norteamérica",
+    "global": "Resto del mundo"
+  },
+  "stores": {
+    "title": "Tiendas",
+    "openStore": "Visitar tienda",
+    "noStores": "No hay tiendas."
+  },
+  "language": {
+    "label": "Idioma",
+    "switchTo": "Cambiar idioma"
+  },
+  "common": {
+    "loading": "Cargando…",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "continue": "Continuar"
+  }
+}

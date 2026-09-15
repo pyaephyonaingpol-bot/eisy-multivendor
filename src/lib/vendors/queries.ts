@@ -19,6 +19,9 @@ function normalizeVendor(row: Vendor): Vendor {
     kyc_reviewed_at: row.kyc_reviewed_at ?? null,
     kyc_reviewed_by: row.kyc_reviewed_by ?? null,
     kyc_rejection_reason: row.kyc_rejection_reason ?? null,
+    ships_to_region_ids: Array.isArray(row.ships_to_region_ids)
+      ? row.ships_to_region_ids
+      : [],
   };
 }
 

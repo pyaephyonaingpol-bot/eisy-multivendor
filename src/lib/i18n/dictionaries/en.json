@@ -1,0 +1,113 @@
+{
+  "brand": {
+    "short": "EISY",
+    "full": "EISY Marketplace",
+    "tagline": "Multi-vendor commerce for Myanmar and beyond"
+  },
+  "nav": {
+    "home": "Home",
+    "shop": "Shop",
+    "stores": "Stores",
+    "cart": "Cart",
+    "orders": "Orders",
+    "wallet": "Wallet",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "vendorPortal": "Vendor & Dropshipper Portal"
+  },
+  "vendorNav": {
+    "title": "Vendor",
+    "overview": "Overview",
+    "storeBranding": "Store branding",
+    "application": "Application",
+    "products": "Products",
+    "sourcing": "Sourcing",
+    "import": "Import",
+    "integrations": "Integrations",
+    "fees": "Fees",
+    "wallet": "Wallet",
+    "orders": "Orders",
+    "backToStorefront": "← Storefront"
+  },
+  "sourcing": {
+    "title": "Product sourcing",
+    "subtitle": "Browse DSers, CJ Dropshipping, Spocket, and POD catalogs, filter by ship-to region and delivery speed, then import listings that meet the 10-unit stock minimum.",
+    "catalogTitle": "Multi-supplier product sourcing",
+    "catalogSubtitle": "Filter DSers, CJ Dropshipping, Spocket, and POD (Printful / Printify) catalogs in one place.",
+    "search": "Search",
+    "searchPlaceholder": "Search products across suppliers",
+    "shipToRegion": "Ship-to region",
+    "deliverySpeed": "Delivery speed",
+    "anySpeed": "Any speed",
+    "fastDispatch": "Fast dispatch",
+    "fastDispatchFilter": "Fast dispatch (≤7 days)",
+    "localWarehouse": "Local warehouse",
+    "searchButton": "Search",
+    "searching": "Searching…",
+    "previewImport": "Preview & import",
+    "stockBelowMin": "Below {min}-unit stock minimum",
+    "stockLabel": "stock {qty}",
+    "daysRange": "{min}–{max} days",
+    "emptySearch": "Run a search to load supplier products.",
+    "emptySearchDev": "Run a search to load supplier products (mock catalogs when live API keys are unset).",
+    "searchFailed": "Search failed.",
+    "catalogUnreachable": "Could not reach supplier catalog API.",
+    "sourceTabsLabel": "Supplier source",
+    "importSuccess": "Imported into your store (product {id}…). Keep building toward {min} active items for the fee floor.",
+    "fastStrategiesTitle": "Fast shipping strategies",
+    "fastStrategiesBody": "Prefer regional warehouses (US / EU / SEA), filter for fast dispatch (≤7 days), and favor carriers such as DHL, FedEx, or ePacket when the supplier exposes them.",
+    "manageCredentials": "Manage supplier credentials",
+    "routeManagerTitle": "Regional route manager",
+    "routeManagerSubtitle": "Attach CJ, DSers, Spocket, POD, or warehouse routes per buyer region for catalog source products.",
+    "noSourceProducts": "No source catalog products yet. Import from the multi-supplier catalog above, or add a product and attach regional supplier routes.",
+    "manageRoutes": "Manage routes",
+    "importLimitReached": "Import limit reached. Archive listings or upgrade before importing more.",
+    "sources": {
+      "all": "All",
+      "dsers": "DSers",
+      "cj": "CJ Dropshipping",
+      "spocket": "Spocket",
+      "pod": "POD"
+    }
+  },
+  "escrow": {
+    "title": "Escrow",
+    "held": "Funds held in escrow",
+    "released": "Escrow released to seller",
+    "pending": "Awaiting delivery confirmation",
+    "info": "Buyer payments stay in escrow until delivery is confirmed, protecting both sides."
+  },
+  "checkout": {
+    "title": "Checkout",
+    "placeOrder": "Place order",
+    "shipping": "Shipping",
+    "payment": "Payment",
+    "usdtNote": "Pay securely in USDT. MMK wallet balances follow separate rules.",
+    "subtotal": "Subtotal",
+    "total": "Total"
+  },
+  "regions": {
+    "label": "Shipping region",
+    "mm": "Myanmar",
+    "sea": "Southeast Asia",
+    "cn": "China / East Asia",
+    "eu": "Europe",
+    "us": "North America",
+    "global": "Rest of world"
+  },
+  "stores": {
+    "title": "Stores",
+    "openStore": "Visit store",
+    "noStores": "No stores found."
+  },
+  "language": {
+    "label": "Language",
+    "switchTo": "Switch language"
+  },
+  "common": {
+    "loading": "Loading…",
+    "save": "Save",
+    "cancel": "Cancel",
+    "continue": "Continue"
+  }
+}

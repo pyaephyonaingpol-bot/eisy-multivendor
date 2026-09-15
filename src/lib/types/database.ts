@@ -50,6 +50,7 @@ export type SupplierProviderKind =
   | "internal"
   | "cj_dropshipping"
   | "dsers"
+  | "spocket"
   | "print_on_demand"
   | "other";
 
@@ -201,6 +202,11 @@ export type Vendor = {
   kyc_reviewed_at: string | null;
   kyc_reviewed_by: string | null;
   kyc_rejection_reason: string | null;
+  /**
+   * When non-empty, this seller's listings are only shown/sellable to these
+   * sourcing regions. Empty = worldwide (still subject to product-level ships_to).
+   */
+  ships_to_region_ids: string[];
   created_at: string;
   updated_at: string;
 };

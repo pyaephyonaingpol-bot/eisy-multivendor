@@ -1,0 +1,113 @@
+{
+  "brand": {
+    "short": "EISY",
+    "full": "Marketplace EISY",
+    "tagline": "Commerce multi-vendeurs pour le Myanmar et au-delà"
+  },
+  "nav": {
+    "home": "Accueil",
+    "shop": "Boutique",
+    "stores": "Boutiques",
+    "cart": "Panier",
+    "orders": "Commandes",
+    "wallet": "Portefeuille",
+    "signIn": "Connexion",
+    "signOut": "Déconnexion",
+    "vendorPortal": "Portail vendeur & dropship"
+  },
+  "vendorNav": {
+    "title": "Vendeur",
+    "overview": "Aperçu",
+    "storeBranding": "Marque boutique",
+    "application": "Candidature",
+    "products": "Produits",
+    "sourcing": "Sourcing",
+    "import": "Import",
+    "integrations": "Intégrations",
+    "fees": "Frais",
+    "wallet": "Portefeuille",
+    "orders": "Commandes",
+    "backToStorefront": "← Vitrine"
+  },
+  "sourcing": {
+    "title": "Sourcing produits",
+    "subtitle": "Parcourez DSers, CJ, Spocket et POD, filtrez par région et délai, puis importez dès 10 unités.",
+    "catalogTitle": "Sourcing multi-fournisseurs",
+    "catalogSubtitle": "Filtrez DSers, CJ, Spocket et POD au même endroit.",
+    "search": "Recherche",
+    "searchPlaceholder": "Rechercher chez les fournisseurs",
+    "shipToRegion": "Région de livraison",
+    "deliverySpeed": "Vitesse de livraison",
+    "anySpeed": "Toute vitesse",
+    "fastDispatch": "Expédition rapide",
+    "fastDispatchFilter": "Expédition rapide (≤7 jours)",
+    "localWarehouse": "Entrepôt local",
+    "searchButton": "Rechercher",
+    "searching": "Recherche…",
+    "previewImport": "Aperçu & import",
+    "stockBelowMin": "Sous le minimum de {min} unités",
+    "stockLabel": "stock {qty}",
+    "daysRange": "{min}–{max} jours",
+    "emptySearch": "Lancez une recherche pour charger les produits fournisseurs.",
+    "emptySearchDev": "Lancez une recherche pour charger les produits (catalogues fictifs sans clés API).",
+    "searchFailed": "Échec de la recherche.",
+    "catalogUnreachable": "Impossible d’atteindre l’API du catalogue fournisseurs.",
+    "sourceTabsLabel": "Source fournisseur",
+    "importSuccess": "Importé dans votre boutique (produit {id}…). Atteignez {min} articles actifs pour le plancher de frais.",
+    "fastStrategiesTitle": "Stratégies d’expédition rapide",
+    "fastStrategiesBody": "Privilégiez les entrepôts régionaux, le filtre ≤7 jours et DHL, FedEx ou ePacket.",
+    "manageCredentials": "Gérer les clés fournisseurs",
+    "routeManagerTitle": "Routes régionales",
+    "routeManagerSubtitle": "Attachez des routes CJ, DSers, Spocket, POD par région acheteur.",
+    "noSourceProducts": "Aucun produit source pour l’instant.",
+    "manageRoutes": "Gérer les routes",
+    "importLimitReached": "Limite d’import atteinte.",
+    "sources": {
+      "all": "Tous",
+      "dsers": "DSers",
+      "cj": "CJ Dropshipping",
+      "spocket": "Spocket",
+      "pod": "POD"
+    }
+  },
+  "escrow": {
+    "title": "Séquestre",
+    "held": "Fonds en séquestre",
+    "released": "Séquestre versé au vendeur",
+    "pending": "En attente de confirmation de livraison",
+    "info": "Le paiement reste en séquestre jusqu’à confirmation de livraison."
+  },
+  "checkout": {
+    "title": "Paiement",
+    "placeOrder": "Passer commande",
+    "shipping": "Livraison",
+    "payment": "Paiement",
+    "usdtNote": "Payez en toute sécurité en USDT.",
+    "subtotal": "Sous-total",
+    "total": "Total"
+  },
+  "regions": {
+    "label": "Région de livraison",
+    "mm": "Myanmar",
+    "sea": "Asie du Sud-Est",
+    "cn": "Chine / Asie de l’Est",
+    "eu": "Europe",
+    "us": "Amérique du Nord",
+    "global": "Reste du monde"
+  },
+  "stores": {
+    "title": "Boutiques",
+    "openStore": "Voir la boutique",
+    "noStores": "Aucune boutique."
+  },
+  "language": {
+    "label": "Langue",
+    "switchTo": "Changer de langue"
+  },
+  "common": {
+    "loading": "Chargement…",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "continue": "Continuer"
+  }
+}

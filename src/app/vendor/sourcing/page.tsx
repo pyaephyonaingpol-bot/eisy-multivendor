@@ -37,6 +37,22 @@ export default async function VendorSourcingIndexPage() {
         </p>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-950">
+        <div>
+          <p className="font-semibold text-emerald-900">One-click Import to Store</p>
+          <p className="mt-0.5 text-emerald-900/90">
+            Search CJ Dropshipping or DSers and import supplier items into your
+            active inventory in one click (min 10 active / max plan limit enforced).
+          </p>
+        </div>
+        <Link
+          href="/vendor/integrations"
+          className="inline-flex shrink-0 rounded-lg bg-emerald-800 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+        >
+          Open CJ / DSers catalog
+        </Link>
+      </div>
+
       {sourceProducts.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-10 text-center text-sm text-zinc-600">
           No source catalog products yet. Add a product, then attach regional supplier

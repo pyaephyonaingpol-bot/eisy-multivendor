@@ -75,6 +75,18 @@ export default async function VendorIntegrationsPage() {
 
       {quota ? <ImportQuotaBanner quota={quota} /> : null}
 
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-950">
+        <p className="font-semibold text-emerald-900">One-click Import to Store</p>
+        <p className="mt-1 text-emerald-900/90">
+          Search CJ or DSers below, then click <strong>Import to Store</strong> to
+          add the item to your active inventory with a default 35% markup. New
+          imports are blocked at your maximum catalog cap
+          {quota ? ` (${quota.max_import_items})` : ""}. Stay at or above{" "}
+          {quota?.min_active_items ?? 10} active items to clear the monthly fee
+          floor.
+        </p>
+      </div>
+
       <SupplierCredentialsForm
         providers={providers ?? []}
         existing={credentials.rows ?? []}
@@ -84,11 +96,39 @@ export default async function VendorIntegrationsPage() {
         providerKind="cj_dropshipping"
         providerLabel="CJ Dropshipping"
         importDisabled={quota?.at_import_limit ?? false}
+        quota={
+          quota
+            ? {
+                minActiveItems: quota.min_active_items,
+                maxImportItems: quota.max_import_items,
+                catalogItemCount: quota.catalog_item_count,
+                activeItemCount: quota.active_item_count,
+                remainingImportSlots: quota.remaining_import_slots,
+                itemFeeUsdt: quota.item_fee_usdt,
+                atImportLimit: quota.at_import_limit,
+                meetsMinimum: quota.meets_minimum,
+              }
+            : null
+        }
       />
       <ExternalSupplierCatalogPanel
         providerKind="dsers"
         providerLabel="DSers / AliExpress"
         importDisabled={quota?.at_import_limit ?? false}
+        quota={
+          quota
+            ? {
+                minActiveItems: quota.min_active_items,
+                maxImportItems: quota.max_import_items,
+                catalogItemCount: quota.catalog_item_count,
+                activeItemCount: quota.active_item_count,
+                remainingImportSlots: quota.remaining_import_slots,
+                itemFeeUsdt: quota.item_fee_usdt,
+                atImportLimit: quota.at_import_limit,
+                meetsMinimum: quota.meets_minimum,
+              }
+            : null
+        }
       />
 
       <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">

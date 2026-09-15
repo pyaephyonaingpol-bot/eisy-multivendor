@@ -11,7 +11,10 @@ import {
   type ExternalSupplierKind,
   type SupplierCredentials,
 } from "@/lib/suppliers";
-import { slugifyExternalName } from "@/lib/suppliers/types";
+import {
+  ONE_CLICK_IMPORT_MARKUP,
+  slugifyExternalName,
+} from "@/lib/suppliers/types";
 import { createClient } from "@/lib/supabase/server";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 
@@ -24,7 +27,32 @@ export type ExternalImportState = {
   error?: string;
   success?: string;
   productId?: string;
+  /** True when the listing was created via one-click default pricing. */
+  oneClick?: boolean;
 } | null;
+
+function resolveImportSellPrice(
+  formData: FormData,
+  supplierCostUsdt: number,
+): { price: number; oneClick: boolean } | { error: string } {
+  const oneClick =
+    String(formData.get("one_click") ?? "").trim() === "1" ||
+    String(formData.get("one_click") ?? "").trim() === "true";
+  const rawPrice = String(formData.get("price") ?? "").trim();
+  const parsed = rawPrice === "" ? NaN : Number(rawPrice);
+
+  if (oneClick || !Number.isFinite(parsed) || parsed <= 0) {
+    if (!oneClick && rawPrice !== "") {
+      return { error: "Enter a sell price greater than zero." };
+    }
+    const price =
+      Math.round(Math.max(supplierCostUsdt, 0.01) * ONE_CLICK_IMPORT_MARKUP * 100) /
+      100;
+    return { price, oneClick: true };
+  }
+
+  return { price: Math.round(parsed * 100) / 100, oneClick: false };
+}
 
 async function requireApprovedVendor() {
   const session = await getSessionProfile();
@@ -177,27 +205,31 @@ export async function importExternalSupplierProductAction(
   const externalProductId = String(
     formData.get("external_product_id") ?? "",
   ).trim();
-  const sellPrice = Number(String(formData.get("price") ?? "").trim());
-  const regionCode = String(formData.get("region_code") ?? "GLOBAL").trim() || "GLOBAL";
+  const regionCode =
+    String(formData.get("region_code") ?? "GLOBAL").trim() || "GLOBAL";
 
   if (!kind || !externalProductId) {
     return { error: "Select a supplier product to import." };
   }
-  if (!Number.isFinite(sellPrice) || sellPrice <= 0) {
-    return { error: "Enter a sell price greater than zero." };
-  }
 
+  // Credentials are optional in mock mode; provider rows may be absent until
+  // supplier migrations are applied to the project.
   const linked = await loadVendorCredentials(gate.vendor.id, kind);
-  if (!linked) {
-    return { error: "Supplier provider is not configured in the marketplace." };
-  }
-
   const remote =
-    (await getExternalProduct(kind, externalProductId, linked.credentials)) ??
-    null;
+    (await getExternalProduct(
+      kind,
+      externalProductId,
+      linked?.credentials ?? null,
+    )) ?? null;
   if (!remote) {
     return { error: "Could not load that supplier product." };
   }
+
+  const priced = resolveImportSellPrice(formData, remote.priceUsdt);
+  if ("error" in priced) {
+    return { error: priced.error };
+  }
+  const { price: sellPrice, oneClick } = priced;
 
   if (sellPrice < remote.priceUsdt) {
     return {
@@ -207,71 +239,167 @@ export async function importExternalSupplierProductAction(
 
   const supabase = await createClient();
 
-  // Re-import of the same external SKU updates the existing listing (no new quota slot).
-  const { data: existingImport } = await supabase
-    .from("external_product_imports")
-    .select("id, product_id")
-    .eq("vendor_id", gate.vendor.id)
-    .eq("provider_id", linked.providerId)
-    .eq("external_product_id", remote.externalProductId)
-    .maybeSingle();
-
-  if (existingImport?.product_id) {
-    const { error: updateError } = await supabase
-      .from("products")
-      .update({
-        name: remote.name.slice(0, 180),
-        description: remote.description,
-        price: sellPrice,
-        compare_at_price: remote.compareAtPriceUsdt,
-        sku: remote.externalSku,
-        stock_quantity: remote.stockQuantity ?? 0,
-        images: remote.images.length
-          ? remote.images
-          : remote.imageUrl
-            ? [remote.imageUrl]
-            : [],
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", existingImport.product_id)
-      .eq("vendor_id", gate.vendor.id);
-
-    if (updateError) {
-      return { error: updateError.message };
-    }
-
-    await supabase
-      .from("external_product_imports")
-      .update({
-        external_variant_id: remote.externalVariantId,
-        external_sku: remote.externalSku,
-        source_payload: remote.raw,
-        last_synced_at: new Date().toISOString(),
-      })
-      .eq("id", existingImport.id);
-
-    revalidatePath("/vendor/products");
-    revalidatePath("/vendor/import");
-    revalidatePath("/vendor/integrations");
-    revalidatePath(`/vendor/sourcing/${existingImport.product_id}`);
-
-    return {
-      success: `Updated imported “${remote.name}” from ${
-        kind === "cj_dropshipping" ? "CJ" : "DSers"
-      }.`,
-      productId: existingImport.product_id,
-    };
+  function isMissingSchemaError(message: string | undefined) {
+    if (!message) return false;
+    const m = message.toLowerCase();
+    return (
+      m.includes("schema cache") ||
+      m.includes("could not find the table") ||
+      m.includes("could not find the function") ||
+      m.includes("does not exist")
+    );
   }
 
-  const { error: quotaError } = await supabase.rpc(
+  const productImages = remote.images.length
+    ? remote.images
+    : remote.imageUrl
+      ? [remote.imageUrl]
+      : [];
+
+  // Re-import of the same external SKU updates the existing listing (no new quota slot).
+  if (linked?.providerId) {
+    const { data: existingImport, error: existingError } = await supabase
+      .from("external_product_imports")
+      .select("id, product_id")
+      .eq("vendor_id", gate.vendor.id)
+      .eq("provider_id", linked.providerId)
+      .eq("external_product_id", remote.externalProductId)
+      .maybeSingle();
+
+    if (existingError && !isMissingSchemaError(existingError.message)) {
+      return { error: existingError.message };
+    }
+
+    if (existingImport?.product_id) {
+      const { error: updateError } = await supabase
+        .from("products")
+        .update({
+          name: remote.name.slice(0, 180),
+          description: remote.description,
+          price: sellPrice,
+          compare_at_price: remote.compareAtPriceUsdt,
+          sku: remote.externalSku,
+          stock_quantity: remote.stockQuantity ?? 0,
+          images: productImages,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingImport.product_id)
+        .eq("vendor_id", gate.vendor.id);
+
+      if (updateError) {
+        return { error: updateError.message };
+      }
+
+      await supabase
+        .from("external_product_imports")
+        .update({
+          external_variant_id: remote.externalVariantId,
+          external_sku: remote.externalSku,
+          source_payload: remote.raw,
+          last_synced_at: new Date().toISOString(),
+        })
+        .eq("id", existingImport.id);
+
+      revalidatePath("/vendor/products");
+      revalidatePath("/vendor/import");
+      revalidatePath("/vendor/integrations");
+      revalidatePath(`/vendor/sourcing/${existingImport.product_id}`);
+
+      return {
+        success: `Updated imported “${remote.name}” from ${
+          kind === "cj_dropshipping" ? "CJ" : "DSers"
+        }.`,
+        productId: existingImport.product_id,
+        oneClick,
+      };
+    }
+  } else if (remote.externalSku) {
+    // Fallback dedupe when import-tracking tables are not migrated yet.
+    const { data: existingBySku } = await supabase
+      .from("products")
+      .select("id")
+      .eq("vendor_id", gate.vendor.id)
+      .eq("sku", remote.externalSku)
+      .maybeSingle();
+
+    if (existingBySku?.id) {
+      const { error: updateError } = await supabase
+        .from("products")
+        .update({
+          name: remote.name.slice(0, 180),
+          description: remote.description,
+          price: sellPrice,
+          compare_at_price: remote.compareAtPriceUsdt,
+          stock_quantity: remote.stockQuantity ?? 0,
+          images: productImages,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingBySku.id)
+        .eq("vendor_id", gate.vendor.id);
+
+      if (updateError) {
+        return { error: updateError.message };
+      }
+
+      revalidatePath("/vendor/products");
+      revalidatePath("/vendor/integrations");
+
+      return {
+        success: `Updated imported “${remote.name}” from ${
+          kind === "cj_dropshipping" ? "CJ" : "DSers"
+        }.`,
+        productId: existingBySku.id,
+        oneClick,
+      };
+    }
+  }
+
+  // Max import cap (plan / system / vendor override). Min active (10) is a fee
+  // floor — imports are allowed below it; we surface guidance after success.
+  const { data: quotaBefore, error: quotaError } = await supabase.rpc(
     "assert_vendor_can_import_product",
     {
       p_vendor_id: gate.vendor.id,
       p_is_new_catalog_item: true,
     },
   );
-  if (quotaError) {
-    return { error: quotaError.message };
+  void quotaBefore;
+  if (quotaError && !isMissingSchemaError(quotaError.message)) {
+    return {
+      error:
+        quotaError.message ||
+        "Import limit reached. Archive listings or upgrade your plan.",
+    };
+  }
+
+  const { data: quotaSnapshot } = await supabase.rpc("get_vendor_import_quota", {
+    p_vendor_id: gate.vendor.id,
+  });
+  const quota = (quotaSnapshot ?? {}) as {
+    active_item_count?: number;
+    min_active_items?: number;
+    catalog_item_count?: number;
+    max_import_items?: number;
+    item_fee_usdt?: number;
+  };
+  const minActive = Number(quota.min_active_items ?? 10);
+  const itemFee = Number(quota.item_fee_usdt ?? 1);
+  const activeBefore = Number(quota.active_item_count ?? 0);
+  const catalogBefore = Number(quota.catalog_item_count ?? 0);
+  const maxImports = Number(quota.max_import_items ?? 100);
+
+  // When quota RPCs are unavailable, enforce a local active-catalog cap of 100.
+  if (!quotaSnapshot) {
+    const { count } = await supabase
+      .from("products")
+      .select("id", { count: "exact", head: true })
+      .eq("vendor_id", gate.vendor.id)
+      .neq("status", "archived");
+    if ((count ?? 0) >= maxImports) {
+      return {
+        error: `Import limit reached (${count}/${maxImports}). Archive listings or upgrade your plan.`,
+      };
+    }
   }
 
   const slugBase = slugifyExternalName(
@@ -292,17 +420,8 @@ export async function importExternalSupplierProductAction(
       sku: remote.externalSku,
       stock_quantity: remote.stockQuantity ?? 0,
       status: "active",
-      images: remote.images.length
-        ? remote.images
-        : remote.imageUrl
-          ? [remote.imageUrl]
-          : [],
+      images: productImages,
       product_type: "physical",
-      // External CJ/DSers listings are owned by the vendor; fulfillment is
-      // routed via product_supplier_routes + supplier_fulfillment_jobs.
-      // Counted toward import quotas + inventory fees via external_product_imports.
-      is_dropship: false,
-      source_product_id: null,
     })
     .select("id")
     .single();
@@ -311,63 +430,80 @@ export async function importExternalSupplierProductAction(
     return { error: productError?.message ?? "Failed to create product." };
   }
 
-  const { data: region } = await supabase
-    .from("sourcing_regions")
-    .select("id, code")
-    .eq("code", regionCode)
-    .maybeSingle();
+  if (linked?.providerId) {
+    const { data: region } = await supabase
+      .from("sourcing_regions")
+      .select("id, code")
+      .eq("code", regionCode)
+      .maybeSingle();
 
-  const regionId =
-    region?.id ??
-    (
-      await supabase
-        .from("sourcing_regions")
-        .select("id")
-        .eq("is_default", true)
-        .maybeSingle()
-    ).data?.id;
+    const regionId =
+      region?.id ??
+      (
+        await supabase
+          .from("sourcing_regions")
+          .select("id")
+          .eq("is_default", true)
+          .maybeSingle()
+      ).data?.id;
 
-  if (regionId) {
-    await supabase.from("product_supplier_routes").upsert(
+    if (regionId) {
+      await supabase.from("product_supplier_routes").upsert(
+        {
+          product_id: product.id,
+          region_id: regionId,
+          provider_id: linked.providerId,
+          external_sku:
+            remote.externalVariantId ||
+            remote.externalSku ||
+            remote.externalProductId,
+          warehouse_country: remote.warehouseCountry || "CN",
+          shipping_days_min: remote.shippingDaysMin,
+          shipping_days_max: remote.shippingDaysMax,
+          shipping_cost_usdt: 0,
+          priority: 1,
+          is_active: true,
+        },
+        { onConflict: "product_id,region_id,provider_id" },
+      );
+    }
+
+    await supabase.from("external_product_imports").upsert(
       {
-        product_id: product.id,
-        region_id: regionId,
+        vendor_id: gate.vendor.id,
         provider_id: linked.providerId,
-        external_sku:
-          remote.externalVariantId || remote.externalSku || remote.externalProductId,
-        warehouse_country: remote.warehouseCountry || "CN",
-        shipping_days_min: remote.shippingDaysMin,
-        shipping_days_max: remote.shippingDaysMax,
-        shipping_cost_usdt: 0,
-        priority: 1,
-        is_active: true,
+        product_id: product.id,
+        external_product_id: remote.externalProductId,
+        external_variant_id: remote.externalVariantId,
+        external_sku: remote.externalSku,
+        source_payload: remote.raw,
+        last_synced_at: new Date().toISOString(),
       },
-      { onConflict: "product_id,region_id,provider_id" },
+      { onConflict: "vendor_id,provider_id,external_product_id" },
     );
   }
-
-  await supabase.from("external_product_imports").upsert(
-    {
-      vendor_id: gate.vendor.id,
-      provider_id: linked.providerId,
-      product_id: product.id,
-      external_product_id: remote.externalProductId,
-      external_variant_id: remote.externalVariantId,
-      external_sku: remote.externalSku,
-      source_payload: remote.raw,
-      last_synced_at: new Date().toISOString(),
-    },
-    { onConflict: "vendor_id,provider_id,external_product_id" },
-  );
 
   revalidatePath("/vendor/products");
   revalidatePath("/vendor/import");
   revalidatePath("/vendor/integrations");
+  revalidatePath("/vendor/sourcing");
   revalidatePath(`/vendor/sourcing/${product.id}`);
 
+  const activeAfter = activeBefore + 1;
+  const catalogAfter = catalogBefore + 1;
+  const platform = kind === "cj_dropshipping" ? "CJ" : "DSers";
+  const priceNote = oneClick
+    ? ` Listed at ${sellPrice.toFixed(2)} USDT (${Math.round((ONE_CLICK_IMPORT_MARKUP - 1) * 100)}% markup).`
+    : "";
+  const quotaNote =
+    activeAfter < minActive
+      ? ` Active catalog ${activeAfter}/${minActive} toward the ${minActive}-item fee floor (${(minActive * itemFee).toFixed(0)} USDT/mo).`
+      : ` Catalog ${catalogAfter}/${maxImports} import slots used.`;
+
   return {
-    success: `Imported “${remote.name}” from ${kind === "cj_dropshipping" ? "CJ" : "DSers"}.`,
+    success: `Imported “${remote.name}” from ${platform} into your store.${priceNote}${quotaNote}`,
     productId: product.id,
+    oneClick,
   };
 }
 

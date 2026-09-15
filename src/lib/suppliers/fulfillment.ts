@@ -6,6 +6,10 @@ import {
   type SupplierCredentials,
   type SupplierFulfillmentRequest,
 } from "@/lib/suppliers";
+import {
+  hasVendorSupplierCredentials,
+  supplierIntegrationsMode,
+} from "@/lib/suppliers/types";
 
 type JobRow = {
   id: string;
@@ -56,9 +60,14 @@ async function loadCredentials(
   };
 }
 
+/**
+ * Build a supplier create-order payload for one provider job.
+ * Only includes lines tied to that provider (import row, stamped provider, or route).
+ */
 async function buildFulfillmentRequest(
   orderId: string,
   kind: ExternalSupplierKind,
+  providerId: string | null,
 ): Promise<SupplierFulfillmentRequest> {
   const supabase = createServiceClient();
   const { data: order, error } = await supabase
@@ -102,20 +111,33 @@ async function buildFulfillmentRequest(
         .from("product_supplier_routes")
         .select("id, external_sku, provider_id")
         .in("id", routeIds)
-    : { data: [] as Array<{ id: string; external_sku: string | null; provider_id: string }> };
+    : {
+        data: [] as Array<{
+          id: string;
+          external_sku: string | null;
+          provider_id: string;
+        }>,
+      };
 
   const routeById = new Map((routes ?? []).map((r) => [r.id, r]));
 
   const importKeys = lineRows
     .map((row) => row.listing_product_id ?? row.product_id)
     .filter(Boolean) as string[];
+
+  let importQuery = supabase
+    .from("external_product_imports")
+    .select(
+      "product_id, external_product_id, external_variant_id, external_sku, provider_id",
+    )
+    .in("product_id", importKeys.length ? importKeys : ["00000000-0000-0000-0000-000000000000"]);
+
+  if (providerId) {
+    importQuery = importQuery.eq("provider_id", providerId);
+  }
+
   const { data: imports } = importKeys.length
-    ? await supabase
-        .from("external_product_imports")
-        .select(
-          "product_id, external_product_id, external_variant_id, external_sku, provider_id",
-        )
-        .in("product_id", importKeys)
+    ? await importQuery
     : {
         data: [] as Array<{
           product_id: string | null;
@@ -132,31 +154,51 @@ async function buildFulfillmentRequest(
       .map((row) => [row.product_id as string, row]),
   );
 
-  const lines = lineRows.map((row) => {
-    const listingId = row.listing_product_id ?? row.product_id;
-    const product = listingId ? productById.get(listingId) : null;
-    const route = row.supplier_route_id
-      ? routeById.get(row.supplier_route_id)
-      : null;
-    const imported = listingId ? importByProduct.get(listingId) : null;
-    const images = Array.isArray(product?.images)
-      ? (product?.images as string[])
-      : [];
+  const lines = lineRows
+    .map((row) => {
+      const listingId = row.listing_product_id ?? row.product_id;
+      const product = listingId ? productById.get(listingId) : null;
+      const route = row.supplier_route_id
+        ? routeById.get(row.supplier_route_id)
+        : null;
+      const imported = listingId ? importByProduct.get(listingId) : null;
+      const images = Array.isArray(product?.images)
+        ? (product?.images as string[])
+        : [];
 
-    return {
-      externalProductId: imported?.external_product_id ?? null,
-      externalVariantId: imported?.external_variant_id ?? null,
-      externalSku:
-        imported?.external_sku ??
-        route?.external_sku ??
-        product?.sku ??
-        null,
-      quantity: Number(row.quantity) || 1,
-      listingProductId: listingId,
-      productName: row.product_name,
-      imageUrl: images[0] ?? null,
-    };
-  });
+      const lineProviderId =
+        row.supplier_provider_id ??
+        imported?.provider_id ??
+        route?.provider_id ??
+        null;
+
+      return {
+        lineProviderId,
+        line: {
+          externalProductId: imported?.external_product_id ?? null,
+          externalVariantId: imported?.external_variant_id ?? null,
+          externalSku:
+            imported?.external_sku ??
+            route?.external_sku ??
+            product?.sku ??
+            null,
+          quantity: Number(row.quantity) || 1,
+          listingProductId: listingId,
+          productName: row.product_name,
+          imageUrl: images[0] ?? null,
+        },
+      };
+    })
+    .filter(({ lineProviderId, line }) => {
+      if (providerId) {
+        if (lineProviderId !== providerId) return false;
+      }
+      // Keep lines that have at least one external identifier for this supplier.
+      return Boolean(
+        line.externalProductId || line.externalVariantId || line.externalSku,
+      );
+    })
+    .map(({ line }) => line);
 
   void kind;
 
@@ -216,26 +258,51 @@ export async function processSupplierFulfillmentJobs(limit = 20): Promise<{
         .eq("id", job.order_id)
         .maybeSingle();
 
-      const credentials = await loadCredentials(
-        order?.seller_vendor_id ?? order?.vendor_id ?? null,
+      const vendorId = order?.seller_vendor_id ?? order?.vendor_id ?? null;
+      const credentials = await loadCredentials(vendorId, job.provider_id);
+
+      // Live mode: never place vendor orders on platform env keys.
+      if (
+        supplierIntegrationsMode() === "live" &&
+        !hasVendorSupplierCredentials(kind, credentials)
+      ) {
+        await supabase.rpc("complete_supplier_fulfillment_job", {
+          p_job_id: job.id,
+          p_status: "failed",
+          p_supplier_order_ref: null,
+          p_response: { reason: "missing_vendor_credentials" },
+          p_error:
+            "Connect CJ/DSers credentials on Integrations before live fulfillment.",
+        });
+        failed += 1;
+        results.push({
+          job_id: job.id,
+          status: "failed",
+          reason: "missing_vendor_credentials",
+        });
+        continue;
+      }
+
+      const request = await buildFulfillmentRequest(
+        job.order_id,
+        kind,
         job.provider_id,
       );
-
-      const request = await buildFulfillmentRequest(job.order_id, kind);
-      const hasExternalIds = request.lines.some(
-        (line) => line.externalProductId || line.externalVariantId || line.externalSku,
-      );
-      if (!hasExternalIds) {
+      if (request.lines.length === 0) {
         await supabase.rpc("complete_supplier_fulfillment_job", {
           p_job_id: job.id,
           p_status: "skipped",
           p_supplier_order_ref: null,
-          p_response: { reason: "no_external_sku" },
+          p_response: { reason: "no_matching_external_lines" },
           p_error:
-            "Order lines have no CJ/DSers external SKU. Import from Integrations first.",
+            "No order lines matched this supplier with external CJ/DSers SKUs.",
         });
         skipped += 1;
-        results.push({ job_id: job.id, status: "skipped", reason: "no_external_sku" });
+        results.push({
+          job_id: job.id,
+          status: "skipped",
+          reason: "no_matching_external_lines",
+        });
         continue;
       }
 

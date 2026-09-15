@@ -198,7 +198,13 @@ export function ExternalSupplierCatalogPanel({
                       disabled={pendingImport || atLimit}
                       className="min-h-11 w-full rounded-lg bg-emerald-800 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60 sm:min-h-0 sm:w-auto"
                     >
-                      {pendingImport ? "Importing…" : "Import to Store"}
+                      {pendingImport
+                        ? "Importing…"
+                        : belowMin
+                          ? `Import to Store (${(quota?.activeItemCount ?? 0) + 1}/${minActive})`
+                          : quota
+                            ? `Import to Store (${(quota.catalogItemCount ?? 0) + 1}/${maxImports})`
+                            : "Import to Store"}
                     </button>
                   </form>
 

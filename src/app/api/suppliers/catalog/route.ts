@@ -4,6 +4,7 @@ import {
   parseSupplierKind,
   searchExternalProducts,
 } from "@/lib/suppliers";
+import { supplierIntegrationsMode } from "@/lib/suppliers/types";
 import { createClient } from "@/lib/supabase/server";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 
@@ -77,6 +78,7 @@ export async function GET(request: Request) {
       provider: kind,
       query,
       count: products.length,
+      mode: supplierIntegrationsMode(),
       products,
     });
   } catch (error) {

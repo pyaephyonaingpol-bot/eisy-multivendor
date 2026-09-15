@@ -175,6 +175,63 @@ async function loadVendorCredentials(
   };
 }
 
+
+/** Ensure MM + GLOBAL (+ requested) supplier routes exist for external imports. */
+async function upsertExternalSupplierRoutes(params: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  productId: string;
+  providerId: string;
+  remote: ExternalCatalogProduct;
+  regionCode: string;
+}) {
+  const { supabase, productId, providerId, remote, regionCode } = params;
+  const codes = Array.from(
+    new Set(
+      [regionCode, "MM", "GLOBAL"]
+        .map((code) => code.trim().toUpperCase())
+        .filter(Boolean),
+    ),
+  );
+
+  const { data: regions } = await supabase
+    .from("sourcing_regions")
+    .select("id, code")
+    .in("code", codes);
+
+  let regionRows = regions ?? [];
+  if (regionRows.length === 0) {
+    const { data: fallback } = await supabase
+      .from("sourcing_regions")
+      .select("id, code")
+      .eq("is_default", true)
+      .maybeSingle();
+    if (fallback) regionRows = [fallback];
+  }
+
+  const externalSku =
+    remote.externalVariantId ||
+    remote.externalSku ||
+    remote.externalProductId;
+
+  for (const region of regionRows) {
+    await supabase.from("product_supplier_routes").upsert(
+      {
+        product_id: productId,
+        region_id: region.id,
+        provider_id: providerId,
+        external_sku: externalSku,
+        warehouse_country: remote.warehouseCountry || "CN",
+        shipping_days_min: remote.shippingDaysMin,
+        shipping_days_max: remote.shippingDaysMax,
+        shipping_cost_usdt: 0,
+        priority: region.code === "MM" ? 1 : 2,
+        is_active: true,
+      },
+      { onConflict: "product_id,region_id,provider_id" },
+    );
+  }
+}
+
 export async function searchSupplierCatalogAction(
   kindRaw: string,
   query: string,
@@ -281,6 +338,7 @@ export async function importExternalSupplierProductAction(
           sku: remote.externalSku,
           stock_quantity: remote.stockQuantity ?? 0,
           images: productImages,
+          is_dropship: true,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existingImport.product_id)
@@ -299,6 +357,14 @@ export async function importExternalSupplierProductAction(
           last_synced_at: new Date().toISOString(),
         })
         .eq("id", existingImport.id);
+
+      await upsertExternalSupplierRoutes({
+        supabase,
+        productId: existingImport.product_id,
+        providerId: linked.providerId,
+        remote,
+        regionCode,
+      });
 
       revalidatePath("/vendor/products");
       revalidatePath("/vendor/import");
@@ -332,6 +398,7 @@ export async function importExternalSupplierProductAction(
           compare_at_price: remote.compareAtPriceUsdt,
           stock_quantity: remote.stockQuantity ?? 0,
           images: productImages,
+          is_dropship: true,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existingBySku.id)
@@ -422,6 +489,7 @@ export async function importExternalSupplierProductAction(
       status: "active",
       images: productImages,
       product_type: "physical",
+      is_dropship: true,
     })
     .select("id")
     .single();
@@ -431,42 +499,13 @@ export async function importExternalSupplierProductAction(
   }
 
   if (linked?.providerId) {
-    const { data: region } = await supabase
-      .from("sourcing_regions")
-      .select("id, code")
-      .eq("code", regionCode)
-      .maybeSingle();
-
-    const regionId =
-      region?.id ??
-      (
-        await supabase
-          .from("sourcing_regions")
-          .select("id")
-          .eq("is_default", true)
-          .maybeSingle()
-      ).data?.id;
-
-    if (regionId) {
-      await supabase.from("product_supplier_routes").upsert(
-        {
-          product_id: product.id,
-          region_id: regionId,
-          provider_id: linked.providerId,
-          external_sku:
-            remote.externalVariantId ||
-            remote.externalSku ||
-            remote.externalProductId,
-          warehouse_country: remote.warehouseCountry || "CN",
-          shipping_days_min: remote.shippingDaysMin,
-          shipping_days_max: remote.shippingDaysMax,
-          shipping_cost_usdt: 0,
-          priority: 1,
-          is_active: true,
-        },
-        { onConflict: "product_id,region_id,provider_id" },
-      );
-    }
+    await upsertExternalSupplierRoutes({
+      supabase,
+      productId: product.id,
+      providerId: linked.providerId,
+      remote,
+      regionCode,
+    });
 
     await supabase.from("external_product_imports").upsert(
       {

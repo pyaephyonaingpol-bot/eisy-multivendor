@@ -251,7 +251,12 @@ export async function confirmUsdtTrc20Payment(args: {
       .then(({ processSupplierFulfillmentJobs }) =>
         processSupplierFulfillmentJobs(10),
       )
-      .catch(() => undefined);
+      .catch((error) => {
+        console.error(
+          "[supplier-fulfillment] post-payment worker failed",
+          error,
+        );
+      });
   }
 
   return {

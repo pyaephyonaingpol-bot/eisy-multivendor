@@ -138,7 +138,7 @@ export default async function VendorIntegrationsPage() {
         <code className="rounded bg-white px-1">
           POST /api/cron/fulfill-supplier-orders
         </code>{" "}
-        (Bearer CRON_SECRET; also runs daily at 03:00 UTC, and immediately after
+        (Bearer CRON_SECRET; also runs every 15 minutes, and immediately after
         paid checkout).
       </div>
     </div>

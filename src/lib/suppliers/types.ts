@@ -95,6 +95,22 @@ export function supplierIntegrationsMode(): "live" | "mock" {
   return "mock";
 }
 
+/** True when the vendor saved usable keys for this platform (not env fallbacks). */
+export function hasVendorSupplierCredentials(
+  kind: ExternalSupplierKind,
+  credentials?: SupplierCredentials | null,
+): boolean {
+  if (!credentials) return false;
+  if (kind === "cj_dropshipping") {
+    return Boolean(
+      credentials.accessToken?.trim() || credentials.apiKey?.trim(),
+    );
+  }
+  return Boolean(
+    credentials.apiKey?.trim() || credentials.accessToken?.trim(),
+  );
+}
+
 export function slugifyExternalName(value: string): string {
   return (
     value

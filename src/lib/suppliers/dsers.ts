@@ -46,14 +46,19 @@ async function dsersFetch(
     query?: Record<string, string | number | undefined>;
     body?: unknown;
     credentials?: SupplierCredentials | null;
+    /** When true, never fall back to platform env keys (vendor order fulfillment). */
+    credentialsOnly?: boolean;
   } = {},
 ): Promise<DsersJson> {
   const apiKey =
     options.credentials?.apiKey?.trim() ||
-    process.env.DSERS_API_KEY?.trim() ||
-    "";
+    (options.credentialsOnly ? "" : process.env.DSERS_API_KEY?.trim() || "");
   if (!apiKey && supplierIntegrationsMode() === "live") {
-    throw new Error("DSers credentials missing. Set DSERS_API_KEY.");
+    throw new Error(
+      options.credentialsOnly
+        ? "Vendor DSers credentials missing. Connect DSers on Integrations."
+        : "DSers credentials missing. Set DSERS_API_KEY.",
+    );
   }
 
   const url = new URL(`${DSERS_API_BASE.replace(/\/$/, "")}${path}`);
@@ -203,6 +208,7 @@ export async function createDsersOrder(
     const json = await dsersFetch("/orders", {
       method: "POST",
       credentials,
+      credentialsOnly: true,
       body: {
         external_order_id: request.orderId,
         order_number: request.orderNumber,

@@ -41,17 +41,23 @@ async function cjFetch(
     query?: Record<string, string | number | undefined>;
     body?: unknown;
     credentials?: SupplierCredentials | null;
+    /** When true, never fall back to platform env keys (vendor order fulfillment). */
+    credentialsOnly?: boolean;
   } = {},
 ): Promise<CjJson> {
   const token =
     options.credentials?.accessToken?.trim() ||
-    process.env.CJ_ACCESS_TOKEN?.trim() ||
-    "";
+    (options.credentialsOnly ? "" : process.env.CJ_ACCESS_TOKEN?.trim() || "");
   const apiKey =
-    options.credentials?.apiKey?.trim() || process.env.CJ_API_KEY?.trim() || "";
+    options.credentials?.apiKey?.trim() ||
+    (options.credentialsOnly ? "" : process.env.CJ_API_KEY?.trim() || "");
 
   if (!token && !apiKey && supplierIntegrationsMode() === "live") {
-    throw new Error("CJ credentials missing. Set CJ_ACCESS_TOKEN or CJ_API_KEY.");
+    throw new Error(
+      options.credentialsOnly
+        ? "Vendor CJ credentials missing. Connect CJ on Integrations."
+        : "CJ credentials missing. Set CJ_ACCESS_TOKEN or CJ_API_KEY.",
+    );
   }
 
   const url = new URL(`${CJ_API_BASE.replace(/\/$/, "")}${path}`);
@@ -233,6 +239,7 @@ export async function createCjOrder(
     const json = await cjFetch("/shopping/order/createOrderV3", {
       method: "POST",
       credentials,
+      credentialsOnly: true,
       body: {
         orderNumber: request.orderNumber,
         shippingCustomerName: request.shipTo.fullName,

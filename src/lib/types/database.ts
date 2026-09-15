@@ -19,7 +19,12 @@ export type OrderStatus =
   | "delivered"
   | "cancelled"
   | "refunded";
-export type OrderPayoutStatus = "held" | "released" | "not_applicable";
+export type OrderPayoutStatus =
+  | "held"
+  | "released"
+  | "not_applicable"
+  | "disputed"
+  | "refunded";
 
 export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 export type SubscriptionPlan = "free" | "starter" | "pro" | "enterprise";
@@ -39,7 +44,8 @@ export type WalletTxType =
   | "inventory_fee"
   | "platform_commission"
   | "escrow_hold"
-  | "escrow_release";
+  | "escrow_release"
+  | "escrow_refund";
 export type WalletTxStatus = "pending" | "completed" | "rejected" | "cancelled";
 export type DropshipFeeInvoiceStatus =
   | "pending"
@@ -377,11 +383,39 @@ export type OrderEscrowLedger = {
   beneficiary_user_id: string;
   role: OrderEscrowRole;
   amount_usdt: number;
-  status: "held" | "released";
+  status: "held" | "released" | "refunded";
   hold_tx_id: string | null;
   release_tx_id: string | null;
   created_at: string;
   released_at: string | null;
+};
+
+export type DisputeStatus =
+  | "open"
+  | "under_review"
+  | "resolved_refund"
+  | "resolved_release"
+  | "cancelled";
+
+export type DisputeReason =
+  | "not_received"
+  | "damaged"
+  | "not_as_described"
+  | "wrong_item"
+  | "other";
+
+export type Dispute = {
+  id: string;
+  order_id: string;
+  opened_by: string;
+  reason: DisputeReason;
+  description: string | null;
+  status: DisputeStatus;
+  resolution_note: string | null;
+  resolved_by: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type OrderFulfillmentEvent = {
@@ -593,6 +627,13 @@ export type Database = {
         Update: Partial<OrderEscrowLedger>;
         Relationships: [];
       };
+      disputes: {
+        Row: Dispute;
+        Insert: Partial<Dispute> &
+          Pick<Dispute, "order_id" | "opened_by" | "reason">;
+        Update: Partial<Dispute>;
+        Relationships: [];
+      };
       order_fulfillment_events: {
         Row: OrderFulfillmentEvent;
         Insert: Partial<OrderFulfillmentEvent> &
@@ -788,6 +829,39 @@ export type Database = {
           p_order_id: string;
         };
         Returns: Order;
+      };
+      open_order_dispute: {
+        Args: {
+          p_order_id: string;
+          p_reason: DisputeReason;
+          p_description?: string | null;
+        };
+        Returns: Dispute;
+      };
+      resolve_dispute_refund_buyer: {
+        Args: {
+          p_dispute_id: string;
+          p_note?: string | null;
+        };
+        Returns: Dispute;
+      };
+      resolve_dispute_release_seller: {
+        Args: {
+          p_dispute_id: string;
+          p_note?: string | null;
+        };
+        Returns: Dispute;
+      };
+      mark_dispute_under_review: {
+        Args: { p_dispute_id: string };
+        Returns: Dispute;
+      };
+      set_profile_role: {
+        Args: {
+          p_user_id: string;
+          p_role: UserRole;
+        };
+        Returns: Profile;
       };
       release_order_escrow: {
         Args: {

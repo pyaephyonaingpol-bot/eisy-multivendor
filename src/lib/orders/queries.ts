@@ -186,3 +186,31 @@ export async function listOrdersForVendor(
     };
   });
 }
+
+export async function listOrdersForAdmin(opts?: {
+  payoutStatus?: Order["payout_status"];
+  limit?: number;
+}): Promise<BuyerOrderRow[]> {
+  if (!getSupabasePublicEnv()) {
+    return [];
+  }
+
+  const supabase = await createClient();
+  let query = supabase
+    .from("orders")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(opts?.limit ?? 100);
+
+  if (opts?.payoutStatus) {
+    query = query.eq("payout_status", opts.payoutStatus);
+  }
+
+  const { data: orderRows } = await query;
+  const orders = (orderRows as Order[] | null) ?? [];
+  if (orders.length === 0) {
+    return [];
+  }
+
+  return attachVendorsAndItems(orders);
+}

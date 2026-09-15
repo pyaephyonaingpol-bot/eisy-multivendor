@@ -1,7 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSupabasePublicEnv } from "@/lib/supabase/env";
 import { normalizeProductSpecifications } from "@/lib/products/specifications";
+import { getBuyerSourcingContext } from "@/lib/sourcing/queries";
 import type { Product, Vendor } from "@/lib/types/database";
+import { DEFAULT_BUYER_COUNTRY } from "@/lib/sourcing/constants";
 
 function normalizeProduct(row: Product): Product {
   return {
@@ -13,6 +15,16 @@ function normalizeProduct(row: Product): Product {
     product_type: row.product_type ?? "physical",
     source_product_id: row.source_product_id ?? null,
     is_dropship: Boolean(row.is_dropship),
+    origin_country_code:
+      (row as Product & { origin_country_code?: string | null }).origin_country_code ??
+      null,
+    origin_region_id:
+      (row as Product & { origin_region_id?: string | null }).origin_region_id ?? null,
+    ships_to_region_ids: Array.isArray(
+      (row as Product & { ships_to_region_ids?: string[] }).ships_to_region_ids,
+    )
+      ? ((row as Product & { ships_to_region_ids?: string[] }).ships_to_region_ids as string[])
+      : [],
   };
 }
 
@@ -24,6 +36,30 @@ export type PublicProductDetail = Product & {
 };
 
 export type PublicProductSummary = PublicProductDetail;
+
+async function filterDeliverableProducts(
+  products: Product[],
+  countryCode: string,
+): Promise<Product[]> {
+  if (products.length === 0) {
+    return [];
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("filter_deliverable_product_ids", {
+    p_product_ids: products.map((product) => product.id),
+    p_country_code: countryCode || DEFAULT_BUYER_COUNTRY,
+  });
+
+  if (error || !data) {
+    // Fail open for local inventory if the migration is not applied yet.
+    console.warn("filter_deliverable_product_ids:", error?.message);
+    return products;
+  }
+
+  const allowed = new Set(data as string[]);
+  return products.filter((product) => allowed.has(product.id));
+}
 
 async function withPublicVendorMeta(
   products: Product[],
@@ -126,16 +162,22 @@ export async function listPublicProducts(limit = 24): Promise<PublicProductSumma
     return [];
   }
 
+  const sourcing = await getBuyerSourcingContext();
   const supabase = await createClient();
+  // Over-fetch so region filtering still fills the requested page size.
+  const fetchLimit = Math.min(Math.max(limit * 4, limit), 200);
   const { data: productRows } = await supabase
     .from("products")
     .select("*")
     .eq("status", "active")
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .limit(fetchLimit);
 
-  const products = ((productRows as Product[] | null) ?? []).map(normalizeProduct);
-  return withPublicVendorMeta(products);
+  const products = await filterDeliverableProducts(
+    ((productRows as Product[] | null) ?? []).map(normalizeProduct),
+    sourcing.countryCode,
+  );
+  return withPublicVendorMeta(products.slice(0, limit));
 }
 
 export async function listProductsForVendor(vendorId: string): Promise<Product[]> {
@@ -191,9 +233,16 @@ export async function getPublicProductById(
     return null;
   }
 
-  const [detail] = await withPublicVendorMeta([
-    normalizeProduct(productRow as Product),
-  ]);
+  const sourcing = await getBuyerSourcingContext();
+  const [deliverable] = await filterDeliverableProducts(
+    [normalizeProduct(productRow as Product)],
+    sourcing.countryCode,
+  );
+  if (!deliverable) {
+    return null;
+  }
+
+  const [detail] = await withPublicVendorMeta([deliverable]);
   return detail ?? null;
 }
 
@@ -206,15 +255,20 @@ export async function listPublicProductsByVendorId(
     return [];
   }
 
+  const sourcing = await getBuyerSourcingContext();
   const supabase = await createClient();
+  const fetchLimit = Math.min(Math.max(limit * 4, limit), 200);
   const { data: productRows } = await supabase
     .from("products")
     .select("*")
     .eq("vendor_id", vendorId)
     .eq("status", "active")
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .limit(fetchLimit);
 
-  const products = ((productRows as Product[] | null) ?? []).map(normalizeProduct);
-  return withPublicVendorMeta(products);
+  const products = await filterDeliverableProducts(
+    ((productRows as Product[] | null) ?? []).map(normalizeProduct),
+    sourcing.countryCode,
+  );
+  return withPublicVendorMeta(products.slice(0, limit));
 }

@@ -16,8 +16,10 @@ import type {
   Product,
   ProductSpecification,
   ProductType,
+  SourcingRegion,
 } from "@/lib/types/database";
 import { slugifyStoreName } from "@/lib/vendors/slug";
+import { BUYER_COUNTRY_OPTIONS } from "@/lib/sourcing/constants";
 
 const initialState: ProductActionState = null;
 
@@ -27,6 +29,7 @@ const fieldClassName =
 type ProductFormProps = {
   categories: Category[];
   product?: Product;
+  sourcingRegions?: SourcingRegion[];
 };
 
 type PreviewItem = {
@@ -45,7 +48,11 @@ function createSpecRow(spec?: ProductSpecification): SpecRow {
   };
 }
 
-function ProductFormFields({ categories, product }: ProductFormProps) {
+function ProductFormFields({
+  categories,
+  product,
+  sourcingRegions = [],
+}: ProductFormProps) {
   const isEdit = Boolean(product);
   const serverAction = isEdit ? updateProduct : createProduct;
   const [name, setName] = useState(product?.name ?? "");
@@ -520,6 +527,81 @@ function ProductFormFields({ categories, product }: ProductFormProps) {
           </div>
         </div>
       )}
+
+      <div className="space-y-3 rounded-lg border border-zinc-200 p-4">
+        <div>
+          <p className="text-sm font-medium text-zinc-700">Shipping regions</p>
+          <p className="text-xs text-zinc-500">
+            Buyers only see this listing when it can ship to their selected country.
+            Leave “ships to” empty to use supplier routes (or ship locally by default).
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <label htmlFor="origin_country_code" className="text-sm font-medium text-zinc-700">
+              Origin country
+            </label>
+            <select
+              id="origin_country_code"
+              name="origin_country_code"
+              defaultValue={product?.origin_country_code ?? "MM"}
+              className={fieldClassName}
+            >
+              {BUYER_COUNTRY_OPTIONS.map((option) => (
+                <option key={option.code} value={option.code}>
+                  {option.label} ({option.code})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="origin_region_id" className="text-sm font-medium text-zinc-700">
+              Origin region
+            </label>
+            <select
+              id="origin_region_id"
+              name="origin_region_id"
+              defaultValue={product?.origin_region_id ?? ""}
+              className={fieldClassName}
+            >
+              <option value="">Auto from origin country</option>
+              {sourcingRegions.map((region) => (
+                <option key={region.id} value={region.id}>
+                  {region.name} ({region.code})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {sourcingRegions.length > 0 ? (
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium text-zinc-700">
+              Ships to regions
+            </legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {sourcingRegions.map((region) => {
+                const checked =
+                  product?.ships_to_region_ids?.includes(region.id) ?? false;
+                return (
+                  <label
+                    key={region.id}
+                    className="flex items-center gap-2 text-sm text-zinc-700"
+                  >
+                    <input
+                      type="checkbox"
+                      name="ships_to_region_ids"
+                      value={region.id}
+                      defaultChecked={checked}
+                      className="rounded border-zinc-300"
+                    />
+                    {region.name}
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+        ) : null}
+      </div>
 
       <fieldset className="space-y-2 rounded-lg border border-zinc-200 p-3 text-sm">
         <legend className="px-1 text-zinc-600">Status</legend>

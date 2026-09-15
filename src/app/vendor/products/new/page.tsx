@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ProductCreateForm } from "@/components/vendors/product-create-form";
 import { getSessionProfile } from "@/lib/auth/session";
 import { listActiveCategories } from "@/lib/categories/queries";
+import { listSourcingRegions } from "@/lib/sourcing/queries";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,10 @@ export default async function NewVendorProductPage() {
     redirect("/vendor/apply");
   }
 
-  const categories = await listActiveCategories();
+  const [categories, sourcingRegions] = await Promise.all([
+    listActiveCategories(),
+    listSourcingRegions(),
+  ]);
 
   return (
     <section className="space-y-6">
@@ -42,7 +46,10 @@ export default async function NewVendorProductPage() {
         </div>
       ) : null}
 
-      <ProductCreateForm categories={categories} />
+      <ProductCreateForm
+        categories={categories}
+        sourcingRegions={sourcingRegions}
+      />
 
       <p className="text-sm text-zinc-500">
         <Link href="/vendor/products" className="underline">

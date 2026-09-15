@@ -1,12 +1,18 @@
 "use client";
 
 import { ProductForm } from "@/components/vendors/product-form";
-import type { Category } from "@/lib/types/database";
+import type { Category, SourcingRegion } from "@/lib/types/database";
 
 type ProductCreateFormProps = {
   categories: Category[];
+  sourcingRegions?: SourcingRegion[];
 };
 
-export function ProductCreateForm({ categories }: ProductCreateFormProps) {
-  return <ProductForm categories={categories} />;
+export function ProductCreateForm({
+  categories,
+  sourcingRegions = [],
+}: ProductCreateFormProps) {
+  return (
+    <ProductForm categories={categories} sourcingRegions={sourcingRegions} />
+  );
 }

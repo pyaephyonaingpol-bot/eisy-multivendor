@@ -132,6 +132,20 @@ export async function checkoutWithUsdt(
     return { error: "Sign in to pay with USDT." };
   }
 
+  const shipCountry =
+    parsed.shippingAddress?.country?.trim().toUpperCase() || "MM";
+
+  const { error: deliverabilityError } = await supabase.rpc(
+    "assert_cart_deliverable_to_country",
+    {
+      p_items: parsed.items,
+      p_country_code: shipCountry,
+    },
+  );
+  if (deliverabilityError) {
+    return { error: deliverabilityError.message };
+  }
+
   if (parsed.paymentMethod === "trc20") {
     try {
       const deposit = await syncUsdtTrc20SettingsFromEnv();

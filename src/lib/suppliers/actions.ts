@@ -11,7 +11,10 @@ import {
   type ExternalSupplierKind,
   type SupplierCredentials,
 } from "@/lib/suppliers";
-import { slugifyExternalName } from "@/lib/suppliers/types";
+import {
+  ONE_CLICK_IMPORT_MARKUP,
+  slugifyExternalName,
+} from "@/lib/suppliers/types";
 import { createClient } from "@/lib/supabase/server";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 
@@ -24,7 +27,32 @@ export type ExternalImportState = {
   error?: string;
   success?: string;
   productId?: string;
+  /** True when the listing was created via one-click default pricing. */
+  oneClick?: boolean;
 } | null;
+
+function resolveImportSellPrice(
+  formData: FormData,
+  supplierCostUsdt: number,
+): { price: number; oneClick: boolean } | { error: string } {
+  const oneClick =
+    String(formData.get("one_click") ?? "").trim() === "1" ||
+    String(formData.get("one_click") ?? "").trim() === "true";
+  const rawPrice = String(formData.get("price") ?? "").trim();
+  const parsed = rawPrice === "" ? NaN : Number(rawPrice);
+
+  if (oneClick || !Number.isFinite(parsed) || parsed <= 0) {
+    if (!oneClick && rawPrice !== "") {
+      return { error: "Enter a sell price greater than zero." };
+    }
+    const price =
+      Math.round(Math.max(supplierCostUsdt, 0.01) * ONE_CLICK_IMPORT_MARKUP * 100) /
+      100;
+    return { price, oneClick: true };
+  }
+
+  return { price: Math.round(parsed * 100) / 100, oneClick: false };
+}
 
 async function requireApprovedVendor() {
   const session = await getSessionProfile();
@@ -177,14 +205,11 @@ export async function importExternalSupplierProductAction(
   const externalProductId = String(
     formData.get("external_product_id") ?? "",
   ).trim();
-  const sellPrice = Number(String(formData.get("price") ?? "").trim());
-  const regionCode = String(formData.get("region_code") ?? "GLOBAL").trim() || "GLOBAL";
+  const regionCode =
+    String(formData.get("region_code") ?? "GLOBAL").trim() || "GLOBAL";
 
   if (!kind || !externalProductId) {
     return { error: "Select a supplier product to import." };
-  }
-  if (!Number.isFinite(sellPrice) || sellPrice <= 0) {
-    return { error: "Enter a sell price greater than zero." };
   }
 
   const linked = await loadVendorCredentials(gate.vendor.id, kind);
@@ -198,6 +223,12 @@ export async function importExternalSupplierProductAction(
   if (!remote) {
     return { error: "Could not load that supplier product." };
   }
+
+  const priced = resolveImportSellPrice(formData, remote.priceUsdt);
+  if ("error" in priced) {
+    return { error: priced.error };
+  }
+  const { price: sellPrice, oneClick } = priced;
 
   if (sellPrice < remote.priceUsdt) {
     return {
@@ -260,19 +291,43 @@ export async function importExternalSupplierProductAction(
         kind === "cj_dropshipping" ? "CJ" : "DSers"
       }.`,
       productId: existingImport.product_id,
+      oneClick,
     };
   }
 
-  const { error: quotaError } = await supabase.rpc(
+  // Max import cap (plan / system / vendor override). Min active (10) is a fee
+  // floor — imports are allowed below it; we surface guidance after success.
+  const { data: quotaBefore, error: quotaError } = await supabase.rpc(
     "assert_vendor_can_import_product",
     {
       p_vendor_id: gate.vendor.id,
       p_is_new_catalog_item: true,
     },
   );
+  void quotaBefore;
   if (quotaError) {
-    return { error: quotaError.message };
+    return {
+      error:
+        quotaError.message ||
+        "Import limit reached. Archive listings or upgrade your plan.",
+    };
   }
+
+  const { data: quotaSnapshot } = await supabase.rpc("get_vendor_import_quota", {
+    p_vendor_id: gate.vendor.id,
+  });
+  const quota = (quotaSnapshot ?? {}) as {
+    active_item_count?: number;
+    min_active_items?: number;
+    catalog_item_count?: number;
+    max_import_items?: number;
+    item_fee_usdt?: number;
+  };
+  const minActive = Number(quota.min_active_items ?? 10);
+  const itemFee = Number(quota.item_fee_usdt ?? 1);
+  const activeBefore = Number(quota.active_item_count ?? 0);
+  const catalogBefore = Number(quota.catalog_item_count ?? 0);
+  const maxImports = Number(quota.max_import_items ?? 100);
 
   const slugBase = slugifyExternalName(
     `${kind === "cj_dropshipping" ? "cj" : "ae"}-${remote.name}`,
@@ -363,11 +418,24 @@ export async function importExternalSupplierProductAction(
   revalidatePath("/vendor/products");
   revalidatePath("/vendor/import");
   revalidatePath("/vendor/integrations");
+  revalidatePath("/vendor/sourcing");
   revalidatePath(`/vendor/sourcing/${product.id}`);
 
+  const activeAfter = activeBefore + 1;
+  const catalogAfter = catalogBefore + 1;
+  const platform = kind === "cj_dropshipping" ? "CJ" : "DSers";
+  const priceNote = oneClick
+    ? ` Listed at ${sellPrice.toFixed(2)} USDT (${Math.round((ONE_CLICK_IMPORT_MARKUP - 1) * 100)}% markup).`
+    : "";
+  const quotaNote =
+    activeAfter < minActive
+      ? ` Active catalog ${activeAfter}/${minActive} toward the ${minActive}-item fee floor (${(minActive * itemFee).toFixed(0)} USDT/mo).`
+      : ` Catalog ${catalogAfter}/${maxImports} import slots used.`;
+
   return {
-    success: `Imported “${remote.name}” from ${kind === "cj_dropshipping" ? "CJ" : "DSers"}.`,
+    success: `Imported “${remote.name}” from ${platform} into your store.${priceNote}${quotaNote}`,
     productId: product.id,
+    oneClick,
   };
 }
 

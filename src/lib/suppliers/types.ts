@@ -2,6 +2,9 @@
 
 export type ExternalSupplierKind = "cj_dropshipping" | "dsers";
 
+/** Default sell price = supplier cost × this markup for one-click imports. */
+export const ONE_CLICK_IMPORT_MARKUP = 1.35;
+
 export type ExternalCatalogProduct = {
   providerKind: ExternalSupplierKind;
   externalProductId: string;

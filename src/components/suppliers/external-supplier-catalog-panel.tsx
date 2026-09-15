@@ -52,6 +52,7 @@ export function ExternalSupplierCatalogPanel({
   const [error, setError] = useState<string | null>(null);
   const [customPriceFor, setCustomPriceFor] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [previewSuccess, setPreviewSuccess] = useState<string | null>(null);
   const [pendingSearch, startSearch] = useTransition();
   const [state, formAction, pendingImport] = useActionState(
     importExternalSupplierProductAction,
@@ -134,6 +135,9 @@ export function ExternalSupplierCatalogPanel({
       ) : null}
       {state?.success ? (
         <p className="text-sm text-emerald-700">{state.success}</p>
+      ) : null}
+      {previewSuccess ? (
+        <p className="text-sm text-emerald-700">{previewSuccess}</p>
       ) : null}
       {atLimit ? (
         <p className="text-sm text-amber-800">
@@ -292,8 +296,12 @@ export function ExternalSupplierCatalogPanel({
           regionCode="GLOBAL"
           quota={previewQuota}
           seedProduct={previewProduct}
-          onImported={() => {
+          onImported={({ productId, success }) => {
             setPreviewId(null);
+            setPreviewSuccess(
+              success ??
+                `Imported via Preview into your store (product ${productId.slice(0, 8)}…). Keep building toward ${minActive} active items for the fee floor.`,
+            );
           }}
         />
       ) : null}

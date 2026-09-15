@@ -32,7 +32,7 @@ type Props = {
   regionCode?: string;
   quota: PreviewQuotaHints;
   seedProduct?: ExternalCatalogProduct | null;
-  onImported?: (productId: string) => void;
+  onImported?: (result: { productId: string; success?: string }) => void;
 };
 
 const initialImportState: ExternalImportState = {};
@@ -134,7 +134,10 @@ export function SupplierProductPreviewModal({
 
   useEffect(() => {
     if (importState?.success && importState.productId) {
-      onImported?.(importState.productId);
+      onImported?.({
+        productId: importState.productId,
+        success: importState.success,
+      });
       onClose();
     }
   }, [importState?.success, importState?.productId, onImported, onClose]);

@@ -1,0 +1,113 @@
+{
+  "brand": {
+    "short": "EISY",
+    "full": "Маркетплейс EISY",
+    "tagline": "Мультивендорная торговля для Мьянмы и мира"
+  },
+  "nav": {
+    "home": "Главная",
+    "shop": "Магазин",
+    "stores": "Магазины",
+    "cart": "Корзина",
+    "orders": "Заказы",
+    "wallet": "Кошелёк",
+    "signIn": "Войти",
+    "signOut": "Выйти",
+    "vendorPortal": "Портал продавца и дропшиппинга"
+  },
+  "vendorNav": {
+    "title": "Продавец",
+    "overview": "Обзор",
+    "storeBranding": "Брендинг магазина",
+    "application": "Заявка",
+    "products": "Товары",
+    "sourcing": "Поставки",
+    "import": "Импорт",
+    "integrations": "Интеграции",
+    "fees": "Комиссии",
+    "wallet": "Кошелёк",
+    "orders": "Заказы",
+    "backToStorefront": "← Витрина"
+  },
+  "sourcing": {
+    "title": "Подбор товаров",
+    "subtitle": "Каталоги DSers, CJ, Spocket и POD с фильтрами региона и скорости. Импорт от 10 единиц.",
+    "catalogTitle": "Мультипоставщики",
+    "catalogSubtitle": "Фильтруйте DSers, CJ, Spocket и POD в одном месте.",
+    "search": "Поиск",
+    "searchPlaceholder": "Поиск по поставщикам",
+    "shipToRegion": "Регион доставки",
+    "deliverySpeed": "Скорость доставки",
+    "anySpeed": "Любая скорость",
+    "fastDispatch": "Быстрая отправка",
+    "fastDispatchFilter": "Быстрая отправка (≤7 дней)",
+    "localWarehouse": "Локальный склад",
+    "searchButton": "Искать",
+    "searching": "Поиск…",
+    "previewImport": "Просмотр и импорт",
+    "stockBelowMin": "Меньше минимума {min} шт.",
+    "stockLabel": "склад {qty}",
+    "daysRange": "{min}–{max} дней",
+    "emptySearch": "Запустите поиск, чтобы загрузить товары поставщиков.",
+    "emptySearchDev": "Запустите поиск, чтобы загрузить товары (мок-каталоги без API-ключей).",
+    "searchFailed": "Поиск не удался.",
+    "catalogUnreachable": "Не удалось связаться с API каталога поставщиков.",
+    "sourceTabsLabel": "Источник поставщика",
+    "importSuccess": "Импортировано в магазин (товар {id}…). Продолжайте до {min} активных позиций для порога комиссии.",
+    "fastStrategiesTitle": "Стратегии быстрой доставки",
+    "fastStrategiesBody": "Выбирайте региональные склады, фильтр ≤7 дней и DHL, FedEx или ePacket.",
+    "manageCredentials": "Ключи поставщиков",
+    "routeManagerTitle": "Региональные маршруты",
+    "routeManagerSubtitle": "Привяжите маршруты CJ, DSers, Spocket, POD по региону покупателя.",
+    "noSourceProducts": "Исходных товаров пока нет.",
+    "manageRoutes": "Маршруты",
+    "importLimitReached": "Лимит импорта достигнут.",
+    "sources": {
+      "all": "Все",
+      "dsers": "DSers",
+      "cj": "CJ Dropshipping",
+      "spocket": "Spocket",
+      "pod": "POD"
+    }
+  },
+  "escrow": {
+    "title": "Эскроу",
+    "held": "Средства удержаны",
+    "released": "Эскроу выплачен продавцу",
+    "pending": "Ожидание подтверждения доставки",
+    "info": "Оплата хранится в эскроу до подтверждения доставки."
+  },
+  "checkout": {
+    "title": "Оформление",
+    "placeOrder": "Оформить заказ",
+    "shipping": "Доставка",
+    "payment": "Оплата",
+    "usdtNote": "Безопасная оплата в USDT.",
+    "subtotal": "Подытог",
+    "total": "Итого"
+  },
+  "regions": {
+    "label": "Регион доставки",
+    "mm": "Мьянма",
+    "sea": "Юго-Восточная Азия",
+    "cn": "Китай / Восточная Азия",
+    "eu": "Европа",
+    "us": "Северная Америка",
+    "global": "Остальной мир"
+  },
+  "stores": {
+    "title": "Магазины",
+    "openStore": "Открыть магазин",
+    "noStores": "Магазины не найдены."
+  },
+  "language": {
+    "label": "Язык",
+    "switchTo": "Сменить язык"
+  },
+  "common": {
+    "loading": "Загрузка…",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "continue": "Продолжить"
+  }
+}

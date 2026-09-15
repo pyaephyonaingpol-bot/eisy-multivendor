@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useI18n } from "@/components/i18n/language-provider";
 import {
   ONE_CLICK_IMPORT_MARKUP,
   MIN_IMPORT_STOCK_QUANTITY,
@@ -32,13 +33,33 @@ type Props = {
   quota?: ImportQuotaHints | null;
 };
 
-const SOURCE_TABS: { id: SourceTab; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "dsers", label: "DSers" },
-  { id: "cj_dropshipping", label: "CJ Dropshipping" },
-  { id: "spocket", label: "Spocket" },
-  { id: "pod", label: "POD" },
+const SOURCE_TAB_IDS: SourceTab[] = [
+  "all",
+  "dsers",
+  "cj_dropshipping",
+  "spocket",
+  "pod",
 ];
+
+function sourceTabLabel(
+  tab: SourceTab,
+  t: (path: string, vars?: Record<string, string | number>) => string,
+) {
+  switch (tab) {
+    case "all":
+      return t("sourcing.sources.all");
+    case "dsers":
+      return t("sourcing.sources.dsers");
+    case "cj_dropshipping":
+      return t("sourcing.sources.cj");
+    case "spocket":
+      return t("sourcing.sources.spocket");
+    case "pod":
+      return t("sourcing.sources.pod");
+    default:
+      return tab;
+  }
+}
 
 const fallbackQuota: PreviewQuotaHints = {
   minActiveItems: 10,
@@ -75,6 +96,7 @@ export function UnifiedSupplierSourcingCatalog({
   importDisabled = false,
   quota = null,
 }: Props) {
+  const { t } = useI18n();
   const [sourceTab, setSourceTab] = useState<SourceTab>("all");
   const [query, setQuery] = useState("wireless earbuds");
   const [regionCode, setRegionCode] = useState(
@@ -130,13 +152,13 @@ export function UnifiedSupplierSourcingCatalog({
           products?: ExternalCatalogProduct[];
         };
         if (!response.ok || payload.ok === false) {
-          setError(payload.error ?? "Search failed.");
+          setError(payload.error ?? t("sourcing.searchFailed"));
           setProducts([]);
           return;
         }
         setProducts(payload.products ?? []);
       } catch {
-        setError("Could not reach supplier catalog API.");
+        setError(t("sourcing.catalogUnreachable"));
         setProducts([]);
       }
     });
@@ -146,67 +168,61 @@ export function UnifiedSupplierSourcingCatalog({
     <section className="space-y-5 rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5">
       <div className="space-y-1">
         <h2 className="text-lg font-semibold tracking-tight">
-          Multi-supplier product sourcing
+          {t("sourcing.catalogTitle")}
         </h2>
-        <p className="text-sm text-zinc-600">
-          Filter DSers, CJ Dropshipping, Spocket, and POD (Printful / Printify)
-          catalogs in one place. Imports require at least{" "}
-          {MIN_IMPORT_STOCK_QUANTITY} units of supplier stock and respect your
-          store&apos;s regional shipping filters.
-        </p>
+        <p className="text-sm text-zinc-600">{t("sourcing.catalogSubtitle")}</p>
       </div>
 
       <div
         className="flex flex-wrap gap-2"
         role="tablist"
-        aria-label="Supplier source"
+        aria-label={t("sourcing.sourceTabsLabel")}
       >
-        {SOURCE_TABS.map((tab) => {
-          const active = sourceTab === tab.id;
+        {SOURCE_TAB_IDS.map((tabId) => {
+          const active = sourceTab === tabId;
           return (
             <button
-              key={tab.id}
+              key={tabId}
               type="button"
               role="tab"
               aria-selected={active}
-              onClick={() => setSourceTab(tab.id)}
+              onClick={() => setSourceTab(tabId)}
               className={`min-h-10 rounded-lg px-3 py-2 text-sm font-medium transition ${
                 active
                   ? "bg-zinc-950 text-white"
                   : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
               }`}
             >
-              {tab.label}
+              {sourceTabLabel(tabId, t)}
             </button>
           );
         })}
       </div>
 
       <div className="rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-3 text-sm text-sky-950 sm:px-4">
-        <p className="font-semibold text-sky-900">Fast shipping strategies</p>
+        <p className="font-semibold text-sky-900">
+          {t("sourcing.fastStrategiesTitle")}
+        </p>
         <p className="mt-1 text-sky-900/90">
-          Prefer regional warehouses (US / EU / SEA), filter for fast dispatch
-          (≤7 days), and favor carriers such as DHL, FedEx, or ePacket when the
-          supplier exposes them. Local-warehouse badges help you spot quicker
-          lanes before import.
+          {t("sourcing.fastStrategiesBody")}
         </p>
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
         <label className="min-w-0 flex-1 text-xs font-medium text-zinc-600">
-          Search
+          {t("sourcing.search")}
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") runSearch();
             }}
-            placeholder="Search products across suppliers"
+            placeholder={t("sourcing.searchPlaceholder")}
             className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm"
           />
         </label>
         <label className="text-xs font-medium text-zinc-600">
-          Ship-to region
+          {t("sourcing.shipToRegion")}
           <select
             value={regionCode}
             onChange={(event) => setRegionCode(event.target.value)}
@@ -224,7 +240,7 @@ export function UnifiedSupplierSourcingCatalog({
           </select>
         </label>
         <label className="text-xs font-medium text-zinc-600">
-          Delivery speed
+          {t("sourcing.deliverySpeed")}
           <select
             value={deliverySpeed}
             onChange={(event) =>
@@ -232,9 +248,9 @@ export function UnifiedSupplierSourcingCatalog({
             }
             className="mt-1 block min-w-[10rem] rounded-lg border border-zinc-200 px-3 py-2.5 text-sm"
           >
-            <option value="any">Any speed</option>
-            <option value="fast">Fast dispatch (≤7 days)</option>
-            <option value="local">Local warehouse</option>
+            <option value="any">{t("sourcing.anySpeed")}</option>
+            <option value="fast">{t("sourcing.fastDispatchFilter")}</option>
+            <option value="local">{t("sourcing.localWarehouse")}</option>
           </select>
         </label>
         <button
@@ -243,7 +259,7 @@ export function UnifiedSupplierSourcingCatalog({
           disabled={pendingSearch}
           className="min-h-11 rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
         >
-          {pendingSearch ? "Searching…" : "Search"}
+          {pendingSearch ? t("sourcing.searching") : t("sourcing.searchButton")}
         </button>
       </div>
 
@@ -257,17 +273,15 @@ export function UnifiedSupplierSourcingCatalog({
       ) : null}
       {atLimit ? (
         <p className="text-sm text-amber-800">
-          Import limit reached. Archive listings or upgrade before importing
-          more.
+          {t("sourcing.importLimitReached")}
         </p>
       ) : null}
 
       {visibleProducts.length === 0 ? (
         <p className="text-sm text-zinc-500">
-          Run a search to load supplier products
           {process.env.NODE_ENV === "development"
-            ? " (mock catalogs when live API keys are unset)."
-            : "."}
+            ? t("sourcing.emptySearchDev")
+            : t("sourcing.emptySearch")}
         </p>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -299,12 +313,12 @@ export function UnifiedSupplierSourcingCatalog({
                       </span>
                       {fast ? (
                         <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800">
-                          Fast dispatch
+                          {t("sourcing.fastDispatch")}
                         </span>
                       ) : null}
                       {local ? (
                         <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800">
-                          Local warehouse
+                          {t("sourcing.localWarehouse")}
                         </span>
                       ) : null}
                     </div>
@@ -315,10 +329,15 @@ export function UnifiedSupplierSourcingCatalog({
                       {product.warehouseCountry}
                       {product.shippingDaysMin != null &&
                       product.shippingDaysMax != null
-                        ? ` · ${product.shippingDaysMin}–${product.shippingDaysMax} days`
+                        ? ` · ${t("sourcing.daysRange", {
+                            min: product.shippingDaysMin,
+                            max: product.shippingDaysMax,
+                          })}`
                         : ""}
                       {product.stockQuantity != null
-                        ? ` · stock ${product.stockQuantity}`
+                        ? ` · ${t("sourcing.stockLabel", {
+                            qty: product.stockQuantity,
+                          })}`
                         : ""}
                     </p>
                     <p className="text-sm text-zinc-700">
@@ -328,7 +347,9 @@ export function UnifiedSupplierSourcingCatalog({
                     </p>
                     {!stockOk ? (
                       <p className="text-xs text-amber-700">
-                        Below {MIN_IMPORT_STOCK_QUANTITY}-unit stock minimum
+                        {t("sourcing.stockBelowMin", {
+                          min: MIN_IMPORT_STOCK_QUANTITY,
+                        })}
                       </p>
                     ) : null}
                   </div>
@@ -342,7 +363,7 @@ export function UnifiedSupplierSourcingCatalog({
                   }}
                   className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
                 >
-                  Preview & import
+                  {t("sourcing.previewImport")}
                 </button>
               </li>
             );
@@ -367,7 +388,10 @@ export function UnifiedSupplierSourcingCatalog({
             setPreviewKind(null);
             setPreviewSuccess(
               success ??
-                `Imported into your store (product ${productId.slice(0, 8)}…). Keep building toward ${minActive} active items for the fee floor.`,
+                t("sourcing.importSuccess", {
+                  id: productId.slice(0, 8),
+                  min: minActive,
+                }),
             );
           }}
         />

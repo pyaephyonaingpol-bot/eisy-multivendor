@@ -1,0 +1,113 @@
+{
+  "brand": {
+    "short": "EISY",
+    "full": "EISY 商城",
+    "tagline": "面向缅甸及全球的多商家电商"
+  },
+  "nav": {
+    "home": "首页",
+    "shop": "选购",
+    "stores": "店铺",
+    "cart": "购物车",
+    "orders": "订单",
+    "wallet": "钱包",
+    "signIn": "登录",
+    "signOut": "退出",
+    "vendorPortal": "商家与代发门户"
+  },
+  "vendorNav": {
+    "title": "商家",
+    "overview": "概览",
+    "storeBranding": "店铺品牌",
+    "application": "申请",
+    "products": "商品",
+    "sourcing": "货源",
+    "import": "导入",
+    "integrations": "集成",
+    "fees": "费用",
+    "wallet": "钱包",
+    "orders": "订单",
+    "backToStorefront": "← 返回商城"
+  },
+  "sourcing": {
+    "title": "商品货源",
+    "subtitle": "浏览 DSers、CJ、Spocket 与 POD，按地区与配送速度筛选，并仅导入库存不少于 10 件的商品。",
+    "catalogTitle": "多供应商货源",
+    "catalogSubtitle": "在同一处筛选 DSers、CJ、Spocket 与 POD。",
+    "search": "搜索",
+    "searchPlaceholder": "跨供应商搜索商品",
+    "shipToRegion": "配送地区",
+    "deliverySpeed": "配送速度",
+    "anySpeed": "不限速度",
+    "fastDispatch": "快速发货",
+    "fastDispatchFilter": "快速发货（≤7天）",
+    "localWarehouse": "本地仓",
+    "searchButton": "搜索",
+    "searching": "搜索中…",
+    "previewImport": "预览并导入",
+    "stockBelowMin": "低于 {min} 件库存下限",
+    "stockLabel": "库存 {qty}",
+    "daysRange": "{min}–{max} 天",
+    "emptySearch": "运行搜索以加载供应商产品。",
+    "emptySearchDev": "运行搜索以加载供应商产品（未配置 API 密钥时使用模拟目录）。",
+    "searchFailed": "搜索失败。",
+    "catalogUnreachable": "无法连接供应商目录 API。",
+    "sourceTabsLabel": "供应商来源",
+    "importSuccess": "已导入到您的店铺（产品 {id}…）。继续积累至 {min} 个上架商品以满足费用门槛。",
+    "fastStrategiesTitle": "快速物流策略",
+    "fastStrategiesBody": "优先选择区域仓，筛选 ≤7 天发货，并关注 DHL、FedEx 或 ePacket。",
+    "manageCredentials": "管理供应商密钥",
+    "routeManagerTitle": "地区路由",
+    "routeManagerSubtitle": "按买家地区绑定 CJ、DSers、Spocket、POD 或仓库路由。",
+    "noSourceProducts": "暂无源商品。",
+    "manageRoutes": "管理路由",
+    "importLimitReached": "已达导入上限。",
+    "sources": {
+      "all": "全部",
+      "dsers": "DSers",
+      "cj": "CJ Dropshipping",
+      "spocket": "Spocket",
+      "pod": "POD"
+    }
+  },
+  "escrow": {
+    "title": "托管",
+    "held": "资金托管中",
+    "released": "已释放给卖家",
+    "pending": "等待确认收货",
+    "info": "买家付款在确认收货前保持托管。"
+  },
+  "checkout": {
+    "title": "结算",
+    "placeOrder": "提交订单",
+    "shipping": "物流",
+    "payment": "支付",
+    "usdtNote": "使用 USDT 安全支付。",
+    "subtotal": "小计",
+    "total": "合计"
+  },
+  "regions": {
+    "label": "配送地区",
+    "mm": "缅甸",
+    "sea": "东南亚",
+    "cn": "中国 / 东亚",
+    "eu": "欧洲",
+    "us": "北美",
+    "global": "其他地区"
+  },
+  "stores": {
+    "title": "店铺",
+    "openStore": "进入店铺",
+    "noStores": "暂无店铺。"
+  },
+  "language": {
+    "label": "语言",
+    "switchTo": "切换语言"
+  },
+  "common": {
+    "loading": "加载中…",
+    "save": "保存",
+    "cancel": "取消",
+    "continue": "继续"
+  }
+}

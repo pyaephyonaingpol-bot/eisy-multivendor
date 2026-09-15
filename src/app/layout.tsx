@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { LanguageProvider } from "@/components/i18n/language-provider";
+import { isRtlLocale } from "@/lib/i18n/config";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -17,14 +20,18 @@ export const metadata: Metadata = {
   description: "Multi-vendor e-commerce marketplace",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getRequestLocale();
+  const dir = isRtlLocale(locale) ? "rtl" : "ltr";
+
   return (
     <html
-      lang="en"
+      lang={locale}
+      dir={dir}
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
@@ -32,7 +39,7 @@ export default function RootLayout({
         suppressHydrationWarning
         className="flex min-h-full flex-col bg-zinc-50 text-zinc-950"
       >
-        {children}
+        <LanguageProvider locale={locale}>{children}</LanguageProvider>
       </body>
     </html>
   );

@@ -1,23 +1,30 @@
 import Link from "next/link";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { CartTrigger } from "@/components/storefront/cart-trigger";
+import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { RegionSelector } from "@/components/storefront/region-selector";
 import { getSessionProfile } from "@/lib/auth/session";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { getBuyerSourcingContext } from "@/lib/sourcing/queries";
 
-const nav = [
-  { href: "/", label: "Home" },
-  { href: "/products", label: "Shop" },
-  { href: "/vendors", label: "Stores" },
-  { href: "/orders", label: "Orders" },
-  { href: "/account/wallet", label: "Wallet" },
-];
-
 export async function StorefrontHeader() {
-  const session = await getSessionProfile();
+  const [session, locale] = await Promise.all([
+    getSessionProfile(),
+    getRequestLocale(),
+  ]);
+  const t = getDictionary(locale);
   const sourcing = await getBuyerSourcingContext(
     session?.profile?.preferred_country_code ?? null,
   );
+
+  const nav = [
+    { href: "/", label: t.nav.home },
+    { href: "/products", label: t.nav.shop },
+    { href: "/vendors", label: t.nav.stores },
+    { href: "/orders", label: t.nav.orders },
+    { href: "/account/wallet", label: t.nav.wallet },
+  ];
 
   return (
     <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white/95 backdrop-blur">
@@ -27,8 +34,8 @@ export async function StorefrontHeader() {
             href="/"
             className="truncate text-base font-semibold tracking-tight sm:text-lg"
           >
-            <span className="sm:hidden">EISY</span>
-            <span className="hidden sm:inline">EISY Marketplace</span>
+            <span className="sm:hidden">{t.brand.short}</span>
+            <span className="hidden sm:inline">{t.brand.full}</span>
           </Link>
           <nav className="hidden items-center gap-5 text-sm text-zinc-600 md:flex">
             {nav.map((item) => (
@@ -44,6 +51,7 @@ export async function StorefrontHeader() {
         </div>
 
         <div className="flex shrink-0 items-center gap-2 text-sm text-zinc-600 sm:gap-3">
+          <LanguageSwitcher compact />
           <RegionSelector
             countryCode={sourcing.countryCode}
             regionCode={sourcing.regionCode}
@@ -62,7 +70,7 @@ export async function StorefrontHeader() {
               href="/login"
               className="rounded-full bg-zinc-950 px-3 py-1.5 text-xs text-white hover:bg-zinc-800 sm:px-4 sm:text-sm"
             >
-              Sign in
+              {t.nav.signIn}
             </Link>
           )}
         </div>

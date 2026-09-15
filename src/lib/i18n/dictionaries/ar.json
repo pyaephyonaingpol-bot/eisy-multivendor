@@ -1,0 +1,113 @@
+{
+  "brand": {
+    "short": "EISY",
+    "full": "سوق EISY",
+    "tagline": "تجارة متعددة البائعين لميانمار والعالم"
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "shop": "تسوق",
+    "stores": "المتاجر",
+    "cart": "السلة",
+    "orders": "الطلبات",
+    "wallet": "المحفظة",
+    "signIn": "تسجيل الدخول",
+    "signOut": "تسجيل الخروج",
+    "vendorPortal": "بوابة البائع والدروبشيب"
+  },
+  "vendorNav": {
+    "title": "البائع",
+    "overview": "نظرة عامة",
+    "storeBranding": "هوية المتجر",
+    "application": "الطلب",
+    "products": "المنتجات",
+    "sourcing": "التوريد",
+    "import": "استيراد",
+    "integrations": "التكاملات",
+    "fees": "الرسوم",
+    "wallet": "المحفظة",
+    "orders": "الطلبات",
+    "backToStorefront": "← الواجهة"
+  },
+  "sourcing": {
+    "title": "توريد المنتجات",
+    "subtitle": "تصفح DSers وCJ وSpocket وPOD مع فلاتر المنطقة وسرعة الشحن، ثم استورد ما لا يقل عن 10 وحدات.",
+    "catalogTitle": "توريد متعدد الموردين",
+    "catalogSubtitle": "صفِّ DSers وCJ وSpocket وPOD في مكان واحد.",
+    "search": "بحث",
+    "searchPlaceholder": "ابحث عن منتجات عبر الموردين",
+    "shipToRegion": "منطقة الشحن",
+    "deliverySpeed": "سرعة التسليم",
+    "anySpeed": "أي سرعة",
+    "fastDispatch": "شحن سريع",
+    "fastDispatchFilter": "شحن سريع (≤٧ أيام)",
+    "localWarehouse": "مستودع محلي",
+    "searchButton": "بحث",
+    "searching": "جارٍ البحث…",
+    "previewImport": "معاينة واستيراد",
+    "stockBelowMin": "أقل من الحد الأدنى {min} وحدة",
+    "stockLabel": "المخزون {qty}",
+    "daysRange": "{min}–{max} أيام",
+    "emptySearch": "شغّل بحثًا لتحميل منتجات الموردين.",
+    "emptySearchDev": "شغّل بحثًا لتحميل منتجات الموردين (كتالوجات تجريبية عند غياب مفاتيح API).",
+    "searchFailed": "فشل البحث.",
+    "catalogUnreachable": "تعذر الوصول إلى واجهة كتالوج الموردين.",
+    "sourceTabsLabel": "مصدر المورد",
+    "importSuccess": "تم الاستيراد إلى متجرك (المنتج {id}…). واصل البناء نحو {min} عناصر نشطة لحد الرسوم.",
+    "fastStrategiesTitle": "استراتيجيات الشحن السريع",
+    "fastStrategiesBody": "فضّل المستودعات الإقليمية، وفلتر الشحن ≤7 أيام، وشركات مثل DHL أو FedEx أو ePacket.",
+    "manageCredentials": "إدارة مفاتيح الموردين",
+    "routeManagerTitle": "مسارات إقليمية",
+    "routeManagerSubtitle": "اربط مسارات CJ وDSers وSpocket وPOD حسب منطقة المشتري.",
+    "noSourceProducts": "لا توجد منتجات مصدر بعد.",
+    "manageRoutes": "إدارة المسارات",
+    "importLimitReached": "تم بلوغ حد الاستيراد.",
+    "sources": {
+      "all": "الكل",
+      "dsers": "DSers",
+      "cj": "CJ Dropshipping",
+      "spocket": "Spocket",
+      "pod": "POD"
+    }
+  },
+  "escrow": {
+    "title": "الضمان",
+    "held": "الأموال محتجزة",
+    "released": "تم تحرير الضمان للبائع",
+    "pending": "بانتظار تأكيد التسليم",
+    "info": "تبقى مدفوعات المشتري في الضمان حتى تأكيد التسليم."
+  },
+  "checkout": {
+    "title": "الدفع",
+    "placeOrder": "تأكيد الطلب",
+    "shipping": "الشحن",
+    "payment": "الدفع",
+    "usdtNote": "ادفع بأمان عبر USDT.",
+    "subtotal": "المجموع الفرعي",
+    "total": "الإجمالي"
+  },
+  "regions": {
+    "label": "منطقة الشحن",
+    "mm": "ميانمار",
+    "sea": "جنوب شرق آسيا",
+    "cn": "الصين / شرق آسيا",
+    "eu": "أوروبا",
+    "us": "أمريكا الشمالية",
+    "global": "بقية العالم"
+  },
+  "stores": {
+    "title": "المتاجر",
+    "openStore": "زيارة المتجر",
+    "noStores": "لا توجد متاجر."
+  },
+  "language": {
+    "label": "اللغة",
+    "switchTo": "تغيير اللغة"
+  },
+  "common": {
+    "loading": "جارٍ التحميل…",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "continue": "متابعة"
+  }
+}

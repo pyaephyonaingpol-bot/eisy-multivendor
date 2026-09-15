@@ -297,6 +297,9 @@ export type UsdtPaymentSettings = {
   contract_address: string;
   network: string;
   min_confirmations: number;
+  sweep_destination_address: string | null;
+  auto_sweep_enabled: boolean;
+  min_sweep_amount_usdt: number;
   updated_at: string;
 };
 
@@ -328,6 +331,35 @@ export type UsdtPaymentEvent = {
   tx_hash: string | null;
   payload: Record<string, unknown>;
   created_at: string;
+};
+
+export type UsdtWalletJobStatus =
+  | "queued"
+  | "processing"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+export type UsdtWalletJobKind = "sweep" | "withdrawal_payout";
+
+export type UsdtWalletJob = {
+  id: string;
+  kind: UsdtWalletJobKind;
+  status: UsdtWalletJobStatus;
+  amount_usdt: number;
+  from_address: string | null;
+  to_address: string;
+  payment_intent_id: string | null;
+  wallet_transaction_id: string | null;
+  beneficiary_user_id: string | null;
+  tx_hash: string | null;
+  confirmations: number | null;
+  attempts: number;
+  last_error: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  processed_at: string | null;
 };
 
 export type Order = {
@@ -699,6 +731,13 @@ export type Database = {
         Update: Partial<UsdtPaymentEvent>;
         Relationships: [];
       };
+      usdt_wallet_jobs: {
+        Row: UsdtWalletJob;
+        Insert: Partial<UsdtWalletJob> &
+          Pick<UsdtWalletJob, "kind" | "amount_usdt" | "to_address">;
+        Update: Partial<UsdtWalletJob>;
+        Relationships: [];
+      };
       vendor_supplier_credentials: {
         Row: VendorSupplierCredential;
         Insert: Partial<VendorSupplierCredential> &
@@ -861,6 +900,48 @@ export type Database = {
           tx_hash: string;
           amount_usdt?: number;
         };
+      };
+      expire_stale_usdt_payment_intents: {
+        Args: { p_limit?: number };
+        Returns: {
+          expired_intents: number;
+          cancelled_orders: number;
+        };
+      };
+      mark_usdt_payment_intent_detecting: {
+        Args: {
+          p_payment_intent_id: string;
+          p_tx_hash?: string | null;
+        };
+        Returns: boolean;
+      };
+      enqueue_usdt_sweep_job: {
+        Args: {
+          p_payment_intent_id: string;
+          p_amount_usdt: number;
+          p_to_address?: string | null;
+        };
+        Returns: string | null;
+      };
+      enqueue_usdt_withdrawal_payout: {
+        Args: { p_wallet_transaction_id: string };
+        Returns: string | null;
+      };
+      claim_usdt_wallet_jobs: {
+        Args: {
+          p_limit?: number;
+          p_kind?: UsdtWalletJobKind | null;
+        };
+        Returns: UsdtWalletJob[];
+      };
+      complete_usdt_wallet_job: {
+        Args: {
+          p_job_id: string;
+          p_tx_hash?: string | null;
+          p_confirmations?: number | null;
+          p_error?: string | null;
+        };
+        Returns: UsdtWalletJob;
       };
       preview_dropship_inventory_fee: {
         Args: {

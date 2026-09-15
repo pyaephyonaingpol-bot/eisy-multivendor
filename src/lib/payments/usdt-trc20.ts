@@ -69,6 +69,9 @@ export async function syncUsdtTrc20SettingsFromEnv(): Promise<string | null> {
     return null;
   }
 
+  const sweepDestination =
+    process.env.USDT_TRC20_SWEEP_DESTINATION?.trim() || null;
+
   const supabase = createServiceClient();
   const { error } = await supabase.from("usdt_payment_settings").upsert(
     {
@@ -76,6 +79,12 @@ export async function syncUsdtTrc20SettingsFromEnv(): Promise<string | null> {
       deposit_address: depositAddress,
       contract_address: getConfiguredUsdtContractAddress(),
       network: "TRC20",
+      ...(sweepDestination
+        ? {
+            sweep_destination_address: sweepDestination,
+            auto_sweep_enabled: true,
+          }
+        : {}),
       updated_at: new Date().toISOString(),
     },
     { onConflict: "id" },

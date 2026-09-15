@@ -119,7 +119,7 @@ export async function reviewWalletTransaction(
   txId: string,
   approve: boolean,
   note?: string | null,
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; payoutJobId?: string | null }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -139,7 +139,28 @@ export async function reviewWalletTransaction(
     return { error: error.message };
   }
 
+  let payoutJobId: string | null = null;
+  if (approve) {
+    try {
+      const { enqueueWithdrawalPayout } = await import(
+        "@/lib/payments/usdt-wallet-jobs"
+      );
+      payoutJobId = await enqueueWithdrawalPayout(txId);
+      // Kick the worker for mock mode so payouts settle quickly.
+      if (payoutJobId) {
+        const { processUsdtWalletJobs } = await import(
+          "@/lib/payments/usdt-wallet-jobs"
+        );
+        void processUsdtWalletJobs({ limit: 5, kind: "withdrawal_payout" }).catch(
+          () => undefined,
+        );
+      }
+    } catch {
+      // MMK withdrawals or missing migration — ledger approval still stands.
+    }
+  }
+
   revalidateWalletPaths();
   revalidatePath("/admin/withdrawals");
-  return {};
+  return { payoutJobId };
 }

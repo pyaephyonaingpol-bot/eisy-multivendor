@@ -20,7 +20,7 @@ const initialState: ExternalImportState = null;
 export type ImportQuotaHints = PreviewQuotaHints;
 
 type Props = {
-  providerKind: "cj_dropshipping" | "dsers";
+  providerKind: "cj_dropshipping" | "dsers" | "spocket" | "printful" | "printify";
   providerLabel: string;
   importDisabled?: boolean;
   quota?: ImportQuotaHints | null;

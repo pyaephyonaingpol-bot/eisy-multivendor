@@ -41,6 +41,7 @@ export type SupplierProviderKind =
   | "internal"
   | "cj_dropshipping"
   | "dsers"
+  | "spocket"
   | "print_on_demand"
   | "other";
 

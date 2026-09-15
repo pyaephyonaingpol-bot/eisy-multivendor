@@ -3,13 +3,17 @@ import { canAccessVendor, getSessionProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 import { getExternalProduct, parseSupplierKind } from "@/lib/suppliers";
-import { supplierIntegrationsMode } from "@/lib/suppliers/types";
+import {
+  SUPPLIER_PROVIDER_SLUGS,
+  supplierIntegrationsMode,
+  supplierPlatformLabel,
+} from "@/lib/suppliers/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/suppliers/catalog/product?provider=cj_dropshipping|dsers&id=...
+ * GET /api/suppliers/catalog/product?provider=cj_dropshipping|dsers|spocket|printful|printify&id=...
  * Full product detail for the preview modal (images, variants, description).
  */
 export async function GET(request: Request) {
@@ -30,7 +34,11 @@ export async function GET(request: Request) {
   const provider = parseSupplierKind(
     url.searchParams.get("provider") ?? url.searchParams.get("kind") ?? "",
   );
-  const id = (url.searchParams.get("id") ?? url.searchParams.get("external_product_id") ?? "").trim();
+  const id = (
+    url.searchParams.get("id") ??
+    url.searchParams.get("external_product_id") ??
+    ""
+  ).trim();
 
   if (!provider || !id) {
     return NextResponse.json(
@@ -40,10 +48,11 @@ export async function GET(request: Request) {
   }
 
   const supabase = await createClient();
+  const slug = SUPPLIER_PROVIDER_SLUGS[provider];
   const { data: providerRow } = await supabase
     .from("supplier_providers")
     .select("id")
-    .eq("kind", provider)
+    .eq("slug", slug)
     .eq("is_active", true)
     .maybeSingle();
 
@@ -76,7 +85,7 @@ export async function GET(request: Request) {
   if (mode === "live" && !hasCredentials) {
     return NextResponse.json(
       {
-        error: `Connect ${provider === "cj_dropshipping" ? "CJ" : "DSers"} credentials before previewing products in live mode.`,
+        error: `Connect ${supplierPlatformLabel(provider)} credentials before previewing products in live mode.`,
       },
       { status: 400 },
     );

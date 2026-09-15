@@ -10,19 +10,14 @@ import {
   type ExternalCatalogProduct,
 } from "@/lib/suppliers/types";
 import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
+import {
+  SupplierProductPreviewModal,
+  type PreviewQuotaHints,
+} from "@/components/suppliers/supplier-product-preview-modal";
 
 const initialState: ExternalImportState = null;
 
-export type ImportQuotaHints = {
-  minActiveItems: number;
-  maxImportItems: number;
-  catalogItemCount: number;
-  activeItemCount: number;
-  remainingImportSlots: number;
-  itemFeeUsdt: number;
-  atImportLimit: boolean;
-  meetsMinimum: boolean;
-};
+export type ImportQuotaHints = PreviewQuotaHints;
 
 type Props = {
   providerKind: "cj_dropshipping" | "dsers";
@@ -35,6 +30,17 @@ function defaultSellPrice(supplierCost: number) {
   return Number((supplierCost * ONE_CLICK_IMPORT_MARKUP).toFixed(2));
 }
 
+const fallbackQuota: PreviewQuotaHints = {
+  minActiveItems: 10,
+  maxImportItems: 100,
+  catalogItemCount: 0,
+  activeItemCount: 0,
+  remainingImportSlots: 100,
+  itemFeeUsdt: 1,
+  atImportLimit: false,
+  meetsMinimum: false,
+};
+
 export function ExternalSupplierCatalogPanel({
   providerKind,
   providerLabel,
@@ -45,6 +51,8 @@ export function ExternalSupplierCatalogPanel({
   const [products, setProducts] = useState<ExternalCatalogProduct[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [customPriceFor, setCustomPriceFor] = useState<string | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [previewSuccess, setPreviewSuccess] = useState<string | null>(null);
   const [pendingSearch, startSearch] = useTransition();
   const [state, formAction, pendingImport] = useActionState(
     importExternalSupplierProductAction,
@@ -55,6 +63,9 @@ export function ExternalSupplierCatalogPanel({
   const minActive = quota?.minActiveItems ?? 10;
   const maxImports = quota?.maxImportItems ?? 100;
   const belowMin = quota ? !quota.meetsMinimum : false;
+  const previewQuota = quota ?? { ...fallbackQuota, atImportLimit: atLimit };
+  const previewProduct =
+    products.find((p) => p.externalProductId === previewId) ?? null;
 
   function runSearch() {
     setError(null);
@@ -86,11 +97,12 @@ export function ExternalSupplierCatalogPanel({
       <div className="space-y-1">
         <h2 className="text-lg font-semibold tracking-tight">{providerLabel}</h2>
         <p className="text-sm text-zinc-600">
-          Search the {providerLabel} catalog and use{" "}
-          <strong>Import to Store</strong> for one-click listing (default{" "}
-          {Math.round((ONE_CLICK_IMPORT_MARKUP - 1) * 100)}% markup). Imports
-          respect your max catalog cap ({maxImports}) and the {minActive}-item
-          monthly fee floor.
+          Search the {providerLabel} catalog, open <strong>Preview</strong> to review
+          images, variants, and description, then <strong>Import to Store</strong>.
+          One-click listing uses a default{" "}
+          {Math.round((ONE_CLICK_IMPORT_MARKUP - 1) * 100)}% markup. Imports respect
+          your max catalog cap ({maxImports}) and the {minActive}-item monthly fee
+          floor.
         </p>
       </div>
 
@@ -124,6 +136,9 @@ export function ExternalSupplierCatalogPanel({
       {state?.success ? (
         <p className="text-sm text-emerald-700">{state.success}</p>
       ) : null}
+      {previewSuccess ? (
+        <p className="text-sm text-emerald-700">{previewSuccess}</p>
+      ) : null}
       {atLimit ? (
         <p className="text-sm text-amber-800">
           Import limit reached ({quota?.catalogItemCount ?? "—"}/{maxImports}).
@@ -135,8 +150,8 @@ export function ExternalSupplierCatalogPanel({
           You have {quota?.activeItemCount} active item
           {(quota?.activeItemCount ?? 0) === 1 ? "" : "s"}. Dropshippers are
           billed for at least {minActive} active items (
-          {minActive * (quota?.itemFeeUsdt ?? 1)} USDT/mo). Keep one-click
-          importing to reach the fee floor.
+          {minActive * (quota?.itemFeeUsdt ?? 1)} USDT/mo). Keep importing to reach
+          the fee floor.
         </p>
       ) : null}
 
@@ -157,50 +172,64 @@ export function ExternalSupplierCatalogPanel({
                 key={product.externalProductId}
                 className="flex flex-col gap-3 rounded-xl border border-zinc-100 p-3 sm:flex-row sm:items-end sm:justify-between"
               >
-                <div className="space-y-1">
-                  <p className="font-medium text-zinc-950">{product.name}</p>
-                  <p className="text-xs text-zinc-500">
-                    ID {product.externalProductId}
-                    {product.externalSku ? ` · SKU ${product.externalSku}` : ""}
-                    {product.stockQuantity != null
-                      ? ` · stock ${product.stockQuantity}`
-                      : ""}
-                  </p>
-                  <p className="text-sm text-zinc-700">
-                    Supplier cost{" "}
-                    {formatMoney(product.priceUsdt, MARKETPLACE_CURRENCY)}
-                    {" · "}
-                    One-click lists at{" "}
-                    {formatMoney(suggested, MARKETPLACE_CURRENCY)}
-                  </p>
+                <div className="flex min-w-0 flex-1 gap-3">
+                  {product.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={product.imageUrl}
+                      alt=""
+                      className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                    />
+                  ) : null}
+                  <div className="min-w-0 space-y-1">
+                    <p className="font-medium text-zinc-950">{product.name}</p>
+                    <p className="text-xs text-zinc-500">
+                      ID {product.externalProductId}
+                      {product.externalSku ? ` · SKU ${product.externalSku}` : ""}
+                      {product.stockQuantity != null
+                        ? ` · stock ${product.stockQuantity}`
+                        : ""}
+                      {product.variants?.length
+                        ? ` · ${product.variants.length} variants`
+                        : ""}
+                    </p>
+                    <p className="text-sm text-zinc-700">
+                      Supplier cost{" "}
+                      {formatMoney(product.priceUsdt, MARKETPLACE_CURRENCY)}
+                      {" · "}
+                      One-click lists at{" "}
+                      {formatMoney(suggested, MARKETPLACE_CURRENCY)}
+                    </p>
+                  </div>
                 </div>
 
                 <div className="flex flex-col items-stretch gap-2 sm:items-end">
-                  <form
-                    action={formAction}
-                    className="flex flex-wrap items-end gap-2"
-                  >
-                    <input
-                      type="hidden"
-                      name="provider_kind"
-                      value={providerKind}
-                    />
-                    <input
-                      type="hidden"
-                      name="external_product_id"
-                      value={product.externalProductId}
-                    />
-                    <input type="hidden" name="region_code" value="GLOBAL" />
-                    <input type="hidden" name="one_click" value="1" />
-                    <input type="hidden" name="price" value={String(suggested)} />
+                  <div className="flex flex-wrap gap-2">
                     <button
-                      type="submit"
-                      disabled={pendingImport || atLimit}
-                      className="min-h-11 w-full rounded-lg bg-emerald-800 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60 sm:min-h-0 sm:w-auto"
+                      type="button"
+                      onClick={() => setPreviewId(product.externalProductId)}
+                      className="min-h-11 flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 sm:min-h-0 sm:flex-none"
                     >
-                      {pendingImport ? "Importing…" : "Import to Store"}
+                      Preview
                     </button>
-                  </form>
+                    <form action={formAction} className="flex-1 sm:flex-none">
+                      <input type="hidden" name="provider_kind" value={providerKind} />
+                      <input
+                        type="hidden"
+                        name="external_product_id"
+                        value={product.externalProductId}
+                      />
+                      <input type="hidden" name="region_code" value="GLOBAL" />
+                      <input type="hidden" name="one_click" value="1" />
+                      <button
+                        type="submit"
+                        disabled={pendingImport || atLimit}
+                        className="min-h-11 w-full rounded-lg bg-emerald-800 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60 sm:min-h-0"
+                      >
+                        {pendingImport ? "Importing…" : "Import to Store"}
+                      </button>
+                    </form>
+                  </div>
 
                   <button
                     type="button"
@@ -257,6 +286,25 @@ export function ExternalSupplierCatalogPanel({
           })}
         </ul>
       )}
+
+      {previewId ? (
+        <SupplierProductPreviewModal
+          open
+          onClose={() => setPreviewId(null)}
+          providerKind={providerKind}
+          externalProductId={previewId}
+          regionCode="GLOBAL"
+          quota={previewQuota}
+          seedProduct={previewProduct}
+          onImported={({ productId, success }) => {
+            setPreviewId(null);
+            setPreviewSuccess(
+              success ??
+                `Imported via Preview into your store (product ${productId.slice(0, 8)}…). Keep building toward ${minActive} active items for the fee floor.`,
+            );
+          }}
+        />
+      ) : null}
     </section>
   );
 }

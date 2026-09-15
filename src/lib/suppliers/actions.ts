@@ -35,23 +35,79 @@ function resolveImportSellPrice(
   formData: FormData,
   supplierCostUsdt: number,
 ): { price: number; oneClick: boolean } | { error: string } {
-  const oneClick =
+  const oneClickFlag =
     String(formData.get("one_click") ?? "").trim() === "1" ||
     String(formData.get("one_click") ?? "").trim() === "true";
   const rawPrice = String(formData.get("price") ?? "").trim();
   const parsed = rawPrice === "" ? NaN : Number(rawPrice);
 
-  if (oneClick || !Number.isFinite(parsed) || parsed <= 0) {
-    if (!oneClick && rawPrice !== "") {
-      return { error: "Enter a sell price greater than zero." };
-    }
+  // Explicit sell price from preview / custom-price forms wins over one-click markup.
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return {
+      price: Math.round(parsed * 100) / 100,
+      oneClick: oneClickFlag && rawPrice === "",
+    };
+  }
+
+  if (rawPrice !== "") {
+    return { error: "Enter a sell price greater than zero." };
+  }
+
+  if (oneClickFlag) {
     const price =
       Math.round(Math.max(supplierCostUsdt, 0.01) * ONE_CLICK_IMPORT_MARKUP * 100) /
       100;
     return { price, oneClick: true };
   }
 
-  return { price: Math.round(parsed * 100) / 100, oneClick: false };
+  return { error: "Enter a sell price greater than zero." };
+}
+
+function resolveImportListingCopy(
+  formData: FormData,
+  remote: ExternalCatalogProduct,
+): { name: string; description: string } {
+  const nameOverride = String(formData.get("name") ?? "").trim();
+  const descriptionOverride = String(formData.get("description") ?? "").trim();
+  return {
+    name: (nameOverride || remote.name).slice(0, 180),
+    description:
+      descriptionOverride ||
+      remote.description ||
+      `${remote.name} imported from ${remote.providerKind === "cj_dropshipping" ? "CJ" : "DSers"}.`,
+  };
+}
+
+function resolveImportVariant(
+  formData: FormData,
+  remote: ExternalCatalogProduct,
+): {
+  externalVariantId: string | null;
+  externalSku: string | null;
+  supplierCostUsdt: number;
+  stockQuantity: number | null;
+} {
+  const variantId = String(formData.get("external_variant_id") ?? "").trim();
+  const skuOverride = String(formData.get("external_sku") ?? "").trim();
+  const matched = variantId
+    ? remote.variants?.find((v) => v.externalVariantId === variantId)
+    : undefined;
+
+  if (matched) {
+    return {
+      externalVariantId: matched.externalVariantId,
+      externalSku: skuOverride || matched.externalSku || remote.externalSku,
+      supplierCostUsdt: matched.priceUsdt,
+      stockQuantity: matched.stockQuantity ?? remote.stockQuantity,
+    };
+  }
+
+  return {
+    externalVariantId: variantId || remote.externalVariantId,
+    externalSku: skuOverride || remote.externalSku,
+    supplierCostUsdt: remote.priceUsdt,
+    stockQuantity: remote.stockQuantity,
+  };
 }
 
 async function requireApprovedVendor() {
@@ -225,15 +281,17 @@ export async function importExternalSupplierProductAction(
     return { error: "Could not load that supplier product." };
   }
 
-  const priced = resolveImportSellPrice(formData, remote.priceUsdt);
+  const variant = resolveImportVariant(formData, remote);
+  const listing = resolveImportListingCopy(formData, remote);
+  const priced = resolveImportSellPrice(formData, variant.supplierCostUsdt);
   if ("error" in priced) {
     return { error: priced.error };
   }
   const { price: sellPrice, oneClick } = priced;
 
-  if (sellPrice < remote.priceUsdt) {
+  if (sellPrice < variant.supplierCostUsdt) {
     return {
-      error: `Sell price must be at least supplier cost (${remote.priceUsdt} USDT).`,
+      error: `Sell price must be at least supplier cost (${variant.supplierCostUsdt} USDT).`,
     };
   }
 
@@ -274,12 +332,12 @@ export async function importExternalSupplierProductAction(
       const { error: updateError } = await supabase
         .from("products")
         .update({
-          name: remote.name.slice(0, 180),
-          description: remote.description,
+          name: listing.name,
+          description: listing.description,
           price: sellPrice,
           compare_at_price: remote.compareAtPriceUsdt,
-          sku: remote.externalSku,
-          stock_quantity: remote.stockQuantity ?? 0,
+          sku: variant.externalSku,
+          stock_quantity: variant.stockQuantity ?? 0,
           images: productImages,
           updated_at: new Date().toISOString(),
         })
@@ -293,8 +351,8 @@ export async function importExternalSupplierProductAction(
       await supabase
         .from("external_product_imports")
         .update({
-          external_variant_id: remote.externalVariantId,
-          external_sku: remote.externalSku,
+          external_variant_id: variant.externalVariantId,
+          external_sku: variant.externalSku,
           source_payload: remote.raw,
           last_synced_at: new Date().toISOString(),
         })
@@ -306,31 +364,31 @@ export async function importExternalSupplierProductAction(
       revalidatePath(`/vendor/sourcing/${existingImport.product_id}`);
 
       return {
-        success: `Updated imported “${remote.name}” from ${
+        success: `Updated imported “${listing.name}” from ${
           kind === "cj_dropshipping" ? "CJ" : "DSers"
         }.`,
         productId: existingImport.product_id,
         oneClick,
       };
     }
-  } else if (remote.externalSku) {
+  } else if (variant.externalSku) {
     // Fallback dedupe when import-tracking tables are not migrated yet.
     const { data: existingBySku } = await supabase
       .from("products")
       .select("id")
       .eq("vendor_id", gate.vendor.id)
-      .eq("sku", remote.externalSku)
+      .eq("sku", variant.externalSku)
       .maybeSingle();
 
     if (existingBySku?.id) {
       const { error: updateError } = await supabase
         .from("products")
         .update({
-          name: remote.name.slice(0, 180),
-          description: remote.description,
+          name: listing.name,
+          description: listing.description,
           price: sellPrice,
           compare_at_price: remote.compareAtPriceUsdt,
-          stock_quantity: remote.stockQuantity ?? 0,
+          stock_quantity: variant.stockQuantity ?? 0,
           images: productImages,
           updated_at: new Date().toISOString(),
         })
@@ -345,7 +403,7 @@ export async function importExternalSupplierProductAction(
       revalidatePath("/vendor/integrations");
 
       return {
-        success: `Updated imported “${remote.name}” from ${
+        success: `Updated imported “${listing.name}” from ${
           kind === "cj_dropshipping" ? "CJ" : "DSers"
         }.`,
         productId: existingBySku.id,
@@ -403,7 +461,7 @@ export async function importExternalSupplierProductAction(
   }
 
   const slugBase = slugifyExternalName(
-    `${kind === "cj_dropshipping" ? "cj" : "ae"}-${remote.name}`,
+    `${kind === "cj_dropshipping" ? "cj" : "ae"}-${listing.name}`,
   );
   const slug = `${slugBase}-${Date.now().toString(36).slice(-5)}`;
 
@@ -411,14 +469,14 @@ export async function importExternalSupplierProductAction(
     .from("products")
     .insert({
       vendor_id: gate.vendor.id,
-      name: remote.name.slice(0, 180),
+      name: listing.name,
       slug,
-      description: remote.description,
+      description: listing.description,
       price: sellPrice,
       compare_at_price: remote.compareAtPriceUsdt,
       currency: "USDT",
-      sku: remote.externalSku,
-      stock_quantity: remote.stockQuantity ?? 0,
+      sku: variant.externalSku,
+      stock_quantity: variant.stockQuantity ?? 0,
       status: "active",
       images: productImages,
       product_type: "physical",
@@ -454,8 +512,8 @@ export async function importExternalSupplierProductAction(
           region_id: regionId,
           provider_id: linked.providerId,
           external_sku:
-            remote.externalVariantId ||
-            remote.externalSku ||
+            variant.externalVariantId ||
+            variant.externalSku ||
             remote.externalProductId,
           warehouse_country: remote.warehouseCountry || "CN",
           shipping_days_min: remote.shippingDaysMin,
@@ -474,8 +532,8 @@ export async function importExternalSupplierProductAction(
         provider_id: linked.providerId,
         product_id: product.id,
         external_product_id: remote.externalProductId,
-        external_variant_id: remote.externalVariantId,
-        external_sku: remote.externalSku,
+        external_variant_id: variant.externalVariantId,
+        external_sku: variant.externalSku,
         source_payload: remote.raw,
         last_synced_at: new Date().toISOString(),
       },
@@ -494,14 +552,14 @@ export async function importExternalSupplierProductAction(
   const platform = kind === "cj_dropshipping" ? "CJ" : "DSers";
   const priceNote = oneClick
     ? ` Listed at ${sellPrice.toFixed(2)} USDT (${Math.round((ONE_CLICK_IMPORT_MARKUP - 1) * 100)}% markup).`
-    : "";
+    : ` Listed at ${sellPrice.toFixed(2)} USDT after preview review.`;
   const quotaNote =
     activeAfter < minActive
-      ? ` Active catalog ${activeAfter}/${minActive} toward the ${minActive}-item fee floor (${(minActive * itemFee).toFixed(0)} USDT/mo).`
+      ? ` Active catalog ${activeAfter}/${minActive} toward the ${minActive}-item fee floor (${(minActive * itemFee).toFixed(0)} USDT/mo). Keep importing until you reach ${minActive} active items.`
       : ` Catalog ${catalogAfter}/${maxImports} import slots used.`;
 
   return {
-    success: `Imported “${remote.name}” from ${platform} into your store.${priceNote}${quotaNote}`,
+    success: `Imported “${listing.name}” from ${platform} into your store.${priceNote}${quotaNote}`,
     productId: product.id,
     oneClick,
   };

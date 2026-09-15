@@ -15,23 +15,68 @@ type CjJson = Record<string, unknown>;
 
 function mockCatalog(query: string): ExternalCatalogProduct[] {
   const q = query.trim() || "gadget";
-  return [1, 2, 3].map((n) => ({
-    providerKind: "cj_dropshipping" as const,
-    externalProductId: `CJ-MOCK-${q.slice(0, 12).toUpperCase()}-${n}`,
-    externalVariantId: `CJ-VID-MOCK-${n}`,
-    externalSku: `CJ-SKU-MOCK-${n}`,
-    name: `CJ ${q} sample #${n}`,
-    description: `Mock CJ Dropshipping catalog item for “${q}”. Connect CJ_API_KEY / CJ_ACCESS_TOKEN for live search.`,
-    imageUrl: null,
-    images: [],
-    priceUsdt: Number((4.5 + n * 1.25).toFixed(2)),
-    compareAtPriceUsdt: Number((7 + n * 1.5).toFixed(2)),
-    stockQuantity: 50 * n,
-    warehouseCountry: "CN",
-    shippingDaysMin: 5,
-    shippingDaysMax: 15,
-    raw: { mock: true, query: q, n },
-  }));
+  return [1, 2, 3].map((n) => {
+    const seed = `cj-${q.slice(0, 8)}-${n}`.replace(/\s+/g, "-");
+    const images = [
+      `https://picsum.photos/seed/${seed}-a/800/800`,
+      `https://picsum.photos/seed/${seed}-b/800/800`,
+      `https://picsum.photos/seed/${seed}-c/800/800`,
+    ];
+    const base = Number((4.5 + n * 1.25).toFixed(2));
+    return {
+      providerKind: "cj_dropshipping" as const,
+      externalProductId: `CJ-MOCK-${q.slice(0, 12).toUpperCase()}-${n}`,
+      externalVariantId: `CJ-VID-MOCK-${n}-BLK`,
+      externalSku: `CJ-SKU-MOCK-${n}-BLK`,
+      name: `CJ ${q} sample #${n}`,
+      description: [
+        `Premium ${q} sourced via CJ Dropshipping (mock catalog).`,
+        "",
+        "Highlights",
+        `• Warehouse: China (CN) with typical 5–15 day transit to Myanmar`,
+        `• Pack includes charging cable and quick-start guide`,
+        `• Suitable for dropship listings with regional supplier routes`,
+        "",
+        "Review this description in Preview before Import to Store — you can edit the copy and sell price.",
+        "Connect CJ_API_KEY / CJ_ACCESS_TOKEN for live catalog data.",
+      ].join("\n"),
+      imageUrl: images[0],
+      images,
+      priceUsdt: base,
+      compareAtPriceUsdt: Number((7 + n * 1.5).toFixed(2)),
+      stockQuantity: 50 * n,
+      warehouseCountry: "CN",
+      shippingDaysMin: 5,
+      shippingDaysMax: 15,
+      variants: [
+        {
+          externalVariantId: `CJ-VID-MOCK-${n}-BLK`,
+          externalSku: `CJ-SKU-MOCK-${n}-BLK`,
+          label: "Black",
+          priceUsdt: base,
+          stockQuantity: 30 * n,
+          imageUrl: images[0],
+        },
+        {
+          externalVariantId: `CJ-VID-MOCK-${n}-WHT`,
+          externalSku: `CJ-SKU-MOCK-${n}-WHT`,
+          label: "White",
+          priceUsdt: Number((base + 0.4).toFixed(2)),
+          stockQuantity: 20 * n,
+          imageUrl: images[1],
+        },
+        {
+          externalVariantId: `CJ-VID-MOCK-${n}-BLU`,
+          externalSku: `CJ-SKU-MOCK-${n}-BLU`,
+          label: "Blue",
+          priceUsdt: Number((base + 0.6).toFixed(2)),
+          stockQuantity: 15 * n,
+          imageUrl: images[2],
+        },
+      ],
+      raw: { mock: true, query: q, n },
+    };
+  });
 }
 
 async function cjFetch(
@@ -162,11 +207,21 @@ export async function getCjProduct(
   credentials?: SupplierCredentials | null,
 ): Promise<ExternalCatalogProduct | null> {
   if (supplierIntegrationsMode() === "mock") {
-    return (
-      mockCatalog("detail").find((p) => p.externalProductId.includes("1")) ??
-      mockCatalog(externalProductId)[0] ??
-      null
-    );
+    const nMatch = externalProductId.match(/-(\d+)$/);
+    const n = nMatch ? Number(nMatch[1]) : 1;
+    const queryHint =
+      externalProductId
+        .replace(/^CJ-MOCK-/i, "")
+        .replace(/-\d+$/, "")
+        .trim() || "detail";
+    const catalog = mockCatalog(queryHint);
+    const hit =
+      catalog.find((p) => p.externalProductId === externalProductId) ??
+      catalog.find((p) => p.externalProductId.endsWith(`-${n}`)) ??
+      catalog[0] ??
+      null;
+    if (!hit) return null;
+    return { ...hit, externalProductId };
   }
 
   const json = await cjFetch("/product/query", {

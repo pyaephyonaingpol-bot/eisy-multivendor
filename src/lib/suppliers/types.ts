@@ -5,6 +5,15 @@ export type ExternalSupplierKind = "cj_dropshipping" | "dsers";
 /** Default sell price = supplier cost × this markup for one-click imports. */
 export const ONE_CLICK_IMPORT_MARKUP = 1.35;
 
+export type ExternalProductVariant = {
+  externalVariantId: string;
+  externalSku: string | null;
+  label: string;
+  priceUsdt: number;
+  stockQuantity: number | null;
+  imageUrl: string | null;
+};
+
 export type ExternalCatalogProduct = {
   providerKind: ExternalSupplierKind;
   externalProductId: string;
@@ -20,6 +29,8 @@ export type ExternalCatalogProduct = {
   warehouseCountry: string;
   shippingDaysMin: number | null;
   shippingDaysMax: number | null;
+  /** Optional SKU / option variants for preview + import. */
+  variants?: ExternalProductVariant[];
   raw: Record<string, unknown>;
 };
 

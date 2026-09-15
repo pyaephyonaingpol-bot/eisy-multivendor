@@ -76,14 +76,16 @@ export default async function VendorIntegrationsPage() {
       {quota ? <ImportQuotaBanner quota={quota} /> : null}
 
       <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-3 text-sm text-emerald-950 sm:px-4">
-        <p className="font-semibold text-emerald-900">One-click Import to Store</p>
+        <p className="font-semibold text-emerald-900">Preview & one-click Import to Store</p>
         <p className="mt-1 text-emerald-900/90">
-          Search CJ or DSers below, then click <strong>Import to Store</strong> to
-          add the item to your active inventory with a default 35% markup. New
-          imports are blocked at your maximum catalog cap
+          Search CJ or DSers below, open <strong>Preview</strong> to review images,
+          variants, and description (and tweak title, copy, or price), then click{" "}
+          <strong>Import to Store</strong>. Quick one-click import still uses a default
+          35% markup. New imports are blocked at your maximum catalog cap
           {quota ? ` (${quota.max_import_items})` : ""}. Stay at or above{" "}
           {quota?.min_active_items ?? 10} active items to clear the monthly fee
-          floor.
+          floor — confirmation in Preview shows your {quota?.min_active_items ?? 10}
+          -item progress.
         </p>
       </div>
 

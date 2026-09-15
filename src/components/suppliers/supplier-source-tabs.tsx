@@ -72,11 +72,11 @@ export function SupplierSourceTabs({ value, onChange, t, counts }: Props) {
             {supplierSourceTabLabel(tabId, t)}
             {typeof count === "number" ? (
               <span
-                className={`ms-1.5 text-xs ${
+                className={`ms-1.5 tabular-nums text-xs ${
                   active ? "text-zinc-300" : "text-zinc-400"
                 }`}
               >
-                {count}
+                ({count})
               </span>
             ) : null}
           </button>

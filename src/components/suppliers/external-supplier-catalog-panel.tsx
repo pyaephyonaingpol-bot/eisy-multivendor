@@ -82,7 +82,7 @@ export function ExternalSupplierCatalogPanel({
   }
 
   return (
-    <section className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5">
+    <section className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5">
       <div className="space-y-1">
         <h2 className="text-lg font-semibold tracking-tight">{providerLabel}</h2>
         <p className="text-sm text-zinc-600">
@@ -94,18 +94,18 @@ export function ExternalSupplierCatalogPanel({
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search products"
-          className="min-w-[16rem] flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+          className="w-full min-w-0 flex-1 rounded-lg border border-zinc-200 px-3 py-2.5 text-sm sm:py-2"
         />
         <button
           type="button"
           onClick={runSearch}
           disabled={pendingSearch}
-          className="rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+          className="min-h-11 w-full rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 sm:min-h-0 sm:w-auto"
         >
           {pendingSearch ? "Searching…" : "Search"}
         </button>
@@ -196,7 +196,7 @@ export function ExternalSupplierCatalogPanel({
                     <button
                       type="submit"
                       disabled={pendingImport || atLimit}
-                      className="rounded-lg bg-emerald-800 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                      className="min-h-11 w-full rounded-lg bg-emerald-800 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60 sm:min-h-0 sm:w-auto"
                     >
                       {pendingImport ? "Importing…" : "Import to Store"}
                     </button>

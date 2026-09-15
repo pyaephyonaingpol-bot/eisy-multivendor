@@ -43,7 +43,7 @@ export function WalletDashboard({
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
         <p className="max-w-2xl text-zinc-600">{subtitle}</p>
       </div>
 

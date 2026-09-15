@@ -15,13 +15,21 @@ export async function Header() {
 
   return (
     <header className="border-b border-zinc-200 bg-white">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="text-lg font-semibold tracking-tight">
-          EISY Marketplace
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:h-16">
+        <Link
+          href="/"
+          className="truncate text-base font-semibold tracking-tight sm:text-lg"
+        >
+          <span className="sm:hidden">EISY</span>
+          <span className="hidden sm:inline">EISY Marketplace</span>
         </Link>
-        <nav className="flex items-center gap-6 text-sm text-zinc-600">
+        <nav className="hidden items-center gap-6 text-sm text-zinc-600 md:flex">
           {nav.map((item) => (
-            <Link key={item.href} href={item.href} className="hover:text-zinc-950">
+            <Link
+              key={item.href}
+              href={item.href}
+              className="hover:text-zinc-950"
+            >
               {item.label}
             </Link>
           ))}
@@ -41,7 +49,30 @@ export async function Header() {
             </Link>
           )}
         </nav>
+        <div className="flex items-center gap-2 md:hidden">
+          {session ? (
+            <SignOutButton />
+          ) : (
+            <Link
+              href="/login"
+              className="rounded-full bg-zinc-950 px-3 py-1.5 text-xs text-white hover:bg-zinc-800"
+            >
+              Sign in
+            </Link>
+          )}
+        </div>
       </div>
+      <nav className="flex gap-3 overflow-x-auto border-t border-zinc-100 px-4 py-2 text-sm text-zinc-600 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
+        {nav.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="whitespace-nowrap rounded-full bg-zinc-50 px-3 py-1 hover:bg-zinc-100 hover:text-zinc-950"
+          >
+            {item.label}
+          </Link>
+        ))}
+      </nav>
     </header>
   );
 }

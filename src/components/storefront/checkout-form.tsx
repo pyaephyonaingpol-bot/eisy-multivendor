@@ -95,8 +95,8 @@ export function CheckoutForm({
       <input type="hidden" name="items" value={payload} />
       <input type="hidden" name="payment_method" value={paymentMethod} />
 
-      <div className="space-y-6">
-        <section className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5">
+      <div className="order-2 space-y-6 lg:order-1">
+        <section className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5">
           <div>
             <h2 className="text-lg font-semibold tracking-tight">
               Shipping details
@@ -261,7 +261,7 @@ export function CheckoutForm({
         </section>
       </div>
 
-      <aside className="h-fit space-y-4 rounded-2xl border border-zinc-200 bg-white p-5">
+      <aside className="order-1 h-fit space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 lg:sticky lg:top-24 lg:order-2">
         <h2 className="text-lg font-semibold tracking-tight">USDT payment</h2>
 
         <fieldset className="space-y-2">

@@ -16,7 +16,7 @@ export function ProductSpecificationsTable({
       <h2 className="text-lg font-semibold tracking-tight text-zinc-950">
         Specifications
       </h2>
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
         <table className="w-full text-left text-sm">
           <tbody>
             {specifications.map((spec, index) => (
@@ -26,11 +26,11 @@ export function ProductSpecificationsTable({
               >
                 <th
                   scope="row"
-                  className="w-2/5 px-4 py-3 font-medium text-zinc-600 align-top"
+                  className="w-2/5 px-3 py-3 align-top text-xs font-medium text-zinc-600 sm:px-4 sm:text-sm"
                 >
                   {spec.key}
                 </th>
-                <td className="px-4 py-3 text-zinc-950">{spec.value}</td>
+                <td className="break-words px-3 py-3 text-zinc-950 sm:px-4">{spec.value}</td>
               </tr>
             ))}
           </tbody>

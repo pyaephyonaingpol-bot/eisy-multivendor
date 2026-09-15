@@ -68,7 +68,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
             )}
           </div>
           {images.length > 1 ? (
-            <ul className="grid grid-cols-4 gap-2">
+            <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {images.slice(0, 4).map((url) => (
                 <li
                   key={url}
@@ -97,7 +97,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
                 <span className="text-xs text-zinc-500">SKU {product.sku}</span>
               ) : null}
             </div>
-            <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
               {product.name}
             </h1>
             {product.vendor ? (

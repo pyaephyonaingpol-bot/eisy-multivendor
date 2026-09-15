@@ -3,6 +3,7 @@ import {
   HomePromoBanner,
   type PromoBannerSlide,
 } from "@/components/storefront/home-promo-banner";
+import { FeaturedProductRail } from "@/components/storefront/featured-product-rail";
 import { ProductGrid } from "@/components/storefront/product-grid";
 import { listPublicProducts } from "@/lib/products/queries";
 
@@ -74,7 +75,10 @@ export default async function StorefrontHomePage() {
             View all products
           </Link>
         </div>
-        <ProductGrid products={products} />
+        <FeaturedProductRail products={products} />
+        <div className="hidden sm:block">
+          <ProductGrid products={products} />
+        </div>
       </section>
     </div>
   );

@@ -46,7 +46,16 @@ export default async function VendorDashboardPage() {
           <h1 className="text-2xl font-semibold tracking-tight">{vendor.name}</h1>
           <VendorStatusBadge status={vendor.status} />
         </div>
-        <p className="text-zinc-600">Store URL slug: /{vendor.slug}</p>
+        <p className="text-zinc-600">
+          Public store:{" "}
+          <Link href={`/store/${vendor.slug}`} className="font-medium underline">
+            /store/{vendor.slug}
+          </Link>
+          {" · "}
+          <Link href="/vendor/settings" className="font-medium underline">
+            Edit branding
+          </Link>
+        </p>
       </div>
 
       {vendor.status === "pending" ? (

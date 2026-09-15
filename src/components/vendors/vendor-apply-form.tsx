@@ -48,7 +48,7 @@ function VendorApplyFormFields({ defaultName = "" }: VendorApplyFormProps) {
           Store URL slug
         </label>
         <div className="flex items-center gap-2 text-sm text-zinc-500">
-          <span>/vendors/</span>
+          <span>/store/</span>
           <input
             id="slug"
             name="slug"

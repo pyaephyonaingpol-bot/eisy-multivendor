@@ -222,6 +222,15 @@ export type Product = {
   /** Original supplier product when this row is a dropship listing. */
   source_product_id: string | null;
   is_dropship: boolean;
+  /** ISO country code for the listing's primary warehouse / origin. */
+  origin_country_code: string | null;
+  /** Primary sourcing region for this listing. */
+  origin_region_id: string | null;
+  /**
+   * When non-empty, only these sourcing regions may buy the listing.
+   * Empty means deliverability is derived from supplier routes (and local defaults).
+   */
+  ships_to_region_ids: string[];
   created_at: string;
   updated_at: string;
 };
@@ -853,6 +862,27 @@ export type Database = {
           p_product_id: string;
         };
         Returns: number;
+      };
+      product_is_deliverable_to_country: {
+        Args: {
+          p_product_id: string;
+          p_country_code: string;
+        };
+        Returns: boolean;
+      };
+      assert_cart_deliverable_to_country: {
+        Args: {
+          p_items: { product_id: string; quantity: number }[] | unknown;
+          p_country_code: string;
+        };
+        Returns: undefined;
+      };
+      filter_deliverable_product_ids: {
+        Args: {
+          p_product_ids: string[];
+          p_country_code: string;
+        };
+        Returns: string[];
       };
 
       get_vendor_import_quota: {

@@ -70,6 +70,9 @@ type ParsedProductFields =
       downloadLabel: string;
       status: ProductStatus;
       categoryId: string;
+      originCountryCode: string | null;
+      originRegionId: string | null;
+      shipsToRegionIds: string[];
       specifications: { key: string; value: string }[];
     };
 
@@ -90,6 +93,15 @@ function parseProductFields(formData: FormData): ParsedProductFields {
   const downloadLabel = String(formData.get("download_label") ?? "").trim();
   const status = parseStatus(formData.get("status"));
   const categoryId = String(formData.get("category_id") ?? "").trim();
+  const originCountryCode = String(formData.get("origin_country_code") ?? "")
+    .trim()
+    .toUpperCase()
+    .slice(0, 2);
+  const originRegionId = String(formData.get("origin_region_id") ?? "").trim();
+  const shipsToRegionIds = formData
+    .getAll("ships_to_region_ids")
+    .map((value) => String(value).trim())
+    .filter(Boolean);
   const specsResult = parseProductSpecificationsFromFormData(formData);
 
   if (!name) {
@@ -129,6 +141,13 @@ function parseProductFields(formData: FormData): ParsedProductFields {
     }
   }
 
+  if (
+    originCountryCode &&
+    !/^[A-Z]{2}$/.test(originCountryCode)
+  ) {
+    return { error: "Origin country must be a 2-letter code (e.g. MM)." };
+  }
+
   if (specsResult.error) {
     return { error: specsResult.error };
   }
@@ -147,6 +166,9 @@ function parseProductFields(formData: FormData): ParsedProductFields {
     downloadLabel,
     status,
     categoryId,
+    originCountryCode: originCountryCode || null,
+    originRegionId: originRegionId || null,
+    shipsToRegionIds,
     specifications: specsResult.specifications,
   };
 }
@@ -208,6 +230,9 @@ export async function createProduct(
     download_url: parsed.productType === "digital" ? parsed.downloadUrl : null,
     download_label:
       parsed.productType === "digital" ? parsed.downloadLabel || null : null,
+    origin_country_code: parsed.originCountryCode,
+    origin_region_id: parsed.originRegionId,
+    ships_to_region_ids: parsed.shipsToRegionIds,
   });
 
   if (error) {
@@ -289,6 +314,9 @@ export async function updateProduct(
       download_url: parsed.productType === "digital" ? parsed.downloadUrl : null,
       download_label:
         parsed.productType === "digital" ? parsed.downloadLabel || null : null,
+      origin_country_code: parsed.originCountryCode,
+      origin_region_id: parsed.originRegionId,
+      ships_to_region_ids: parsed.shipsToRegionIds,
     })
     .eq("id", productId)
     .eq("vendor_id", vendor.id);

@@ -103,7 +103,7 @@ export function CheckoutForm({
             </h2>
             <p className="text-sm text-zinc-500">
               {hasPhysical
-                ? "Required for physical items."
+                ? "Required for physical items. Checkout blocks items that cannot ship to the selected country."
                 : "Optional for digital-only carts."}
             </p>
           </div>

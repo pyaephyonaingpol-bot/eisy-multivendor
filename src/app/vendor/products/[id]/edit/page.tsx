@@ -4,6 +4,7 @@ import { ProductForm } from "@/components/vendors/product-form";
 import { getSessionProfile } from "@/lib/auth/session";
 import { listActiveCategories } from "@/lib/categories/queries";
 import { getVendorProductById } from "@/lib/products/queries";
+import { listSourcingRegions } from "@/lib/sourcing/queries";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +35,10 @@ export default async function EditVendorProductPage({
     notFound();
   }
 
-  const categories = await listActiveCategories();
+  const [categories, sourcingRegions] = await Promise.all([
+    listActiveCategories(),
+    listSourcingRegions(),
+  ]);
 
   // Ensure the current category remains selectable even if deactivated.
   const categoryOptions =
@@ -74,7 +78,11 @@ export default async function EditVendorProductPage({
         </div>
       ) : null}
 
-      <ProductForm categories={categoryOptions} product={product} />
+      <ProductForm
+        categories={categoryOptions}
+        product={product}
+        sourcingRegions={sourcingRegions}
+      />
 
       <p className="text-sm text-zinc-600">
         <Link

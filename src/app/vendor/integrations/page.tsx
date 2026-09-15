@@ -22,7 +22,7 @@ export default async function VendorIntegrationsPage() {
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold tracking-tight">Integrations</h1>
         <p className="text-zinc-600">
-          Apply as a vendor before connecting CJ Dropshipping or DSers.
+          Apply as a vendor before connecting CJ, DSers, Spocket, or POD suppliers.
         </p>
         <Link href="/vendor/apply" className="underline">
           Apply as a vendor
@@ -46,7 +46,7 @@ export default async function VendorIntegrationsPage() {
   const { data: providers } = await supabase
     .from("supplier_providers")
     .select("id, name, kind, slug")
-    .in("kind", ["cj_dropshipping", "dsers"])
+    .in("kind", ["cj_dropshipping", "dsers", "spocket", "print_on_demand"])
     .eq("is_active", true)
     .order("name");
 
@@ -62,8 +62,9 @@ export default async function VendorIntegrationsPage() {
           Supplier integrations
         </h1>
         <p className="max-w-2xl text-zinc-600">
-          Connect <strong>CJ Dropshipping</strong> and{" "}
-          <strong>DSers / AliExpress</strong> to search catalogs, import
+          Connect <strong>CJ Dropshipping</strong>,{" "}
+          <strong>DSers / AliExpress</strong>, <strong>Spocket</strong>, and{" "}
+          <strong>POD (Printful / Printify)</strong> to search catalogs, import
           products with supplier SKUs, sync inventory, and auto-route paid
           orders to the supplier API.
         </p>
@@ -75,10 +76,22 @@ export default async function VendorIntegrationsPage() {
 
       {quota ? <ImportQuotaBanner quota={quota} /> : null}
 
+      <div className="rounded-xl border border-sky-200 bg-sky-50/70 px-3 py-3 text-sm text-sky-950 sm:px-4">
+        <p className="font-semibold text-sky-900">Unified sourcing workspace</p>
+        <p className="mt-1 text-sky-900/90">
+          Prefer the multi-supplier catalog with source tabs, region filters, and
+          fast-dispatch badges on{" "}
+          <a href="/vendor/sourcing" className="font-medium underline">
+            Product sourcing
+          </a>
+          .
+        </p>
+      </div>
+
       <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-3 text-sm text-emerald-950 sm:px-4">
         <p className="font-semibold text-emerald-900">Preview & one-click Import to Store</p>
         <p className="mt-1 text-emerald-900/90">
-          Search CJ or DSers below, open <strong>Preview</strong> to review images,
+          Search CJ, DSers, Spocket, or POD below, open <strong>Preview</strong> to review images,
           variants, and description (and tweak title, copy, or price), then click{" "}
           <strong>Import to Store</strong>. Quick one-click import still uses a default
           35% markup. New imports are blocked at your maximum catalog cap
@@ -133,8 +146,66 @@ export default async function VendorIntegrationsPage() {
         }
       />
 
+      <ExternalSupplierCatalogPanel
+        providerKind="spocket"
+        providerLabel="Spocket"
+        importDisabled={quota?.at_import_limit ?? false}
+        quota={
+          quota
+            ? {
+                minActiveItems: quota.min_active_items,
+                maxImportItems: quota.max_import_items,
+                catalogItemCount: quota.catalog_item_count,
+                activeItemCount: quota.active_item_count,
+                remainingImportSlots: quota.remaining_import_slots,
+                itemFeeUsdt: quota.item_fee_usdt,
+                atImportLimit: quota.at_import_limit,
+                meetsMinimum: quota.meets_minimum,
+              }
+            : null
+        }
+      />
+      <ExternalSupplierCatalogPanel
+        providerKind="printful"
+        providerLabel="Printful (POD)"
+        importDisabled={quota?.at_import_limit ?? false}
+        quota={
+          quota
+            ? {
+                minActiveItems: quota.min_active_items,
+                maxImportItems: quota.max_import_items,
+                catalogItemCount: quota.catalog_item_count,
+                activeItemCount: quota.active_item_count,
+                remainingImportSlots: quota.remaining_import_slots,
+                itemFeeUsdt: quota.item_fee_usdt,
+                atImportLimit: quota.at_import_limit,
+                meetsMinimum: quota.meets_minimum,
+              }
+            : null
+        }
+      />
+      <ExternalSupplierCatalogPanel
+        providerKind="printify"
+        providerLabel="Printify (POD)"
+        importDisabled={quota?.at_import_limit ?? false}
+        quota={
+          quota
+            ? {
+                minActiveItems: quota.min_active_items,
+                maxImportItems: quota.max_import_items,
+                catalogItemCount: quota.catalog_item_count,
+                activeItemCount: quota.active_item_count,
+                remainingImportSlots: quota.remaining_import_slots,
+                itemFeeUsdt: quota.item_fee_usdt,
+                atImportLimit: quota.at_import_limit,
+                meetsMinimum: quota.meets_minimum,
+              }
+            : null
+        }
+      />
+
       <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-        After checkout payment, orders with CJ/DSers routes enter{" "}
+        After checkout payment, orders with CJ / DSers / Spocket / POD routes enter{" "}
         <code className="rounded bg-white px-1">supplier_fulfillment_jobs</code>
         .         Process them via{" "}
         <code className="rounded bg-white px-1">

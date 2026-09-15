@@ -232,7 +232,7 @@ export async function processSupplierFulfillmentJobs(limit = 20): Promise<{
           p_supplier_order_ref: null,
           p_response: { reason: "no_external_sku" },
           p_error:
-            "Order lines have no CJ/DSers external SKU. Import from Integrations first.",
+            "Order lines have no external supplier external SKU. Import from Integrations first.",
         });
         skipped += 1;
         results.push({ job_id: job.id, status: "skipped", reason: "no_external_sku" });

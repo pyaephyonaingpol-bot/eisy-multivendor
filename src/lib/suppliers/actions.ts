@@ -12,8 +12,14 @@ import {
   type SupplierCredentials,
 } from "@/lib/suppliers";
 import {
+  MIN_IMPORT_STOCK_QUANTITY,
   ONE_CLICK_IMPORT_MARKUP,
+  SUPPLIER_PROVIDER_SLUGS,
+  meetsMinImportStock,
+  productMatchesSourcingRegion,
   slugifyExternalName,
+  supplierPlatformLabel,
+  warehouseCountryToRegionCodes,
 } from "@/lib/suppliers/types";
 import { createClient } from "@/lib/supabase/server";
 import { getVendorForOwner } from "@/lib/vendors/queries";
@@ -74,7 +80,7 @@ function resolveImportListingCopy(
     description:
       descriptionOverride ||
       remote.description ||
-      `${remote.name} imported from ${remote.providerKind === "cj_dropshipping" ? "CJ" : "DSers"}.`,
+      `${remote.name} imported from ${supplierPlatformLabel(remote.providerKind)}.`,
   };
 }
 
@@ -199,10 +205,11 @@ async function loadVendorCredentials(
   kind: ExternalSupplierKind,
 ): Promise<{ providerId: string; credentials: SupplierCredentials } | null> {
   const supabase = await createClient();
+  const slug = SUPPLIER_PROVIDER_SLUGS[kind];
   const { data: provider } = await supabase
     .from("supplier_providers")
-    .select("id, kind")
-    .eq("kind", kind)
+    .select("id, kind, slug, supports_regions")
+    .eq("slug", slug)
     .eq("is_active", true)
     .maybeSingle();
 
@@ -282,6 +289,22 @@ export async function importExternalSupplierProductAction(
   }
 
   const variant = resolveImportVariant(formData, remote);
+  if (!meetsMinImportStock(variant.stockQuantity)) {
+    return {
+      error: `Supplier stock must be at least ${MIN_IMPORT_STOCK_QUANTITY} units before import (found ${variant.stockQuantity ?? 0}).`,
+    };
+  }
+
+  if (
+    regionCode &&
+    regionCode !== "GLOBAL" &&
+    !productMatchesSourcingRegion(remote, regionCode)
+  ) {
+    return {
+      error: `This ${supplierPlatformLabel(kind)} product (warehouse ${remote.warehouseCountry}) does not ship to region ${regionCode}. Pick another region or product.`,
+    };
+  }
+
   const listing = resolveImportListingCopy(formData, remote);
   const priced = resolveImportSellPrice(formData, variant.supplierCostUsdt);
   if ("error" in priced) {
@@ -365,7 +388,7 @@ export async function importExternalSupplierProductAction(
 
       return {
         success: `Updated imported “${listing.name}” from ${
-          kind === "cj_dropshipping" ? "CJ" : "DSers"
+          supplierPlatformLabel(kind)
         }.`,
         productId: existingImport.product_id,
         oneClick,
@@ -404,7 +427,7 @@ export async function importExternalSupplierProductAction(
 
       return {
         success: `Updated imported “${listing.name}” from ${
-          kind === "cj_dropshipping" ? "CJ" : "DSers"
+          supplierPlatformLabel(kind)
         }.`,
         productId: existingBySku.id,
         oneClick,
@@ -461,7 +484,7 @@ export async function importExternalSupplierProductAction(
   }
 
   const slugBase = slugifyExternalName(
-    `${kind === "cj_dropshipping" ? "cj" : "ae"}-${listing.name}`,
+    `${kind}-${listing.name}`,
   );
   const slug = `${slugBase}-${Date.now().toString(36).slice(-5)}`;
 
@@ -524,6 +547,17 @@ export async function importExternalSupplierProductAction(
         },
         { onConflict: "product_id,region_id,provider_id" },
       );
+
+      // Apply storefront regional filtering on the imported listing.
+      await supabase
+        .from("products")
+        .update({
+          origin_region_id: regionId,
+          ships_to_region_ids: [regionId],
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", product.id)
+        .eq("vendor_id", gate.vendor.id);
     }
 
     await supabase.from("external_product_imports").upsert(
@@ -549,7 +583,7 @@ export async function importExternalSupplierProductAction(
 
   const activeAfter = activeBefore + 1;
   const catalogAfter = catalogBefore + 1;
-  const platform = kind === "cj_dropshipping" ? "CJ" : "DSers";
+  const platform = supplierPlatformLabel(kind);
   const priceNote = oneClick
     ? ` Listed at ${sellPrice.toFixed(2)} USDT (${Math.round((ONE_CLICK_IMPORT_MARKUP - 1) * 100)}% markup).`
     : ` Listed at ${sellPrice.toFixed(2)} USDT after preview review.`;
@@ -580,7 +614,7 @@ export async function syncExternalProductInventoryAction(
     .maybeSingle();
 
   if (!imported) {
-    return { error: "This product was not imported from CJ/DSers." };
+    return { error: "This product was not imported from an external supplier catalog." };
   }
 
   const { data: provider } = await supabase

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { ConfirmDeliveryForm } from "@/components/orders/confirm-delivery-form";
 import { OrderStatusTimeline } from "@/components/orders/order-status-timeline";
 import { getSessionProfile } from "@/lib/auth/session";
 import { formatMoney } from "@/lib/money";
@@ -9,6 +10,8 @@ import {
   orderStatusLabel,
   paymentStatusBadgeClass,
   paymentStatusLabel,
+  payoutStatusBadgeClass,
+  payoutStatusLabel,
 } from "@/lib/orders/status";
 
 export const dynamic = "force-dynamic";
@@ -77,6 +80,13 @@ export default async function OrderDetailPage({
             >
               Payment: {paymentStatusLabel(order.payment_status)}
             </span>
+            {order.payout_status && order.payout_status !== "not_applicable" ? (
+              <span
+                className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${payoutStatusBadgeClass(order.payout_status)}`}
+              >
+                Payout: {payoutStatusLabel(order.payout_status)}
+              </span>
+            ) : null}
           </div>
         </div>
         <p className="text-right text-xl font-semibold text-zinc-950">
@@ -90,6 +100,12 @@ export default async function OrderDetailPage({
           status={order.status}
           shippedAt={order.shipped_at}
           deliveredAt={order.delivered_at}
+        />
+        <ConfirmDeliveryForm
+          orderId={order.id}
+          status={order.status}
+          paymentStatus={order.payment_status}
+          payoutStatus={order.payout_status ?? "not_applicable"}
         />
       </section>
 

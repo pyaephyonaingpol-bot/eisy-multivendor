@@ -10,6 +10,8 @@ export type OrderStatus =
   | "delivered"
   | "cancelled"
   | "refunded";
+export type OrderPayoutStatus = "held" | "released" | "not_applicable";
+
 export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 export type SubscriptionPlan = "free" | "starter" | "pro" | "enterprise";
 export type SubscriptionStatus =
@@ -26,7 +28,9 @@ export type WalletTxType =
   | "sale_credit"
   | "adjustment"
   | "inventory_fee"
-  | "platform_commission";
+  | "platform_commission"
+  | "escrow_hold"
+  | "escrow_release";
 export type WalletTxStatus = "pending" | "completed" | "rejected" | "cancelled";
 export type DropshipFeeInvoiceStatus =
   | "pending"
@@ -319,6 +323,9 @@ export type Order = {
   tracking_url: string | null;
   shipped_at: string | null;
   delivered_at: string | null;
+  payout_status: OrderPayoutStatus;
+  payout_released_at: string | null;
+  payout_release_source: string | null;
   supplier_order_ref: string | null;
   fulfillment_sync_status: FulfillmentSyncStatus;
   fulfillment_synced_at: string | null;
@@ -465,6 +472,7 @@ export type Wallet = {
   currency: WalletCurrency;
   available_balance: number;
   pending_balance: number;
+  escrow_balance: number;
   created_at: string;
   updated_at: string;
 };
@@ -690,6 +698,20 @@ export type Database = {
           p_source?: FulfillmentSyncSource | null;
           p_payload?: Record<string, unknown> | null;
           p_note?: string | null;
+        };
+        Returns: Order;
+      };
+      confirm_order_delivered_by_buyer: {
+        Args: {
+          p_order_id: string;
+        };
+        Returns: Order;
+      };
+      release_order_escrow: {
+        Args: {
+          p_order_id: string;
+          p_source?: string | null;
+          p_actor?: string | null;
         };
         Returns: Order;
       };

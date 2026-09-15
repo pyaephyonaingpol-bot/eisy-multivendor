@@ -4,6 +4,10 @@ import { redirect } from "next/navigation";
 import { getSessionProfile } from "@/lib/auth/session";
 import { formatMoney } from "@/lib/money";
 import { listOrdersForVendor } from "@/lib/orders/queries";
+import {
+  payoutStatusBadgeClass,
+  payoutStatusLabel,
+} from "@/lib/orders/status";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 
 export const dynamic = "force-dynamic";
@@ -43,7 +47,8 @@ export default async function VendorOrdersPage() {
         <p className="text-zinc-600">
           Fulfillment orders route to the supplier. Dropship sales you made appear
           here as seller orders; supplier stock and fulfillment stay with the
-          original vendor.
+          original vendor. USDT earnings stay in escrow until the order is
+          delivered (carrier sync or buyer confirmation).
         </p>
       </div>
 
@@ -78,6 +83,14 @@ export default async function VendorOrdersPage() {
                     {order.vendor_id !== order.seller_vendor_id ? (
                       <span className="rounded-full bg-zinc-100 px-2 py-0.5 font-medium text-zinc-700 ring-1 ring-inset ring-zinc-200">
                         Dropship routed
+                      </span>
+                    ) : null}
+                    {order.payout_status &&
+                    order.payout_status !== "not_applicable" ? (
+                      <span
+                        className={`rounded-full px-2 py-0.5 font-medium ring-1 ring-inset ${payoutStatusBadgeClass(order.payout_status)}`}
+                      >
+                        Payout: {payoutStatusLabel(order.payout_status)}
                       </span>
                     ) : null}
                   </div>

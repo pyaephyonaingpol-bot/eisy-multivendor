@@ -16,7 +16,7 @@ import {
   slugifyExternalName,
 } from "@/lib/suppliers/types";
 import { createClient } from "@/lib/supabase/server";
-import { getVendorForOwner } from "@/lib/vendors/queries";
+import { getVendorForOwner, isVendorKycApproved } from "@/lib/vendors/queries";
 
 export type SupplierCredentialState = {
   error?: string;
@@ -123,6 +123,18 @@ async function requireApprovedVendor() {
     return { error: "Your store must be approved first." as const };
   }
   return { session, vendor };
+}
+
+async function requireKycApprovedVendor() {
+  const gate = await requireApprovedVendor();
+  if ("error" in gate) return gate;
+  if (!isVendorKycApproved(gate.vendor)) {
+    return {
+      error:
+        "Complete KYC verification in Store settings before importing or publishing products." as const,
+    };
+  }
+  return gate;
 }
 
 export async function listVendorSupplierCredentials() {
@@ -254,7 +266,7 @@ export async function importExternalSupplierProductAction(
   _prev: ExternalImportState,
   formData: FormData,
 ): Promise<ExternalImportState> {
-  const gate = await requireApprovedVendor();
+  const gate = await requireKycApprovedVendor();
   if ("error" in gate) return { error: gate.error };
 
   const kind = parseSupplierKind(String(formData.get("provider_kind") ?? ""));

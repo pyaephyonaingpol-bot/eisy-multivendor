@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { collectLogoFile, uploadVendorLogo } from "@/lib/vendors/branding";
+import { collectKycDocumentFile, uploadVendorKycDocument } from "@/lib/vendors/kyc";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 import type { VendorStatus } from "@/lib/types/database";
 
@@ -188,4 +189,108 @@ export async function updateVendorStoreBranding(
   revalidatePath("/");
 
   return { success: "Store branding saved." };
+}
+
+export async function submitVendorKyc(
+  _prev: VendorActionState,
+  formData: FormData,
+): Promise<VendorActionState> {
+  const documentType = String(formData.get("document_type") ?? "").trim().toLowerCase();
+  const legalName = String(formData.get("legal_name") ?? "").trim();
+  const documentNumber = String(formData.get("document_number") ?? "").trim();
+
+  if (!["passport", "national_id", "trade_license"].includes(documentType)) {
+    return { error: "Choose passport, national ID, or trade license." };
+  }
+
+  if (!legalName) {
+    return { error: "Legal name is required." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be signed in." };
+  }
+
+  const vendor = await getVendorForOwner(user.id);
+  if (!vendor) {
+    return { error: "Create a store application before submitting KYC." };
+  }
+
+  if (vendor.kyc_status === "approved") {
+    return { error: "KYC is already approved." };
+  }
+
+  if (vendor.kyc_status === "pending") {
+    return { error: "KYC is already pending review." };
+  }
+
+  const file = collectKycDocumentFile(formData);
+  if (!file) {
+    return { error: "Upload a passport, ID card, or trade license document." };
+  }
+
+  const uploaded = await uploadVendorKycDocument(vendor.id, file);
+  if (uploaded.error || !uploaded.path) {
+    return { error: uploaded.error ?? "Could not upload KYC document." };
+  }
+
+  const { error } = await supabase.rpc("submit_vendor_kyc", {
+    p_document_type: documentType,
+    p_document_path: uploaded.path,
+    p_document_url: uploaded.url ?? "",
+    p_legal_name: legalName,
+    p_document_number: documentNumber || null,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/vendor/settings");
+  revalidatePath("/vendor/dashboard");
+  revalidatePath("/vendor/products");
+  revalidatePath("/vendor/wallet");
+  revalidatePath("/admin/kyc");
+
+  return { success: "KYC submitted for admin review." };
+}
+
+export async function reviewVendorKyc(
+  vendorId: string,
+  approve: boolean,
+  rejectionReason?: string | null,
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login?next=/admin/kyc");
+  }
+
+  const { error } = await supabase.rpc("review_vendor_kyc", {
+    p_vendor_id: vendorId,
+    p_approve: approve,
+    p_rejection_reason: approve ? null : rejectionReason || null,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin/kyc");
+  revalidatePath("/admin/vendors");
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/vendor/settings");
+  revalidatePath("/vendor/dashboard");
+  revalidatePath("/vendor/products");
+  revalidatePath("/vendor/wallet");
+
+  return {};
 }

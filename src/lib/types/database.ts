@@ -1,5 +1,14 @@
 export type UserRole = "customer" | "vendor" | "admin";
 export type VendorStatus = "pending" | "approved" | "suspended" | "rejected";
+export type VendorKycStatus =
+  | "unsubmitted"
+  | "pending"
+  | "approved"
+  | "rejected";
+export type VendorKycDocumentType =
+  | "passport"
+  | "national_id"
+  | "trade_license";
 export type ProductStatus = "draft" | "active" | "archived";
 export type ProductType = "physical" | "digital";
 export type OrderStatus =
@@ -181,6 +190,17 @@ export type Vendor = {
   commission_rate: number;
   /** Optional per-vendor import cap override (null = use plan/system default). */
   max_import_items_override?: number | null;
+  /** Identity verification status for publishing + withdrawals. */
+  kyc_status: VendorKycStatus;
+  kyc_document_type: VendorKycDocumentType | null;
+  kyc_document_url: string | null;
+  kyc_document_path: string | null;
+  kyc_legal_name: string | null;
+  kyc_document_number: string | null;
+  kyc_submitted_at: string | null;
+  kyc_reviewed_at: string | null;
+  kyc_reviewed_by: string | null;
+  kyc_rejection_reason: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -689,6 +709,28 @@ export type Database = {
           p_status: VendorStatus;
         };
         Returns: undefined;
+      };
+      submit_vendor_kyc: {
+        Args: {
+          p_document_type: string;
+          p_document_path: string;
+          p_document_url: string;
+          p_legal_name: string;
+          p_document_number?: string | null;
+        };
+        Returns: Vendor;
+      };
+      review_vendor_kyc: {
+        Args: {
+          p_vendor_id: string;
+          p_approve: boolean;
+          p_rejection_reason?: string | null;
+        };
+        Returns: Vendor;
+      };
+      vendor_kyc_is_approved: {
+        Args: { p_vendor_id: string };
+        Returns: boolean;
       };
       ensure_user_wallets: {
         Args: {

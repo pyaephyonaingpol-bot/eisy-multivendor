@@ -7,7 +7,7 @@ import { resolveProductImages } from "@/lib/products/images";
 import { parseProductSpecificationsFromFormData } from "@/lib/products/specifications";
 import { createClient } from "@/lib/supabase/server";
 import type { ProductStatus, ProductType } from "@/lib/types/database";
-import { getVendorForOwner } from "@/lib/vendors/queries";
+import { getVendorForOwner, isVendorKycApproved } from "@/lib/vendors/queries";
 import { slugifyStoreName } from "@/lib/vendors/slug";
 
 export type ProductActionState = {
@@ -207,6 +207,13 @@ export async function createProduct(
     return { error: "Submit a vendor application before adding products." };
   }
 
+  if (parsed.status === "active" && !isVendorKycApproved(vendor)) {
+    return {
+      error:
+        "Complete KYC verification in Store settings before publishing products. You can still save drafts.",
+    };
+  }
+
   const imageResult = await resolveProductImages(vendor.id, formData);
   if (imageResult.error) {
     return { error: imageResult.error };
@@ -273,6 +280,13 @@ export async function updateProduct(
 
   if (!vendor) {
     return { error: "Submit a vendor application before editing products." };
+  }
+
+  if (parsed.status === "active" && !isVendorKycApproved(vendor)) {
+    return {
+      error:
+        "Complete KYC verification in Store settings before publishing products. You can still save drafts.",
+    };
   }
 
   const { data: existing, error: loadError } = await supabase

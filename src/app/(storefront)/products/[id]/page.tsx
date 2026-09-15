@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SoldByBadge } from "@/components/storefront/sold-by-badge";
 import { notFound } from "next/navigation";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 import { ImportToMyStorePanel } from "@/components/storefront/import-to-my-store-panel";
@@ -101,24 +102,17 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
               {product.name}
             </h1>
             {product.vendor ? (
-              <p className="text-sm text-zinc-600">
-                Sold by{" "}
-                <Link
-                  href={`/vendors/${product.vendor.slug}`}
-                  className="font-medium text-zinc-950 underline"
-                >
-                  {product.vendor.name}
-                </Link>
+              <div className="space-y-1">
+                <SoldByBadge vendor={product.vendor} size="md" />
                 {product.is_dropship && product.source_vendor ? (
-                  <>
-                    {" "}
-                    · Fulfilled by{" "}
+                  <p className="text-sm text-zinc-500">
+                    Fulfilled by{" "}
                     <span className="font-medium text-zinc-800">
                       {product.source_vendor.name}
                     </span>
-                  </>
+                  </p>
                 ) : null}
-              </p>
+              </div>
             ) : null}
           </div>
 

@@ -35,3 +35,27 @@ export async function listVendorsForAdmin(status?: VendorStatus): Promise<Vendor
   const { data } = await query;
   return (data as Vendor[] | null) ?? [];
 }
+
+/** Public storefront lookup — approved vendors only. */
+export async function getApprovedVendorBySlug(
+  slug: string,
+): Promise<Vendor | null> {
+  if (!getSupabasePublicEnv()) {
+    return null;
+  }
+
+  const normalized = slug.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("vendors")
+    .select("*")
+    .eq("slug", normalized)
+    .eq("status", "approved")
+    .maybeSingle();
+
+  return (data as Vendor | null) ?? null;
+}

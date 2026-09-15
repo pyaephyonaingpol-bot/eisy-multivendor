@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SoldByBadge } from "@/components/storefront/sold-by-badge";
 import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
 import type { PublicProductSummary } from "@/lib/products/queries";
 
@@ -47,6 +48,9 @@ export function FeaturedProductRail({ products }: FeaturedProductRailProps) {
                   <p className="line-clamp-2 text-sm font-semibold text-zinc-950">
                     {product.name}
                   </p>
+                  {product.vendor?.status === "approved" && product.vendor ? (
+                    <SoldByBadge vendor={product.vendor} as="text" />
+                  ) : null}
                   <p className="text-sm font-medium text-zinc-950">
                     {formatMoney(Number(product.price), MARKETPLACE_CURRENCY)}
                   </p>

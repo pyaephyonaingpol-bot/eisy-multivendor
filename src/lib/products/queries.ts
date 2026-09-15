@@ -17,7 +17,7 @@ function normalizeProduct(row: Product): Product {
 }
 
 export type PublicProductDetail = Product & {
-  vendor: Pick<Vendor, "id" | "name" | "slug" | "status"> | null;
+  vendor: Pick<Vendor, "id" | "name" | "slug" | "status" | "logo_url"> | null;
   /** Supplier stock when this is a dropship listing; otherwise own stock. */
   available_stock: number;
   source_vendor: Pick<Vendor, "id" | "name" | "slug"> | null;
@@ -45,7 +45,7 @@ async function withPublicVendorMeta(
   const [{ data: vendorRows }, sourceResult] = await Promise.all([
     supabase
       .from("vendors")
-      .select("id, name, slug, status")
+      .select("id, name, slug, status, logo_url")
       .in("id", vendorIds)
       .eq("status", "approved"),
     sourceIds.length > 0
@@ -57,7 +57,7 @@ async function withPublicVendorMeta(
   ]);
 
   const vendorsById = new Map(
-    ((vendorRows as Pick<Vendor, "id" | "name" | "slug" | "status">[] | null) ?? []).map(
+    ((vendorRows as Pick<Vendor, "id" | "name" | "slug" | "status" | "logo_url">[] | null) ?? []).map(
       (vendor) => [vendor.id, vendor],
     ),
   );
@@ -195,4 +195,26 @@ export async function getPublicProductById(
     normalizeProduct(productRow as Product),
   ]);
   return detail ?? null;
+}
+
+
+export async function listPublicProductsByVendorId(
+  vendorId: string,
+  limit = 48,
+): Promise<PublicProductSummary[]> {
+  if (!getSupabasePublicEnv()) {
+    return [];
+  }
+
+  const supabase = await createClient();
+  const { data: productRows } = await supabase
+    .from("products")
+    .select("*")
+    .eq("vendor_id", vendorId)
+    .eq("status", "active")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  const products = ((productRows as Product[] | null) ?? []).map(normalizeProduct);
+  return withPublicVendorMeta(products);
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SoldByBadge } from "@/components/storefront/sold-by-badge";
 import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
 import type { PublicProductSummary } from "@/lib/products/queries";
 
@@ -26,10 +27,10 @@ export function ProductCard({ product }: { product: PublicProductSummary }) {
         )}
       </div>
       <div className="flex flex-1 flex-col gap-2 p-4">
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <p className="line-clamp-2 text-sm font-semibold text-zinc-950">{product.name}</p>
           {vendorApproved && product.vendor ? (
-            <p className="text-xs text-zinc-500">{product.vendor.name}</p>
+            <SoldByBadge vendor={product.vendor} as="text" />
           ) : null}
         </div>
         <div className="mt-auto flex items-baseline justify-between gap-2">

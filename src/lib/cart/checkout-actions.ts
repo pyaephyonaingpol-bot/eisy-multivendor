@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { CartCheckoutItem } from "@/lib/cart/types";
+import { syncUsdtTrc20SettingsFromEnv } from "@/lib/payments/usdt-trc20";
 import { createClient } from "@/lib/supabase/server";
 
 export type CheckoutActionState = {
@@ -10,17 +11,31 @@ export type CheckoutActionState = {
   orderIds?: string[];
 } | null;
 
-type CheckoutRpcResult = {
+type WalletCheckoutRpcResult = {
   order_ids: string[];
   total: number;
   currency: string;
   wallet_transaction_id: string;
 };
 
-export async function checkoutWithUsdt(
-  _prev: CheckoutActionState,
-  formData: FormData,
-): Promise<CheckoutActionState> {
+type Trc20CheckoutRpcResult = {
+  order_ids: string[];
+  total: number;
+  currency: string;
+  payment_method: string;
+  payment_intent_id: string;
+  deposit_address: string;
+  network: string;
+  usdt_contract: string;
+  expires_at: string;
+};
+
+function parseCheckoutForm(formData: FormData): {
+  items: CartCheckoutItem[];
+  shippingAddress: Record<string, string | null> | null;
+  paymentMethod: "wallet" | "trc20";
+  error?: string;
+} {
   const rawItems = String(formData.get("items") ?? "").trim();
   const fullName = String(formData.get("full_name") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
@@ -31,16 +46,30 @@ export async function checkoutWithUsdt(
   const postalCode = String(formData.get("postal_code") ?? "").trim();
   const country = String(formData.get("country") ?? "").trim() || "MM";
   const note = String(formData.get("note") ?? "").trim();
+  const paymentMethodRaw = String(formData.get("payment_method") ?? "wallet")
+    .trim()
+    .toLowerCase();
+  const paymentMethod: "wallet" | "trc20" =
+    paymentMethodRaw === "trc20" ? "trc20" : "wallet";
 
   let items: CartCheckoutItem[] = [];
   try {
-    const parsed = JSON.parse(rawItems) as CartCheckoutItem[];
+    const parsed = JSON.parse(rawItems) as Array<{
+      product_id?: string;
+      productId?: string;
+      quantity?: number;
+    }>;
     if (!Array.isArray(parsed) || parsed.length === 0) {
-      return { error: "Your cart is empty." };
+      return {
+        items: [],
+        shippingAddress: null,
+        paymentMethod,
+        error: "Your cart is empty.",
+      };
     }
     items = parsed
       .map((item) => ({
-        product_id: String(item.product_id ?? ""),
+        product_id: String(item.product_id ?? item.productId ?? ""),
         quantity: Number(item.quantity),
       }))
       .filter(
@@ -50,11 +79,21 @@ export async function checkoutWithUsdt(
           item.quantity > 0,
       );
   } catch {
-    return { error: "Cart payload is invalid. Refresh and try again." };
+    return {
+      items: [],
+      shippingAddress: null,
+      paymentMethod,
+      error: "Cart payload is invalid. Refresh and try again.",
+    };
   }
 
   if (items.length === 0) {
-    return { error: "Your cart is empty." };
+    return {
+      items: [],
+      shippingAddress: null,
+      paymentMethod,
+      error: "Your cart is empty.",
+    };
   }
 
   const shippingAddress =
@@ -72,25 +111,84 @@ export async function checkoutWithUsdt(
         }
       : null;
 
+  return { items, shippingAddress, paymentMethod };
+}
+
+export async function checkoutWithUsdt(
+  _prev: CheckoutActionState,
+  formData: FormData,
+): Promise<CheckoutActionState> {
+  const parsed = parseCheckoutForm(formData);
+  if (parsed.error) {
+    return { error: parsed.error };
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { error: "Sign in to pay with your USDT wallet." };
+    return { error: "Sign in to pay with USDT." };
+  }
+
+  if (parsed.paymentMethod === "trc20") {
+    try {
+      const deposit = await syncUsdtTrc20SettingsFromEnv();
+      if (!deposit) {
+        return {
+          error:
+            "USDT TRC-20 gateway is not configured. Set USDT_TRC20_DEPOSIT_ADDRESS or pay with your wallet.",
+        };
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Gateway configuration failed.";
+      return { error: message };
+    }
+
+    const { data, error } = await supabase.rpc("create_usdt_trc20_checkout", {
+      p_items: parsed.items,
+      p_shipping_address: parsed.shippingAddress,
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    const result = data as Trc20CheckoutRpcResult | null;
+    const orderIds = result?.order_ids ?? [];
+    const intentId = result?.payment_intent_id;
+
+    if (orderIds.length === 0 || !intentId) {
+      return { error: "Checkout completed but no payment intent was returned." };
+    }
+
+    revalidatePath("/cart");
+    revalidatePath("/checkout");
+    revalidatePath("/orders");
+
+    const params = new URLSearchParams({
+      orders: orderIds.join(","),
+      intent: intentId,
+      method: "trc20",
+      address: result?.deposit_address ?? "",
+      amount: String(result?.total ?? ""),
+      expires: result?.expires_at ?? "",
+    });
+    redirect(`/checkout/success?${params.toString()}`);
   }
 
   const { data, error } = await supabase.rpc("checkout_with_usdt", {
-    p_items: items,
-    p_shipping_address: shippingAddress,
+    p_items: parsed.items,
+    p_shipping_address: parsed.shippingAddress,
   });
 
   if (error) {
     return { error: error.message };
   }
 
-  const result = data as CheckoutRpcResult | null;
+  const result = data as WalletCheckoutRpcResult | null;
   const orderIds = result?.order_ids ?? [];
 
   if (orderIds.length === 0) {

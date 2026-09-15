@@ -65,12 +65,20 @@ export default async function VendorImportPage() {
             you, orders and stock automatically route to the original vendor.
           </p>
         </div>
-        <Link
-          href="/vendor/import/extension"
-          className="inline-flex rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
-        >
-          Browser extension API
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/vendor/integrations"
+            className="inline-flex rounded-lg bg-zinc-950 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+          >
+            CJ / DSers catalog
+          </Link>
+          <Link
+            href="/vendor/import/extension"
+            className="inline-flex rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+          >
+            Browser extension API
+          </Link>
+        </div>
       </div>
 
       {catalog.length === 0 ? (

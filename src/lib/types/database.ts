@@ -40,6 +40,59 @@ export type SupplierProviderKind =
   | "print_on_demand"
   | "other";
 
+export type SupplierFulfillmentJobStatus =
+  | "pending"
+  | "processing"
+  | "submitted"
+  | "failed"
+  | "skipped";
+
+export type VendorSupplierCredential = {
+  id: string;
+  vendor_id: string;
+  provider_id: string;
+  api_key: string | null;
+  api_secret: string | null;
+  access_token: string | null;
+  refresh_token: string | null;
+  token_expires_at: string | null;
+  account_email: string | null;
+  metadata: Record<string, unknown>;
+  is_active: boolean;
+  last_verified_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ExternalProductImport = {
+  id: string;
+  vendor_id: string;
+  provider_id: string;
+  product_id: string | null;
+  external_product_id: string;
+  external_variant_id: string | null;
+  external_sku: string | null;
+  source_payload: Record<string, unknown>;
+  last_synced_at: string | null;
+  created_at: string;
+};
+
+export type SupplierFulfillmentJob = {
+  id: string;
+  order_id: string;
+  provider_id: string | null;
+  provider_kind: SupplierProviderKind | null;
+  status: SupplierFulfillmentJobStatus;
+  attempts: number;
+  supplier_order_ref: string | null;
+  request_payload: Record<string, unknown>;
+  response_payload: Record<string, unknown>;
+  last_error: string | null;
+  processed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Profile = {
   id: string;
   email: string;
@@ -553,6 +606,30 @@ export type Database = {
         Update: Partial<UsdtPaymentEvent>;
         Relationships: [];
       };
+      vendor_supplier_credentials: {
+        Row: VendorSupplierCredential;
+        Insert: Partial<VendorSupplierCredential> &
+          Pick<VendorSupplierCredential, "vendor_id" | "provider_id">;
+        Update: Partial<VendorSupplierCredential>;
+        Relationships: [];
+      };
+      external_product_imports: {
+        Row: ExternalProductImport;
+        Insert: Partial<ExternalProductImport> &
+          Pick<
+            ExternalProductImport,
+            "vendor_id" | "provider_id" | "external_product_id"
+          >;
+        Update: Partial<ExternalProductImport>;
+        Relationships: [];
+      };
+      supplier_fulfillment_jobs: {
+        Row: SupplierFulfillmentJob;
+        Insert: Partial<SupplierFulfillmentJob> &
+          Pick<SupplierFulfillmentJob, "order_id">;
+        Update: Partial<SupplierFulfillmentJob>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -745,6 +822,29 @@ export type Database = {
           slug?: string;
         };
       };
+      enqueue_supplier_fulfillment_for_order: {
+        Args: { p_order_id: string };
+        Returns: {
+          order_id: string;
+          enqueued: number;
+          skipped: number;
+          message?: string;
+        };
+      };
+      claim_supplier_fulfillment_jobs: {
+        Args: { p_limit?: number };
+        Returns: SupplierFulfillmentJob[];
+      };
+      complete_supplier_fulfillment_job: {
+        Args: {
+          p_job_id: string;
+          p_status: SupplierFulfillmentJobStatus;
+          p_supplier_order_ref?: string | null;
+          p_response?: Record<string, unknown>;
+          p_error?: string | null;
+        };
+        Returns: SupplierFulfillmentJob;
+      };
       request_wallet_deposit: {
         Args: {
           p_currency: WalletCurrency;
@@ -789,6 +889,7 @@ export type Database = {
       dropship_fee_invoice_status: DropshipFeeInvoiceStatus;
       dropship_fee_charge_trigger: DropshipFeeChargeTrigger;
       supplier_provider_kind: SupplierProviderKind;
+      supplier_fulfillment_job_status: SupplierFulfillmentJobStatus;
     };
     CompositeTypes: Record<string, never>;
   };

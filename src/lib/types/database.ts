@@ -369,6 +369,21 @@ export type Order = {
   updated_at: string;
 };
 
+export type OrderEscrowRole = "supplier" | "seller" | "platform";
+
+export type OrderEscrowLedger = {
+  id: string;
+  order_id: string;
+  beneficiary_user_id: string;
+  role: OrderEscrowRole;
+  amount_usdt: number;
+  status: "held" | "released";
+  hold_tx_id: string | null;
+  release_tx_id: string | null;
+  created_at: string;
+  released_at: string | null;
+};
+
 export type OrderFulfillmentEvent = {
   id: string;
   order_id: string;
@@ -566,6 +581,16 @@ export type Database = {
         Row: Order;
         Insert: Partial<Order> & Pick<Order, "customer_id" | "vendor_id">;
         Update: Partial<Order>;
+        Relationships: [];
+      };
+      order_escrow_ledger: {
+        Row: OrderEscrowLedger;
+        Insert: Partial<OrderEscrowLedger> &
+          Pick<
+            OrderEscrowLedger,
+            "order_id" | "beneficiary_user_id" | "role" | "amount_usdt"
+          >;
+        Update: Partial<OrderEscrowLedger>;
         Relationships: [];
       };
       order_fulfillment_events: {

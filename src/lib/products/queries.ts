@@ -163,6 +163,18 @@ export async function listPublicProducts(limit = 24): Promise<PublicProductSumma
   }
 
   const sourcing = await getBuyerSourcingContext();
+  return listPublicProductsForCountry(sourcing.countryCode, limit);
+}
+
+/** Public catalog filtered to a specific buyer country (vendor ships_to + routes). */
+export async function listPublicProductsForCountry(
+  countryCode: string,
+  limit = 24,
+): Promise<PublicProductSummary[]> {
+  if (!getSupabasePublicEnv()) {
+    return [];
+  }
+
   const supabase = await createClient();
   // Over-fetch so region filtering still fills the requested page size.
   const fetchLimit = Math.min(Math.max(limit * 4, limit), 200);
@@ -175,7 +187,7 @@ export async function listPublicProducts(limit = 24): Promise<PublicProductSumma
 
   const products = await filterDeliverableProducts(
     ((productRows as Product[] | null) ?? []).map(normalizeProduct),
-    sourcing.countryCode,
+    countryCode || DEFAULT_BUYER_COUNTRY,
   );
   return withPublicVendorMeta(products.slice(0, limit));
 }

@@ -1,3 +1,4 @@
+import { resolveAdapterKindFromProvider } from "@/lib/suppliers/auth";
 import {
   createCjOrder,
   getCjProduct,
@@ -45,31 +46,15 @@ export type {
   SupplierFulfillmentResult,
 };
 
+export { resolveAdapterKindFromProvider } from "@/lib/suppliers/auth";
+
 export function parseSupplierKind(
   value: string | null | undefined,
 ): ExternalSupplierKind | null {
-  const raw = (value ?? "").trim().toLowerCase();
-  if (
-    raw === "cj_dropshipping" ||
-    raw === "cj" ||
-    raw === "cj-dropshipping" ||
-    raw === "cjdropshipping"
-  ) {
-    return "cj_dropshipping";
-  }
-  if (raw === "dsers" || raw === "aliexpress" || raw === "dser") {
-    return "dsers";
-  }
-  if (raw === "spocket") {
-    return "spocket";
-  }
-  if (raw === "printful") {
-    return "printful";
-  }
-  if (raw === "printify") {
-    return "printify";
-  }
-  return null;
+  return resolveAdapterKindFromProvider({
+    providerKind: value,
+    providerSlug: value,
+  });
 }
 
 /** Source tab values for the unified sourcing UI (includes aggregate tabs). */

@@ -277,23 +277,125 @@ export async function createPodOrder(
     };
   }
   try {
-    const path = kind === "printful" ? "/orders" : "/orders.json";
-    const json = await podFetch(kind, path, {
-      method: "POST",
-      credentials,
-      body: {
-        external_id: request.orderId,
-        shipping: request.shipTo,
-        items: request.lines,
-        notes: request.note,
+    if (kind === "printful") {
+      const json = await podFetch(kind, "/orders", {
+        method: "POST",
+        credentials,
+        body: {
+          external_id: request.orderId,
+          recipient: {
+            name: request.shipTo.fullName,
+            address1: request.shipTo.line1,
+            address2: request.shipTo.line2 ?? "",
+            city: request.shipTo.city,
+            state_code: request.shipTo.region ?? "",
+            country_code: request.shipTo.countryCode,
+            zip: request.shipTo.postalCode ?? "",
+            phone: request.shipTo.phone ?? "",
+            email: request.shipTo.email ?? "",
+          },
+          items: request.lines.map((line) => ({
+            sync_variant_id: Number(line.externalVariantId) || undefined,
+            external_variant_id: line.externalVariantId,
+            sku: line.externalSku,
+            quantity: line.quantity,
+            name: line.productName,
+            files: line.imageUrl
+              ? [{ url: line.imageUrl, type: "default" }]
+              : undefined,
+          })),
+          packing_slip: request.note
+            ? { email: request.shipTo.email, message: request.note }
+            : undefined,
+        },
+      });
+      const result = (json.result ?? json) as Record<string, unknown>;
+      const ref = String(result.id ?? result.order_id ?? "");
+      // Confirm for fulfillment when Printful returns a draft id.
+      if (ref) {
+        try {
+          await podFetch(kind, `/orders/${encodeURIComponent(ref)}/confirm`, {
+            method: "POST",
+            credentials,
+          });
+        } catch {
+          // Confirm may fail if already confirmed / sandbox — order still created.
+        }
+      }
+      return {
+        ok: Boolean(ref),
+        supplierOrderRef: ref || null,
+        status: String(result.status ?? (ref ? "submitted" : "failed")),
+        raw: json,
+        error: ref ? undefined : "Printful create order returned no id.",
+      };
+    }
+
+    // Printify — requires shop id
+    const { getPrintifyShopId } = await import("@/lib/suppliers/auth");
+    const shopId = getPrintifyShopId(credentials);
+    if (!shopId) {
+      return {
+        ok: false,
+        supplierOrderRef: null,
+        status: "failed",
+        raw: {},
+        error:
+          "Printify shop id missing. Set PRINTIFY_SHOP_ID or credentials.metadata.shop_id.",
+      };
+    }
+
+    const json = await podFetch(
+      kind,
+      `/shops/${encodeURIComponent(shopId)}/orders.json`,
+      {
+        method: "POST",
+        credentials,
+        body: {
+          external_id: request.orderId,
+          line_items: request.lines.map((line) => ({
+            product_id: line.externalProductId,
+            variant_id: Number(line.externalVariantId) || line.externalVariantId,
+            quantity: line.quantity,
+          })),
+          shipping_method: 1,
+          is_printify_express: false,
+          send_shipping_notification: false,
+          address_to: {
+            first_name: request.shipTo.fullName.split(" ")[0] || "Customer",
+            last_name:
+              request.shipTo.fullName.split(" ").slice(1).join(" ") || "Buyer",
+            email: request.shipTo.email ?? "buyer@example.com",
+            phone: request.shipTo.phone ?? "",
+            country: request.shipTo.countryCode,
+            region: request.shipTo.region ?? "",
+            address1: request.shipTo.line1,
+            address2: request.shipTo.line2 ?? "",
+            city: request.shipTo.city,
+            zip: request.shipTo.postalCode ?? "",
+          },
+        },
       },
-    });
+    );
     const result = (json.result ?? json) as Record<string, unknown>;
+    const ref = String(result.id ?? result.order_id ?? "");
+    if (ref) {
+      try {
+        await podFetch(
+          kind,
+          `/shops/${encodeURIComponent(shopId)}/orders/${encodeURIComponent(ref)}/send_to_production.json`,
+          { method: "POST", credentials },
+        );
+      } catch {
+        // Production submit may require billing — keep created order ref.
+      }
+    }
     return {
-      ok: true,
-      supplierOrderRef: String(result.id ?? result.order_id ?? ""),
-      status: String(result.status ?? "submitted"),
+      ok: Boolean(ref),
+      supplierOrderRef: ref || null,
+      status: String(result.status ?? (ref ? "submitted" : "failed")),
       raw: json,
+      error: ref ? undefined : "Printify create order returned no id.",
     };
   } catch (error) {
     return {

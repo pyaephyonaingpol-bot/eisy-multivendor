@@ -229,16 +229,34 @@ export async function createSpocketOrder(
       body: {
         external_order_id: request.orderId,
         order_number: request.orderNumber,
-        shipping_address: request.shipTo,
-        line_items: request.lines,
-        note: request.note,
+        shipping_address: {
+          name: request.shipTo.fullName,
+          phone: request.shipTo.phone,
+          email: request.shipTo.email,
+          address1: request.shipTo.line1,
+          address2: request.shipTo.line2,
+          city: request.shipTo.city,
+          province: request.shipTo.region,
+          zip: request.shipTo.postalCode,
+          country_code: request.shipTo.countryCode,
+        },
+        line_items: request.lines.map((line) => ({
+          product_id: line.externalProductId,
+          variant_id: line.externalVariantId,
+          sku: line.externalSku,
+          quantity: line.quantity,
+          title: line.productName,
+        })),
+        note: request.note ?? `EISY order ${request.orderId}`,
       },
     });
+    const ref = String(json.id ?? json.order_id ?? "");
     return {
-      ok: true,
-      supplierOrderRef: String(json.id ?? json.order_id ?? ""),
-      status: String(json.status ?? "submitted"),
+      ok: Boolean(ref),
+      supplierOrderRef: ref || null,
+      status: String(json.status ?? (ref ? "submitted" : "failed")),
       raw: json,
+      error: ref ? undefined : "Spocket create order returned no id.",
     };
   } catch (error) {
     return {

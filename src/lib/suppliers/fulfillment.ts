@@ -1,7 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/admin";
+import { resolveAdapterKindFromProvider } from "@/lib/suppliers/auth";
 import {
   createExternalFulfillmentOrder,
-  parseSupplierKind,
   type ExternalSupplierKind,
   type SupplierCredentials,
   type SupplierFulfillmentRequest,
@@ -56,6 +56,32 @@ async function loadCredentials(
   };
 }
 
+async function resolveJobAdapterKind(
+  job: JobRow,
+): Promise<ExternalSupplierKind | null> {
+  let providerSlug: string | null = null;
+  if (job.provider_id) {
+    const supabase = createServiceClient();
+    const { data: provider } = await supabase
+      .from("supplier_providers")
+      .select("slug, kind")
+      .eq("id", job.provider_id)
+      .maybeSingle();
+    providerSlug = provider?.slug ?? null;
+    if (!job.provider_kind && provider?.kind) {
+      return resolveAdapterKindFromProvider({
+        providerKind: provider.kind,
+        providerSlug,
+      });
+    }
+  }
+
+  return resolveAdapterKindFromProvider({
+    providerKind: job.provider_kind,
+    providerSlug,
+  });
+}
+
 async function buildFulfillmentRequest(
   orderId: string,
   kind: ExternalSupplierKind,
@@ -63,9 +89,7 @@ async function buildFulfillmentRequest(
   const supabase = createServiceClient();
   const { data: order, error } = await supabase
     .from("orders")
-    .select(
-      "id, shipping_address, seller_vendor_id, vendor_id, customer_id",
-    )
+    .select("id, shipping_address, seller_vendor_id, vendor_id, customer_id")
     .eq("id", orderId)
     .maybeSingle();
 
@@ -90,7 +114,9 @@ async function buildFulfillmentRequest(
         .from("products")
         .select("id, images, sku")
         .in("id", listingIds)
-    : { data: [] as Array<{ id: string; images: unknown; sku: string | null }> };
+    : {
+        data: [] as Array<{ id: string; images: unknown; sku: string | null }>,
+      };
 
   const productById = new Map((products ?? []).map((p) => [p.id, p]));
 
@@ -102,7 +128,13 @@ async function buildFulfillmentRequest(
         .from("product_supplier_routes")
         .select("id, external_sku, provider_id")
         .in("id", routeIds)
-    : { data: [] as Array<{ id: string; external_sku: string | null; provider_id: string }> };
+    : {
+        data: [] as Array<{
+          id: string;
+          external_sku: string | null;
+          provider_id: string;
+        }>,
+      };
 
   const routeById = new Map((routes ?? []).map((r) => [r.id, r]));
 
@@ -147,10 +179,7 @@ async function buildFulfillmentRequest(
       externalProductId: imported?.external_product_id ?? null,
       externalVariantId: imported?.external_variant_id ?? null,
       externalSku:
-        imported?.external_sku ??
-        route?.external_sku ??
-        product?.sku ??
-        null,
+        imported?.external_sku ?? route?.external_sku ?? product?.sku ?? null,
       quantity: Number(row.quantity) || 1,
       listingProductId: listingId,
       productName: row.product_name,
@@ -195,7 +224,7 @@ export async function processSupplierFulfillmentJobs(limit = 20): Promise<{
   const results: Array<Record<string, unknown>> = [];
 
   for (const job of claimed) {
-    const kind = parseSupplierKind(job.provider_kind);
+    const kind = await resolveJobAdapterKind(job);
     if (!kind) {
       await supabase.rpc("complete_supplier_fulfillment_job", {
         p_job_id: job.id,
@@ -223,7 +252,8 @@ export async function processSupplierFulfillmentJobs(limit = 20): Promise<{
 
       const request = await buildFulfillmentRequest(job.order_id, kind);
       const hasExternalIds = request.lines.some(
-        (line) => line.externalProductId || line.externalVariantId || line.externalSku,
+        (line) =>
+          line.externalProductId || line.externalVariantId || line.externalSku,
       );
       if (!hasExternalIds) {
         await supabase.rpc("complete_supplier_fulfillment_job", {
@@ -235,7 +265,11 @@ export async function processSupplierFulfillmentJobs(limit = 20): Promise<{
             "Order lines have no external supplier external SKU. Import from Integrations first.",
         });
         skipped += 1;
-        results.push({ job_id: job.id, status: "skipped", reason: "no_external_sku" });
+        results.push({
+          job_id: job.id,
+          status: "skipped",
+          reason: "no_external_sku",
+        });
         continue;
       }
 
@@ -250,13 +284,14 @@ export async function processSupplierFulfillmentJobs(limit = 20): Promise<{
           p_job_id: job.id,
           p_status: "submitted",
           p_supplier_order_ref: outcome.supplierOrderRef,
-          p_response: outcome.raw,
+          p_response: { ...outcome.raw, adapter_kind: kind },
           p_error: null,
         });
         submitted += 1;
         results.push({
           job_id: job.id,
           status: "submitted",
+          adapter_kind: kind,
           supplier_order_ref: outcome.supplierOrderRef,
         });
       } else {
@@ -264,13 +299,14 @@ export async function processSupplierFulfillmentJobs(limit = 20): Promise<{
           p_job_id: job.id,
           p_status: "failed",
           p_supplier_order_ref: null,
-          p_response: outcome.raw,
+          p_response: { ...outcome.raw, adapter_kind: kind },
           p_error: outcome.error ?? "Supplier create order failed",
         });
         failed += 1;
         results.push({
           job_id: job.id,
           status: "failed",
+          adapter_kind: kind,
           error: outcome.error,
         });
       }

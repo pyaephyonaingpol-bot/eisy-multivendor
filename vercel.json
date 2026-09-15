@@ -6,7 +6,11 @@
     },
     {
       "path": "/api/cron/fulfill-supplier-orders",
-      "schedule": "0 3 * * *"
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/poll-supplier-tracking",
+      "schedule": "*/20 * * * *"
     }
   ]
 }

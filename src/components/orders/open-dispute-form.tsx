@@ -5,7 +5,7 @@ import {
   openOrderDispute,
   type DisputeActionState,
 } from "@/lib/disputes/actions";
-import { DISPUTE_REASON_LABELS } from "@/lib/disputes/queries";
+import { DISPUTE_REASON_LABELS } from "@/lib/disputes/labels";
 import type {
   Dispute,
   DisputeReason,

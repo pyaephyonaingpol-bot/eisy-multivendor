@@ -104,19 +104,25 @@ export default async function AdminTransactionsPage({ searchParams }: Props) {
                     {paymentStatusLabel(order.payment_status)}
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${payoutStatusBadgeClass(order.payout_status)}`}
-                    >
-                      {payoutStatusLabel(order.payout_status)}
-                    </span>
-                    {order.payout_status === "disputed" ? (
-                      <Link
-                        href="/admin/disputes?status=open"
-                        className="mt-1 block text-xs underline"
-                      >
-                        Open disputes
-                      </Link>
-                    ) : null}
+                    {order.payout_status ? (
+                      <>
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${payoutStatusBadgeClass(order.payout_status)}`}
+                        >
+                          {payoutStatusLabel(order.payout_status)}
+                        </span>
+                        {order.payout_status === "disputed" ? (
+                          <Link
+                            href="/admin/disputes?status=open"
+                            className="mt-1 block text-xs underline"
+                          >
+                            Open disputes
+                          </Link>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span className="text-zinc-400">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-zinc-500">
                     {new Date(order.created_at).toLocaleString()}

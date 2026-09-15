@@ -2,11 +2,15 @@ import { createClient } from "@/lib/supabase/server";
 import { getSupabasePublicEnv } from "@/lib/supabase/env";
 import type {
   Dispute,
-  DisputeReason,
   DisputeStatus,
   Order,
   Profile,
 } from "@/lib/types/database";
+
+export {
+  DISPUTE_REASON_LABELS,
+  DISPUTE_STATUS_LABELS,
+} from "@/lib/disputes/labels";
 
 export type DisputeWithRelations = Dispute & {
   order: Pick<
@@ -115,18 +119,3 @@ export async function countOpenDisputes(): Promise<number> {
   return count ?? 0;
 }
 
-export const DISPUTE_REASON_LABELS: Record<DisputeReason, string> = {
-  not_received: "Item not received",
-  damaged: "Damaged goods",
-  not_as_described: "Not as described",
-  wrong_item: "Wrong item",
-  other: "Other",
-};
-
-export const DISPUTE_STATUS_LABELS: Record<DisputeStatus, string> = {
-  open: "Open",
-  under_review: "Under review",
-  resolved_refund: "Resolved — refunded buyer",
-  resolved_release: "Resolved — released to seller",
-  cancelled: "Cancelled",
-};

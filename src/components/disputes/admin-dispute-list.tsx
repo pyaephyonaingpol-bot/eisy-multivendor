@@ -7,8 +7,8 @@ import {
 import {
   DISPUTE_REASON_LABELS,
   DISPUTE_STATUS_LABELS,
-  type DisputeWithRelations,
-} from "@/lib/disputes/queries";
+} from "@/lib/disputes/labels";
+import type { DisputeWithRelations } from "@/lib/disputes/queries";
 import { formatMoney } from "@/lib/money";
 import type { DisputeReason, DisputeStatus } from "@/lib/types/database";
 

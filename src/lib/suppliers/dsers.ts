@@ -20,23 +20,68 @@ type DsersJson = Record<string, unknown>;
 
 function mockCatalog(query: string): ExternalCatalogProduct[] {
   const q = query.trim() || "aliexpress";
-  return [1, 2, 3].map((n) => ({
-    providerKind: "dsers" as const,
-    externalProductId: `AE-MOCK-${q.slice(0, 12).toUpperCase()}-${n}`,
-    externalVariantId: `AE-SKU-MOCK-${n}`,
-    externalSku: `AE-SKU-MOCK-${n}`,
-    name: `AliExpress / DSers ${q} #${n}`,
-    description: `Mock DSers/AliExpress catalog item for “${q}”. Set DSERS_API_KEY + DSERS_API_BASE for live search.`,
-    imageUrl: null,
-    images: [],
-    priceUsdt: Number((3.2 + n * 0.9).toFixed(2)),
-    compareAtPriceUsdt: Number((5.5 + n).toFixed(2)),
-    stockQuantity: 100 * n,
-    warehouseCountry: "CN",
-    shippingDaysMin: 7,
-    shippingDaysMax: 25,
-    raw: { mock: true, query: q, n },
-  }));
+  return [1, 2, 3].map((n) => {
+    const seed = `ae-${q.slice(0, 8)}-${n}`.replace(/\s+/g, "-");
+    const images = [
+      `https://picsum.photos/seed/${seed}-a/800/800`,
+      `https://picsum.photos/seed/${seed}-b/800/800`,
+      `https://picsum.photos/seed/${seed}-c/800/800`,
+    ];
+    const base = Number((3.2 + n * 0.9).toFixed(2));
+    return {
+      providerKind: "dsers" as const,
+      externalProductId: `AE-MOCK-${q.slice(0, 12).toUpperCase()}-${n}`,
+      externalVariantId: `AE-SKU-MOCK-${n}-S`,
+      externalSku: `AE-SKU-MOCK-${n}-S`,
+      name: `AliExpress / DSers ${q} #${n}`,
+      description: [
+        `AliExpress listing for ${q} via DSers (mock catalog).`,
+        "",
+        "Product details",
+        `• Ships from China with estimated 7–25 day delivery`,
+        `• Multiple size options available for storefront variants`,
+        `• Ideal for testing one-click Import to Store workflows`,
+        "",
+        "Open Preview to review images, pick a variant, and tweak the description before importing.",
+        "Set DSERS_API_KEY + DSERS_API_BASE for live search.",
+      ].join("\n"),
+      imageUrl: images[0],
+      images,
+      priceUsdt: base,
+      compareAtPriceUsdt: Number((5.5 + n).toFixed(2)),
+      stockQuantity: 100 * n,
+      warehouseCountry: "CN",
+      shippingDaysMin: 7,
+      shippingDaysMax: 25,
+      variants: [
+        {
+          externalVariantId: `AE-SKU-MOCK-${n}-S`,
+          externalSku: `AE-SKU-MOCK-${n}-S`,
+          label: "Size S",
+          priceUsdt: base,
+          stockQuantity: 40 * n,
+          imageUrl: images[0],
+        },
+        {
+          externalVariantId: `AE-SKU-MOCK-${n}-M`,
+          externalSku: `AE-SKU-MOCK-${n}-M`,
+          label: "Size M",
+          priceUsdt: Number((base + 0.35).toFixed(2)),
+          stockQuantity: 35 * n,
+          imageUrl: images[1],
+        },
+        {
+          externalVariantId: `AE-SKU-MOCK-${n}-L`,
+          externalSku: `AE-SKU-MOCK-${n}-L`,
+          label: "Size L",
+          priceUsdt: Number((base + 0.55).toFixed(2)),
+          stockQuantity: 25 * n,
+          imageUrl: images[2],
+        },
+      ],
+      raw: { mock: true, query: q, n },
+    };
+  });
 }
 
 async function dsersFetch(
@@ -155,7 +200,21 @@ export async function getDsersProduct(
   credentials?: SupplierCredentials | null,
 ): Promise<ExternalCatalogProduct | null> {
   if (supplierIntegrationsMode() === "mock") {
-    return mockCatalog(externalProductId)[0] ?? null;
+    const nMatch = externalProductId.match(/-(\d+)$/);
+    const n = nMatch ? Number(nMatch[1]) : 1;
+    const queryHint =
+      externalProductId
+        .replace(/^AE-MOCK-/i, "")
+        .replace(/-\d+$/, "")
+        .trim() || "detail";
+    const catalog = mockCatalog(queryHint);
+    const hit =
+      catalog.find((p) => p.externalProductId === externalProductId) ??
+      catalog.find((p) => p.externalProductId.endsWith(`-${n}`)) ??
+      catalog[0] ??
+      null;
+    if (!hit) return null;
+    return { ...hit, externalProductId };
   }
 
   const json = await dsersFetch(`/products/${encodeURIComponent(externalProductId)}`, {

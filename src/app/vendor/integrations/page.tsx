@@ -85,11 +85,12 @@ export default async function VendorIntegrationsPage() {
       <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
         After checkout payment, orders with CJ/DSers routes enter{" "}
         <code className="rounded bg-white px-1">supplier_fulfillment_jobs</code>
-        . Process them via{" "}
+        .         Process them via{" "}
         <code className="rounded bg-white px-1">
           POST /api/cron/fulfill-supplier-orders
         </code>{" "}
-        (Bearer CRON_SECRET).
+        (Bearer CRON_SECRET; also runs daily at 03:00 UTC, and immediately after
+        paid checkout).
       </div>
     </div>
   );

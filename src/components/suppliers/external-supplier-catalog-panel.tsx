@@ -13,11 +13,13 @@ const initialState: ExternalImportState = null;
 type Props = {
   providerKind: "cj_dropshipping" | "dsers";
   providerLabel: string;
+  importDisabled?: boolean;
 };
 
 export function ExternalSupplierCatalogPanel({
   providerKind,
   providerLabel,
+  importDisabled = false,
 }: Props) {
   const [query, setQuery] = useState("wireless earbuds");
   const [products, setProducts] = useState<ExternalCatalogProduct[]>([]);
@@ -93,6 +95,12 @@ export function ExternalSupplierCatalogPanel({
       {state?.success ? (
         <p className="text-sm text-emerald-700">{state.success}</p>
       ) : null}
+      {importDisabled ? (
+        <p className="text-sm text-amber-800">
+          Import limit reached. Archive unused listings or upgrade your plan to
+          import more products.
+        </p>
+      ) : null}
 
       {products.length === 0 ? (
         <p className="text-sm text-zinc-500">
@@ -144,7 +152,7 @@ export function ExternalSupplierCatalogPanel({
                 </label>
                 <button
                   type="submit"
-                  disabled={pendingImport}
+                  disabled={pendingImport || importDisabled}
                   className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60"
                 >
                   {pendingImport ? "Importing…" : "Import"}

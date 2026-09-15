@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { ChargeAllInventoryFeesButton } from "@/components/fees/charge-all-fees-button";
+import { ImportLimitSettingsForm } from "@/components/import-limits/import-limit-settings-form";
 import { getSessionProfile, canAccessAdmin } from "@/lib/auth/session";
 import {
   getDropshipFeeSettings,
@@ -7,6 +8,7 @@ import {
   listAllDropshipInventoryFeeInvoices,
   listDropshipFeeChargeRuns,
 } from "@/lib/fees/queries";
+import { listPlanImportLimits } from "@/lib/import-limits/queries";
 import { formatMoney } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
@@ -47,12 +49,14 @@ export default async function AdminFeesPage() {
     redirect("/");
   }
 
-  const [settings, invoices, commissions, chargeRuns] = await Promise.all([
-    getDropshipFeeSettings(),
-    listAllDropshipInventoryFeeInvoices(),
-    getPlatformCommissionTotals(),
-    listDropshipFeeChargeRuns(10),
-  ]);
+  const [settings, invoices, commissions, chargeRuns, planLimits] =
+    await Promise.all([
+      getDropshipFeeSettings(),
+      listAllDropshipInventoryFeeInvoices(),
+      getPlatformCommissionTotals(),
+      listDropshipFeeChargeRuns(10),
+      listPlanImportLimits(),
+    ]);
 
   const itemFee = settings?.item_fee_usdt ?? 1;
   const minItems = settings?.min_billable_items ?? 10;
@@ -71,6 +75,12 @@ export default async function AdminFeesPage() {
           UTC; you can also trigger billing manually below.
         </p>
       </div>
+
+      <ImportLimitSettingsForm
+        defaultMaxImportItems={settings?.default_max_import_items ?? 100}
+        minBillableItems={minItems}
+        planLimits={planLimits}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-zinc-200 bg-white p-4">

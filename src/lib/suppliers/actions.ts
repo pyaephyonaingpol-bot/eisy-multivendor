@@ -206,6 +206,74 @@ export async function importExternalSupplierProductAction(
   }
 
   const supabase = await createClient();
+
+  // Re-import of the same external SKU updates the existing listing (no new quota slot).
+  const { data: existingImport } = await supabase
+    .from("external_product_imports")
+    .select("id, product_id")
+    .eq("vendor_id", gate.vendor.id)
+    .eq("provider_id", linked.providerId)
+    .eq("external_product_id", remote.externalProductId)
+    .maybeSingle();
+
+  if (existingImport?.product_id) {
+    const { error: updateError } = await supabase
+      .from("products")
+      .update({
+        name: remote.name.slice(0, 180),
+        description: remote.description,
+        price: sellPrice,
+        compare_at_price: remote.compareAtPriceUsdt,
+        sku: remote.externalSku,
+        stock_quantity: remote.stockQuantity ?? 0,
+        images: remote.images.length
+          ? remote.images
+          : remote.imageUrl
+            ? [remote.imageUrl]
+            : [],
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existingImport.product_id)
+      .eq("vendor_id", gate.vendor.id);
+
+    if (updateError) {
+      return { error: updateError.message };
+    }
+
+    await supabase
+      .from("external_product_imports")
+      .update({
+        external_variant_id: remote.externalVariantId,
+        external_sku: remote.externalSku,
+        source_payload: remote.raw,
+        last_synced_at: new Date().toISOString(),
+      })
+      .eq("id", existingImport.id);
+
+    revalidatePath("/vendor/products");
+    revalidatePath("/vendor/import");
+    revalidatePath("/vendor/integrations");
+    revalidatePath(`/vendor/sourcing/${existingImport.product_id}`);
+
+    return {
+      success: `Updated imported “${remote.name}” from ${
+        kind === "cj_dropshipping" ? "CJ" : "DSers"
+      }.`,
+      productId: existingImport.product_id,
+    };
+  }
+
+  const { error: quotaError } = await supabase.rpc(
+    "assert_vendor_can_import_product",
+    {
+      p_vendor_id: gate.vendor.id,
+      p_is_new_catalog_item: true,
+    },
+  );
+  if (quotaError) {
+    return { error: quotaError.message };
+  }
+
   const slugBase = slugifyExternalName(
     `${kind === "cj_dropshipping" ? "cj" : "ae"}-${remote.name}`,
   );
@@ -232,6 +300,7 @@ export async function importExternalSupplierProductAction(
       product_type: "physical",
       // External CJ/DSers listings are owned by the vendor; fulfillment is
       // routed via product_supplier_routes + supplier_fulfillment_jobs.
+      // Counted toward import quotas + inventory fees via external_product_imports.
       is_dropship: false,
       source_product_id: null,
     })

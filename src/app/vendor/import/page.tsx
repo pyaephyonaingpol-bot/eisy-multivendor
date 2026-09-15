@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ImportQuotaBanner } from "@/components/import-limits/import-quota-banner";
 import { ImportToMyStoreForm } from "@/components/storefront/import-to-my-store-form";
 import { getSessionProfile, canAccessVendor } from "@/lib/auth/session";
 import { listImportableCatalogProducts } from "@/lib/dropship/queries";
+import { getVendorImportQuota } from "@/lib/import-limits/queries";
 import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 
@@ -52,7 +54,10 @@ export default async function VendorImportPage() {
     );
   }
 
-  const catalog = await listImportableCatalogProducts(vendor.id, 60);
+  const [catalog, quota] = await Promise.all([
+    listImportableCatalogProducts(vendor.id, 60),
+    getVendorImportQuota(vendor.id),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -80,6 +85,8 @@ export default async function VendorImportPage() {
           </Link>
         </div>
       </div>
+
+      {quota ? <ImportQuotaBanner quota={quota} /> : null}
 
       {catalog.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-10 text-center">
@@ -151,6 +158,12 @@ export default async function VendorImportPage() {
                   defaultPrice={suggested}
                   suggestedMinPrice={Number(product.price)}
                   compact
+                  disabled={quota?.at_import_limit ?? false}
+                  disabledReason={
+                    quota?.at_import_limit
+                      ? `Import limit reached (${quota.catalog_item_count}/${quota.max_import_items}). Archive listings or upgrade your plan.`
+                      : undefined
+                  }
                 />
               </li>
             );

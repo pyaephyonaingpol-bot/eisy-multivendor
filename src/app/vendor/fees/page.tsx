@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PayInventoryFeeButton } from "@/components/fees/pay-inventory-fee-button";
+import { ImportQuotaBanner } from "@/components/import-limits/import-quota-banner";
 import { getSessionProfile, canAccessVendor } from "@/lib/auth/session";
 import {
   getVendorDropshipCommissionSummary,
   listDropshipInventoryFeeInvoices,
   previewDropshipInventoryFee,
 } from "@/lib/fees/queries";
+import { getVendorImportQuota } from "@/lib/import-limits/queries";
 import { formatMoney } from "@/lib/money";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 
@@ -53,10 +55,11 @@ export default async function VendorFeesPage() {
     redirect("/vendor/apply");
   }
 
-  const [preview, invoices, commissions] = await Promise.all([
+  const [preview, invoices, commissions, quota] = await Promise.all([
     previewDropshipInventoryFee(vendor.id),
     listDropshipInventoryFeeInvoices(vendor.id),
     getVendorDropshipCommissionSummary(vendor.id),
+    getVendorImportQuota(vendor.id),
   ]);
 
   const commissionPct = Math.round((commissions.commission_rate || 0.03) * 1000) / 10;
@@ -80,6 +83,8 @@ export default async function VendorFeesPage() {
           ; MMK remains withdraw-only.
         </p>
       </div>
+
+      {quota ? <ImportQuotaBanner quota={quota} /> : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-zinc-200 bg-white p-4">

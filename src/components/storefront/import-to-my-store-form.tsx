@@ -15,6 +15,8 @@ type ImportToMyStoreFormProps = {
   alreadyImported?: boolean;
   existingProductId?: string | null;
   compact?: boolean;
+  disabled?: boolean;
+  disabledReason?: string;
 };
 
 const initialState: DropshipImportState = null;
@@ -26,6 +28,8 @@ export function ImportToMyStoreForm({
   alreadyImported = false,
   existingProductId = null,
   compact = false,
+  disabled = false,
+  disabledReason,
 }: ImportToMyStoreFormProps) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(
@@ -40,6 +44,12 @@ export function ImportToMyStoreForm({
   }, [state?.result?.product_id, router]);
 
   return (
+    <>
+      {disabled ? (
+        <p className="mb-2 text-sm text-amber-800">
+          {disabledReason ?? "Import limit reached."}
+        </p>
+      ) : null}
     <form
       action={formAction}
       className={
@@ -108,7 +118,7 @@ export function ImportToMyStoreForm({
       <div className="flex flex-wrap gap-2">
         <button
           type="submit"
-          disabled={pending}
+          disabled={pending || disabled}
           className="inline-flex rounded-lg bg-emerald-800 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
         >
           {pending
@@ -127,5 +137,6 @@ export function ImportToMyStoreForm({
         ) : null}
       </div>
     </form>
+    </>
   );
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ShippingRegionsForm } from "@/components/vendors/shipping-regions-form";
 import { StoreBrandingForm } from "@/components/vendors/store-branding-form";
+import { VendorKycForm } from "@/components/vendors/vendor-kyc-form";
 import { canAccessVendor, getSessionProfile } from "@/lib/auth/session";
 import { listSourcingRegions } from "@/lib/sourcing/queries";
 import { getVendorForOwner } from "@/lib/vendors/queries";
@@ -23,8 +24,8 @@ export default async function VendorSettingsPage() {
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold tracking-tight">Store settings</h1>
         <p className="text-zinc-600">
-          Apply as a vendor first, then customize your store name, logo, public
-          URL, and shipping regions.
+          Apply as a vendor first, then customize branding, shipping regions, and
+          submit KYC verification.
         </p>
         <Link
           href="/vendor/apply"
@@ -47,7 +48,7 @@ export default async function VendorSettingsPage() {
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">Store settings</h1>
         <p className="max-w-2xl text-sm text-zinc-600">
-          Branding and shipping regions apply to both vendor and dropshipper
+          Branding, shipping regions, and KYC apply to both vendor and dropshipper
           stores. Your public store is at{" "}
           <Link href={`/store/${vendor.slug}`} className="font-medium underline">
             /store/{vendor.slug}
@@ -79,6 +80,19 @@ export default async function VendorSettingsPage() {
           </p>
         </div>
         <ShippingRegionsForm vendor={vendor} regions={selectableRegions} />
+      </section>
+
+      <section className="space-y-4 border-t border-zinc-200 pt-8">
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold tracking-tight">
+            KYC verification
+          </h2>
+          <p className="max-w-2xl text-sm text-zinc-600">
+            Upload a passport, national ID, or trade license. Publishing products
+            and wallet withdrawals require an approved KYC status.
+          </p>
+        </div>
+        <VendorKycForm vendor={vendor} />
       </section>
     </div>
   );

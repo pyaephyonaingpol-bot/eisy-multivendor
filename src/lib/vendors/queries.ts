@@ -1,14 +1,26 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSupabasePublicEnv } from "@/lib/supabase/env";
-import type { Vendor, VendorStatus } from "@/lib/types/database";
+import type {
+  Vendor,
+  VendorKycStatus,
+  VendorStatus,
+} from "@/lib/types/database";
 
 function normalizeVendor(row: Vendor): Vendor {
   return {
     ...row,
-    ships_to_region_ids: Array.isArray(
-      (row as Vendor & { ships_to_region_ids?: string[] }).ships_to_region_ids,
-    )
-      ? ((row as Vendor & { ships_to_region_ids?: string[] }).ships_to_region_ids as string[])
+    kyc_status: (row.kyc_status ?? "unsubmitted") as VendorKycStatus,
+    kyc_document_type: row.kyc_document_type ?? null,
+    kyc_document_url: row.kyc_document_url ?? null,
+    kyc_document_path: row.kyc_document_path ?? null,
+    kyc_legal_name: row.kyc_legal_name ?? null,
+    kyc_document_number: row.kyc_document_number ?? null,
+    kyc_submitted_at: row.kyc_submitted_at ?? null,
+    kyc_reviewed_at: row.kyc_reviewed_at ?? null,
+    kyc_reviewed_by: row.kyc_reviewed_by ?? null,
+    kyc_rejection_reason: row.kyc_rejection_reason ?? null,
+    ships_to_region_ids: Array.isArray(row.ships_to_region_ids)
+      ? row.ships_to_region_ids
       : [],
   };
 }
@@ -47,6 +59,29 @@ export async function listVendorsForAdmin(status?: VendorStatus): Promise<Vendor
   return ((data as Vendor[] | null) ?? []).map(normalizeVendor);
 }
 
+export async function listVendorsForKycAdmin(
+  kycStatus?: VendorKycStatus,
+): Promise<Vendor[]> {
+  if (!getSupabasePublicEnv()) {
+    return [];
+  }
+
+  const supabase = await createClient();
+  let query = supabase
+    .from("vendors")
+    .select("*")
+    .order("kyc_submitted_at", { ascending: false, nullsFirst: false });
+
+  if (kycStatus) {
+    query = query.eq("kyc_status", kycStatus);
+  } else {
+    query = query.in("kyc_status", ["pending", "approved", "rejected"]);
+  }
+
+  const { data } = await query;
+  return ((data as Vendor[] | null) ?? []).map(normalizeVendor);
+}
+
 /** Public storefront lookup — approved vendors only. */
 export async function getApprovedVendorBySlug(
   slug: string,
@@ -69,4 +104,10 @@ export async function getApprovedVendorBySlug(
     .maybeSingle();
 
   return data ? normalizeVendor(data as Vendor) : null;
+}
+
+export function isVendorKycApproved(
+  vendor: Pick<Vendor, "kyc_status"> | null | undefined,
+) {
+  return vendor?.kyc_status === "approved";
 }

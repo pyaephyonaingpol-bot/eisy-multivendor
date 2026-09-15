@@ -71,7 +71,7 @@ export async function updateOrderFulfillment(
   revalidatePath("/orders");
   revalidatePath(`/orders/${orderId}`);
   revalidatePath("/vendor/wallet");
-  revalidatePath("/wallet");
+  revalidatePath("/account/wallet");
 
   return { success: "Fulfillment details saved." };
 }
@@ -109,7 +109,7 @@ export async function confirmOrderDeliveredByBuyer(
   revalidatePath(`/orders/${orderId}`);
   revalidatePath("/vendor/orders");
   revalidatePath("/vendor/wallet");
-  revalidatePath("/wallet");
+  revalidatePath("/account/wallet");
 
   return {
     success:

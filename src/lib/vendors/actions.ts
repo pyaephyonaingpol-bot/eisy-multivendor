@@ -189,3 +189,72 @@ export async function updateVendorStoreBranding(
 
   return { success: "Store branding saved." };
 }
+
+export async function updateVendorShippingRegions(
+  _prev: VendorActionState,
+  formData: FormData,
+): Promise<VendorActionState> {
+  const regionIds = formData
+    .getAll("ships_to_region_ids")
+    .map((value) => String(value).trim())
+    .filter((value) => /^[0-9a-f-]{36}$/i.test(value));
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be signed in." };
+  }
+
+  const vendor = await getVendorForOwner(user.id);
+  if (!vendor) {
+    return { error: "Create a store application before editing shipping regions." };
+  }
+
+  // Drop unknown / inactive ids so stale form values cannot stick.
+  let shipsToRegionIds = regionIds;
+  if (regionIds.length > 0) {
+    const { data: validRows, error: regionsError } = await supabase
+      .from("sourcing_regions")
+      .select("id")
+      .eq("is_active", true)
+      .in("id", regionIds);
+
+    if (regionsError) {
+      return { error: regionsError.message };
+    }
+
+    const valid = new Set(
+      ((validRows as { id: string }[] | null) ?? []).map((row) => row.id),
+    );
+    shipsToRegionIds = regionIds.filter((id) => valid.has(id));
+  }
+
+  const { error } = await supabase
+    .from("vendors")
+    .update({
+      ships_to_region_ids: shipsToRegionIds,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", vendor.id)
+    .eq("owner_id", user.id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/vendor/settings");
+  revalidatePath("/vendor/dashboard");
+  revalidatePath(`/store/${vendor.slug}`);
+  revalidatePath("/products");
+  revalidatePath("/");
+
+  return {
+    success:
+      shipsToRegionIds.length === 0
+        ? "Shipping regions cleared — your listings ship worldwide."
+        : "Shipping regions saved.",
+  };
+}

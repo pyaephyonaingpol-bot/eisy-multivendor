@@ -32,15 +32,25 @@ export async function POST(request: Request) {
     const result = await processSupplierFulfillmentJobs(limit);
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Supplier fulfillment worker failed.";
+    const missingSchema =
+      /schema cache|could not find the (function|table)|does not exist/i.test(
+        message,
+      );
     return NextResponse.json(
       {
         ok: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Supplier fulfillment worker failed.",
+        error: message,
+        ...(missingSchema
+          ? {
+              hint: "Apply supabase migrations 020–022 so supplier_fulfillment_jobs RPCs exist.",
+            }
+          : {}),
       },
-      { status: 500 },
+      { status: missingSchema ? 503 : 500 },
     );
   }
 }

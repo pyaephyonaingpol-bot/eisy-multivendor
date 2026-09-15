@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ImportQuotaBanner } from "@/components/import-limits/import-quota-banner";
 import { ExternalSupplierCatalogPanel } from "@/components/suppliers/external-supplier-catalog-panel";
 import { SupplierCredentialsForm } from "@/components/suppliers/supplier-credentials-form";
 import { getSessionProfile, canAccessVendor } from "@/lib/auth/session";
+import { getVendorImportQuota } from "@/lib/import-limits/queries";
 import { listVendorSupplierCredentials } from "@/lib/suppliers/actions";
 import { createClient } from "@/lib/supabase/server";
 import { getVendorForOwner } from "@/lib/vendors/queries";
@@ -48,7 +50,10 @@ export default async function VendorIntegrationsPage() {
     .eq("is_active", true)
     .order("name");
 
-  const credentials = await listVendorSupplierCredentials();
+  const [credentials, quota] = await Promise.all([
+    listVendorSupplierCredentials(),
+    getVendorImportQuota(vendor.id),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -68,6 +73,8 @@ export default async function VendorIntegrationsPage() {
         </p>
       </div>
 
+      {quota ? <ImportQuotaBanner quota={quota} /> : null}
+
       <SupplierCredentialsForm
         providers={providers ?? []}
         existing={credentials.rows ?? []}
@@ -76,10 +83,12 @@ export default async function VendorIntegrationsPage() {
       <ExternalSupplierCatalogPanel
         providerKind="cj_dropshipping"
         providerLabel="CJ Dropshipping"
+        importDisabled={quota?.at_import_limit ?? false}
       />
       <ExternalSupplierCatalogPanel
         providerKind="dsers"
         providerLabel="DSers / AliExpress"
+        importDisabled={quota?.at_import_limit ?? false}
       />
 
       <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">

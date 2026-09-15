@@ -52,6 +52,9 @@ export async function getDropshipFeeSettings(): Promise<DropshipFeeSettings | nu
     item_fee_usdt: Number(row.item_fee_usdt),
     min_billable_items: Number(row.min_billable_items),
     commission_rate: Number(row.commission_rate),
+    default_max_import_items: Number(
+      (row as DropshipFeeSettings).default_max_import_items ?? 100,
+    ),
   };
 }
 

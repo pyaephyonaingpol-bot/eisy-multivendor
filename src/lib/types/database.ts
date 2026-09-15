@@ -175,6 +175,8 @@ export type Vendor = {
   banner_url: string | null;
   status: VendorStatus;
   commission_rate: number;
+  /** Optional per-vendor import cap override (null = use plan/system default). */
+  max_import_items_override?: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -385,7 +387,30 @@ export type DropshipFeeSettings = {
   item_fee_usdt: number;
   min_billable_items: number;
   commission_rate: number;
+  /** System-wide max imported dropship catalog size when no plan/override applies. */
+  default_max_import_items?: number;
   updated_at: string;
+};
+
+export type DropshipPlanImportLimit = {
+  plan: SubscriptionPlan;
+  max_import_items: number;
+  updated_at?: string;
+};
+
+export type VendorImportQuota = {
+  vendor_id: string;
+  plan: SubscriptionPlan;
+  active_item_count: number;
+  catalog_item_count: number;
+  min_active_items: number;
+  max_import_items: number;
+  remaining_import_slots: number;
+  meets_minimum: boolean;
+  at_import_limit: boolean;
+  item_fee_usdt: number;
+  limit_source: "vendor_override" | "subscription_plan" | "system_default";
+  default_max_import_items: number;
 };
 
 export type DropshipInventoryFeeInvoice = {
@@ -806,6 +831,31 @@ export type Database = {
           p_product_id: string;
         };
         Returns: number;
+      };
+
+      get_vendor_import_quota: {
+        Args: { p_vendor_id: string };
+        Returns: VendorImportQuota;
+      };
+      assert_vendor_can_import_product: {
+        Args: {
+          p_vendor_id: string;
+          p_is_new_catalog_item?: boolean;
+        };
+        Returns: undefined;
+      };
+      admin_update_import_limit_settings: {
+        Args: {
+          p_default_max_import_items?: number | null;
+          p_min_billable_items?: number | null;
+          p_plan_limits?: Record<string, number> | null;
+        };
+        Returns: {
+          default_max_import_items: number;
+          min_billable_items: number;
+          item_fee_usdt: number;
+          plan_limits: Record<string, number>;
+        };
       };
       import_dropship_product: {
         Args: {

@@ -328,21 +328,34 @@ export async function importExternalSupplierProductAction(
     }
 
     if (existingImport?.product_id) {
-      const { error: updateError } = await supabase
+      const updatePayload = {
+        name: remote.name.slice(0, 180),
+        description: remote.description,
+        price: sellPrice,
+        compare_at_price: remote.compareAtPriceUsdt,
+        sku: remote.externalSku,
+        stock_quantity: remote.stockQuantity ?? 0,
+        images: productImages,
+        is_dropship: true,
+        updated_at: new Date().toISOString(),
+      };
+      let { error: updateError } = await supabase
         .from("products")
-        .update({
-          name: remote.name.slice(0, 180),
-          description: remote.description,
-          price: sellPrice,
-          compare_at_price: remote.compareAtPriceUsdt,
-          sku: remote.externalSku,
-          stock_quantity: remote.stockQuantity ?? 0,
-          images: productImages,
-          is_dropship: true,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updatePayload as never)
         .eq("id", existingImport.product_id)
         .eq("vendor_id", gate.vendor.id);
+      if (
+        updateError &&
+        (updateError.message.toLowerCase().includes("is_dropship") ||
+          isMissingSchemaError(updateError.message))
+      ) {
+        const { is_dropship: _drop, ...rest } = updatePayload;
+        ({ error: updateError } = await supabase
+          .from("products")
+          .update(rest as never)
+          .eq("id", existingImport.product_id)
+          .eq("vendor_id", gate.vendor.id));
+      }
 
       if (updateError) {
         return { error: updateError.message };
@@ -389,20 +402,33 @@ export async function importExternalSupplierProductAction(
       .maybeSingle();
 
     if (existingBySku?.id) {
-      const { error: updateError } = await supabase
+      const updatePayload = {
+        name: remote.name.slice(0, 180),
+        description: remote.description,
+        price: sellPrice,
+        compare_at_price: remote.compareAtPriceUsdt,
+        stock_quantity: remote.stockQuantity ?? 0,
+        images: productImages,
+        is_dropship: true,
+        updated_at: new Date().toISOString(),
+      };
+      let { error: updateError } = await supabase
         .from("products")
-        .update({
-          name: remote.name.slice(0, 180),
-          description: remote.description,
-          price: sellPrice,
-          compare_at_price: remote.compareAtPriceUsdt,
-          stock_quantity: remote.stockQuantity ?? 0,
-          images: productImages,
-          is_dropship: true,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updatePayload as never)
         .eq("id", existingBySku.id)
         .eq("vendor_id", gate.vendor.id);
+      if (
+        updateError &&
+        (updateError.message.toLowerCase().includes("is_dropship") ||
+          isMissingSchemaError(updateError.message))
+      ) {
+        const { is_dropship: _drop, ...rest } = updatePayload;
+        ({ error: updateError } = await supabase
+          .from("products")
+          .update(rest as never)
+          .eq("id", existingBySku.id)
+          .eq("vendor_id", gate.vendor.id));
+      }
 
       if (updateError) {
         return { error: updateError.message };
@@ -474,25 +500,38 @@ export async function importExternalSupplierProductAction(
   );
   const slug = `${slugBase}-${Date.now().toString(36).slice(-5)}`;
 
-  const { data: product, error: productError } = await supabase
+  const insertPayload = {
+    vendor_id: gate.vendor.id,
+    name: remote.name.slice(0, 180),
+    slug,
+    description: remote.description,
+    price: sellPrice,
+    compare_at_price: remote.compareAtPriceUsdt,
+    currency: "USDT",
+    sku: remote.externalSku,
+    stock_quantity: remote.stockQuantity ?? 0,
+    status: "active" as const,
+    images: productImages,
+    product_type: "physical" as const,
+    is_dropship: true,
+  };
+  let { data: product, error: productError } = await supabase
     .from("products")
-    .insert({
-      vendor_id: gate.vendor.id,
-      name: remote.name.slice(0, 180),
-      slug,
-      description: remote.description,
-      price: sellPrice,
-      compare_at_price: remote.compareAtPriceUsdt,
-      currency: "USDT",
-      sku: remote.externalSku,
-      stock_quantity: remote.stockQuantity ?? 0,
-      status: "active",
-      images: productImages,
-      product_type: "physical",
-      is_dropship: true,
-    })
+    .insert(insertPayload as never)
     .select("id")
     .single();
+  if (
+    productError &&
+    (productError.message.toLowerCase().includes("is_dropship") ||
+      isMissingSchemaError(productError.message))
+  ) {
+    const { is_dropship: _drop, ...rest } = insertPayload;
+    ({ data: product, error: productError } = await supabase
+      .from("products")
+      .insert(rest as never)
+      .select("id")
+      .single());
+  }
 
   if (productError || !product) {
     return { error: productError?.message ?? "Failed to create product." };

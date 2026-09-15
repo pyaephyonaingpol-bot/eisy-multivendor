@@ -190,6 +190,52 @@ export type FulfillmentSyncSource =
 
 export type FulfillmentSyncStatus = "idle" | "pending" | "synced" | "error";
 
+export type UsdtPaymentIntentStatus =
+  | "pending"
+  | "detecting"
+  | "confirmed"
+  | "expired"
+  | "cancelled";
+
+export type UsdtPaymentSettings = {
+  id: number;
+  deposit_address: string;
+  contract_address: string;
+  network: string;
+  min_confirmations: number;
+  updated_at: string;
+};
+
+export type UsdtPaymentIntent = {
+  id: string;
+  user_id: string;
+  amount_usdt: number;
+  observed_amount_usdt: number | null;
+  status: UsdtPaymentIntentStatus;
+  network: string;
+  deposit_address: string;
+  from_address: string | null;
+  to_address: string | null;
+  tx_hash: string | null;
+  confirmations: number;
+  order_ids: string[];
+  shipping_address: Record<string, unknown> | null;
+  raw_payload: Record<string, unknown>;
+  expires_at: string | null;
+  confirmed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UsdtPaymentEvent = {
+  id: string;
+  payment_intent_id: string;
+  event_type: string;
+  tx_hash: string | null;
+  payload: Record<string, unknown>;
+  created_at: string;
+};
+
 export type Order = {
   id: string;
   customer_id: string;
@@ -199,6 +245,9 @@ export type Order = {
   seller_vendor_id: string;
   status: OrderStatus;
   payment_status: PaymentStatus;
+  payment_intent_id: string | null;
+  payment_method: string | null;
+  payment_tx_hash: string | null;
   subtotal: number;
   tax: number;
   shipping_fee: number;
@@ -484,6 +533,26 @@ export type Database = {
         Update: Partial<DropshipFeeChargeRun>;
         Relationships: [];
       };
+      usdt_payment_settings: {
+        Row: UsdtPaymentSettings;
+        Insert: Partial<UsdtPaymentSettings> & Pick<UsdtPaymentSettings, "id">;
+        Update: Partial<UsdtPaymentSettings>;
+        Relationships: [];
+      };
+      usdt_payment_intents: {
+        Row: UsdtPaymentIntent;
+        Insert: Partial<UsdtPaymentIntent> &
+          Pick<UsdtPaymentIntent, "user_id" | "amount_usdt" | "deposit_address">;
+        Update: Partial<UsdtPaymentIntent>;
+        Relationships: [];
+      };
+      usdt_payment_events: {
+        Row: UsdtPaymentEvent;
+        Insert: Partial<UsdtPaymentEvent> &
+          Pick<UsdtPaymentEvent, "payment_intent_id" | "event_type">;
+        Update: Partial<UsdtPaymentEvent>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -545,6 +614,46 @@ export type Database = {
           shipping_total?: number;
           platform_commission_total?: number;
           commission_rate?: number;
+        };
+      };
+      create_usdt_trc20_checkout: {
+        Args: {
+          p_items: { product_id: string; quantity: number }[];
+          p_shipping_address?: Record<string, unknown> | null;
+        };
+        Returns: {
+          order_ids: string[];
+          total: number;
+          currency: string;
+          payment_method: string;
+          payment_intent_id: string;
+          deposit_address: string;
+          network: string;
+          usdt_contract: string;
+          expires_at: string;
+          buyer_region_code?: string;
+          buyer_country_code?: string;
+          shipping_total?: number;
+          platform_commission_total?: number;
+          commission_rate?: number;
+        };
+      };
+      confirm_usdt_trc20_payment: {
+        Args: {
+          p_payment_intent_id: string;
+          p_tx_hash: string;
+          p_from_address?: string | null;
+          p_to_address?: string | null;
+          p_amount_usdt?: number | null;
+          p_confirmations?: number | null;
+          p_raw_payload?: Record<string, unknown> | null;
+        };
+        Returns: {
+          status: string;
+          payment_intent_id: string;
+          order_ids: string[];
+          tx_hash: string;
+          amount_usdt?: number;
         };
       };
       preview_dropship_inventory_fee: {

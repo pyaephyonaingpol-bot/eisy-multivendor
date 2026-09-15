@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useMemo } from "react";
+import { useActionState, useMemo, useState } from "react";
 import { useCart } from "@/components/storefront/cart-provider";
 import {
   checkoutWithUsdt,
@@ -21,9 +21,19 @@ type CheckoutFormProps = {
   defaultCountry?: string;
 };
 
-export function CheckoutForm({ isSignedIn, usdtAvailable, defaultCountry = "MM" }: CheckoutFormProps) {
+export function CheckoutForm({
+  isSignedIn,
+  usdtAvailable,
+  defaultCountry = "MM",
+}: CheckoutFormProps) {
   const { items, subtotal, itemCount } = useCart();
-  const [state, formAction, pending] = useActionState(checkoutWithUsdt, initialState);
+  const [state, formAction, pending] = useActionState(
+    checkoutWithUsdt,
+    initialState,
+  );
+  const [paymentMethod, setPaymentMethod] = useState<"wallet" | "trc20">(
+    "wallet",
+  );
 
   const payload = useMemo(
     () =>
@@ -38,7 +48,10 @@ export function CheckoutForm({ isSignedIn, usdtAvailable, defaultCountry = "MM" 
 
   const hasPhysical = items.some((item) => item.productType === "physical");
   const shortfall =
-    usdtAvailable != null && usdtAvailable < subtotal ? subtotal - usdtAvailable : 0;
+    usdtAvailable != null && usdtAvailable < subtotal
+      ? subtotal - usdtAvailable
+      : 0;
+  const walletBlocked = paymentMethod === "wallet" && shortfall > 0;
 
   if (itemCount === 0) {
     return (
@@ -57,9 +70,12 @@ export function CheckoutForm({ isSignedIn, usdtAvailable, defaultCountry = "MM" 
   if (!isSignedIn) {
     return (
       <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6">
-        <h2 className="text-lg font-semibold tracking-tight">Sign in to checkout</h2>
+        <h2 className="text-lg font-semibold tracking-tight">
+          Sign in to checkout
+        </h2>
         <p className="text-sm text-zinc-600">
-          USDT checkout uses your marketplace wallet balance. Sign in to continue.
+          Pay with your USDT wallet or send USDT (TRC-20) on-chain. Sign in to
+          continue.
         </p>
         <p className="text-sm font-medium text-zinc-950">
           Cart total: {formatMoney(subtotal, MARKETPLACE_CURRENCY)}
@@ -77,11 +93,14 @@ export function CheckoutForm({ isSignedIn, usdtAvailable, defaultCountry = "MM" 
   return (
     <form action={formAction} className="grid gap-6 lg:grid-cols-[1fr_22rem]">
       <input type="hidden" name="items" value={payload} />
+      <input type="hidden" name="payment_method" value={paymentMethod} />
 
       <div className="space-y-6">
         <section className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">Shipping details</h2>
+            <h2 className="text-lg font-semibold tracking-tight">
+              Shipping details
+            </h2>
             <p className="text-sm text-zinc-500">
               {hasPhysical
                 ? "Required for physical items."
@@ -90,7 +109,10 @@ export function CheckoutForm({ isSignedIn, usdtAvailable, defaultCountry = "MM" 
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5 sm:col-span-2">
-              <label htmlFor="full_name" className="text-sm font-medium text-zinc-700">
+              <label
+                htmlFor="full_name"
+                className="text-sm font-medium text-zinc-700"
+              >
                 Full name{hasPhysical ? "" : " (optional)"}
               </label>
               <input
@@ -101,7 +123,10 @@ export function CheckoutForm({ isSignedIn, usdtAvailable, defaultCountry = "MM" 
               />
             </div>
             <div className="space-y-1.5">
-              <label htmlFor="phone" className="text-sm font-medium text-zinc-700">
+              <label
+                htmlFor="phone"
+                className="text-sm font-medium text-zinc-700"
+              >
                 Phone{hasPhysical ? "" : " (optional)"}
               </label>
               <input
@@ -112,10 +137,13 @@ export function CheckoutForm({ isSignedIn, usdtAvailable, defaultCountry = "MM" 
               />
             </div>
             <div className="space-y-1.5">
-              <label htmlFor="country" className="text-sm font-medium text-zinc-700">
+              <label
+                htmlFor="country"
+                className="text-sm font-medium text-zinc-700"
+              >
                 Country
               </label>
-                            <select
+              <select
                 id="country"
                 name="country"
                 defaultValue={defaultCountry}
@@ -127,10 +155,12 @@ export function CheckoutForm({ isSignedIn, usdtAvailable, defaultCountry = "MM" 
                   </option>
                 ))}
               </select>
-
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <label htmlFor="line1" className="text-sm font-medium text-zinc-700">
+              <label
+                htmlFor="line1"
+                className="text-sm font-medium text-zinc-700"
+              >
                 Address line 1{hasPhysical ? "" : " (optional)"}
               </label>
               <input
@@ -141,13 +171,19 @@ export function CheckoutForm({ isSignedIn, usdtAvailable, defaultCountry = "MM" 
               />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <label htmlFor="line2" className="text-sm font-medium text-zinc-700">
+              <label
+                htmlFor="line2"
+                className="text-sm font-medium text-zinc-700"
+              >
                 Address line 2
               </label>
               <input id="line2" name="line2" className={fieldClassName} />
             </div>
             <div className="space-y-1.5">
-              <label htmlFor="city" className="text-sm font-medium text-zinc-700">
+              <label
+                htmlFor="city"
+                className="text-sm font-medium text-zinc-700"
+              >
                 City{hasPhysical ? "" : " (optional)"}
               </label>
               <input
@@ -158,19 +194,32 @@ export function CheckoutForm({ isSignedIn, usdtAvailable, defaultCountry = "MM" 
               />
             </div>
             <div className="space-y-1.5">
-              <label htmlFor="region" className="text-sm font-medium text-zinc-700">
+              <label
+                htmlFor="region"
+                className="text-sm font-medium text-zinc-700"
+              >
                 State / region
               </label>
               <input id="region" name="region" className={fieldClassName} />
             </div>
             <div className="space-y-1.5">
-              <label htmlFor="postal_code" className="text-sm font-medium text-zinc-700">
+              <label
+                htmlFor="postal_code"
+                className="text-sm font-medium text-zinc-700"
+              >
                 Postal code
               </label>
-              <input id="postal_code" name="postal_code" className={fieldClassName} />
+              <input
+                id="postal_code"
+                name="postal_code"
+                className={fieldClassName}
+              />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <label htmlFor="note" className="text-sm font-medium text-zinc-700">
+              <label
+                htmlFor="note"
+                className="text-sm font-medium text-zinc-700"
+              >
                 Order note
               </label>
               <input
@@ -192,13 +241,19 @@ export function CheckoutForm({ isSignedIn, usdtAvailable, defaultCountry = "MM" 
                 className="flex items-center justify-between gap-3 py-3 text-sm"
               >
                 <div className="min-w-0">
-                  <p className="truncate font-medium text-zinc-950">{item.name}</p>
+                  <p className="truncate font-medium text-zinc-950">
+                    {item.name}
+                  </p>
                   <p className="text-zinc-500">
-                    {item.quantity} × {formatMoney(item.price, MARKETPLACE_CURRENCY)}
+                    {item.quantity} ×{" "}
+                    {formatMoney(item.price, MARKETPLACE_CURRENCY)}
                   </p>
                 </div>
                 <p className="font-medium text-zinc-950">
-                  {formatMoney(item.price * item.quantity, MARKETPLACE_CURRENCY)}
+                  {formatMoney(
+                    item.price * item.quantity,
+                    MARKETPLACE_CURRENCY,
+                  )}
                 </p>
               </li>
             ))}
@@ -208,6 +263,48 @@ export function CheckoutForm({ isSignedIn, usdtAvailable, defaultCountry = "MM" 
 
       <aside className="h-fit space-y-4 rounded-2xl border border-zinc-200 bg-white p-5">
         <h2 className="text-lg font-semibold tracking-tight">USDT payment</h2>
+
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium text-zinc-700">
+            Payment method
+          </legend>
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 px-3 py-2.5 text-sm has-[:checked]:border-zinc-900">
+            <input
+              type="radio"
+              name="payment_method_ui"
+              value="wallet"
+              checked={paymentMethod === "wallet"}
+              onChange={() => setPaymentMethod("wallet")}
+              className="mt-1"
+            />
+            <span>
+              <span className="font-medium text-zinc-950">USDT wallet</span>
+              <span className="mt-0.5 block text-xs text-zinc-500">
+                Instant debit from your marketplace balance.
+              </span>
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 px-3 py-2.5 text-sm has-[:checked]:border-zinc-900">
+            <input
+              type="radio"
+              name="payment_method_ui"
+              value="trc20"
+              checked={paymentMethod === "trc20"}
+              onChange={() => setPaymentMethod("trc20")}
+              className="mt-1"
+            />
+            <span>
+              <span className="font-medium text-zinc-950">
+                USDT TRC-20 transfer
+              </span>
+              <span className="mt-0.5 block text-xs text-zinc-500">
+                Send on-chain USDT. Orders stay pending until the webhook
+                confirms the transaction, then supplier/dropshipper split runs.
+              </span>
+            </span>
+          </label>
+        </fieldset>
+
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-zinc-600">Subtotal</span>
@@ -215,14 +312,16 @@ export function CheckoutForm({ isSignedIn, usdtAvailable, defaultCountry = "MM" 
               {formatMoney(subtotal, MARKETPLACE_CURRENCY)}
             </span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-zinc-600">Wallet available</span>
-            <span className="font-medium">
-              {usdtAvailable == null
-                ? "—"
-                : formatMoney(usdtAvailable, MARKETPLACE_CURRENCY)}
-            </span>
-          </div>
+          {paymentMethod === "wallet" ? (
+            <div className="flex justify-between">
+              <span className="text-zinc-600">Wallet available</span>
+              <span className="font-medium">
+                {usdtAvailable == null
+                  ? "—"
+                  : formatMoney(usdtAvailable, MARKETPLACE_CURRENCY)}
+              </span>
+            </div>
+          ) : null}
           <div className="flex justify-between border-t border-zinc-100 pt-2 text-base">
             <span className="font-medium">Pay now</span>
             <span className="font-semibold">
@@ -232,15 +331,16 @@ export function CheckoutForm({ isSignedIn, usdtAvailable, defaultCountry = "MM" 
         </div>
 
         <p className="text-xs text-zinc-500">
-          Confirming payment debits your USDT wallet and credits each vendor. MMK cannot be
-          used for checkout.
+          {paymentMethod === "wallet"
+            ? "Confirming payment debits your USDT wallet and credits each vendor. MMK cannot be used for checkout."
+            : "You will get a TRC-20 deposit address after placing the order. Payment is confirmed automatically via webhook once the transfer is verified."}
         </p>
 
-        {shortfall > 0 ? (
+        {walletBlocked ? (
           <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             <p>
-              You need {formatMoney(shortfall, MARKETPLACE_CURRENCY)} more USDT to complete
-              this order.
+              You need {formatMoney(shortfall, MARKETPLACE_CURRENCY)} more USDT
+              for wallet checkout — or pay with TRC-20 transfer instead.
             </p>
             <Link href="/account/wallet" className="font-medium underline">
               Deposit USDT
@@ -256,10 +356,14 @@ export function CheckoutForm({ isSignedIn, usdtAvailable, defaultCountry = "MM" 
 
         <button
           type="submit"
-          disabled={pending || shortfall > 0}
+          disabled={pending || walletBlocked}
           className="inline-flex w-full items-center justify-center rounded-lg bg-zinc-950 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {pending ? "Processing…" : "Pay with USDT wallet"}
+          {pending
+            ? "Processing…"
+            : paymentMethod === "trc20"
+              ? "Place order · pay with TRC-20"
+              : "Pay with USDT wallet"}
         </button>
         <Link
           href="/cart"

@@ -37,7 +37,7 @@ export default async function VendorSourcingIndexPage() {
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-950">
+      <div className="flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-3 text-sm text-emerald-950 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-4">
         <div>
           <p className="font-semibold text-emerald-900">One-click Import to Store</p>
           <p className="mt-0.5 text-emerald-900/90">
@@ -47,7 +47,7 @@ export default async function VendorSourcingIndexPage() {
         </div>
         <Link
           href="/vendor/integrations"
-          className="inline-flex shrink-0 rounded-lg bg-emerald-800 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+          className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-lg bg-emerald-800 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 sm:min-h-0 sm:w-auto"
         >
           Open CJ / DSers catalog
         </Link>

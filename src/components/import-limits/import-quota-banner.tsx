@@ -30,16 +30,16 @@ export function ImportQuotaBanner({ quota, className }: Props) {
     <div
       className={
         className ??
-        "space-y-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
+        "space-y-3 rounded-xl border border-zinc-200 bg-white px-3 py-3 sm:px-4"
       }
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
+        <div className="min-w-0 flex-1 space-y-1">
           <p className="text-sm font-medium text-zinc-950">
             Import quota · {quota.catalog_item_count} / {quota.max_import_items}{" "}
             items
           </p>
-          <p className="text-sm text-zinc-600">
+          <p className="text-xs text-zinc-600 sm:text-sm">
             {quota.remaining_import_slots} slot
             {quota.remaining_import_slots === 1 ? "" : "s"} remaining (
             {limitSourceLabel(quota.limit_source)}, {quota.plan} plan). Active

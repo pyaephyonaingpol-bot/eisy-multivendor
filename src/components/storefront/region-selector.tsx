@@ -46,7 +46,7 @@ export function RegionSelector({
         onChange={(event) => {
           event.currentTarget.form?.requestSubmit();
         }}
-        className="max-w-[8.5rem] rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-800"
+        className="max-w-[6.75rem] rounded-md border border-zinc-200 bg-white px-1.5 py-1 text-[11px] text-zinc-800 sm:max-w-[8.5rem] sm:px-2 sm:text-xs"
         title={`Sourcing region: ${regionName} (${regionCode})`}
       >
         {BUYER_COUNTRY_OPTIONS.map((option) => (

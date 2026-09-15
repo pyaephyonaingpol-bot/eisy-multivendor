@@ -12,8 +12,22 @@
   --font-mono: var(--font-geist-mono);
 }
 
+html {
+  overflow-x: clip;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  overflow-x: clip;
+}
+
+/* Touch-friendly horizontal strips (storefront/vendor mobile nav + product rail) */
+.mobile-scroll-x {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.mobile-scroll-x::-webkit-scrollbar {
+  display: none;
 }

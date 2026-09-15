@@ -55,7 +55,7 @@ export default function CartPage() {
             {items.map((item) => (
               <li
                 key={item.productId}
-                className="flex flex-wrap items-center gap-4 rounded-2xl border border-zinc-200 bg-white p-4"
+                className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4"
               >
                 <div className="h-20 w-20 overflow-hidden rounded-xl bg-zinc-100">
                   {item.imageUrl ? (
@@ -78,7 +78,7 @@ export default function CartPage() {
                     {formatMoney(item.price, item.currency)} each
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-start">
                   <input
                     type="number"
                     min={1}
@@ -89,7 +89,7 @@ export default function CartPage() {
                     }
                     className="w-16 rounded-md border border-zinc-200 px-2 py-1.5 text-sm"
                   />
-                  <p className="w-28 text-right text-sm font-semibold">
+                  <p className="min-w-[5.5rem] flex-1 text-right text-sm font-semibold sm:w-28 sm:flex-none">
                     {formatMoney(item.price * item.quantity, item.currency)}
                   </p>
                   <button
@@ -104,7 +104,7 @@ export default function CartPage() {
             ))}
           </ul>
 
-          <aside className="h-fit space-y-4 rounded-2xl border border-zinc-200 bg-white p-5">
+          <aside className="h-fit space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 lg:sticky lg:top-24">
             <div className="flex items-center justify-between text-sm">
               <span className="text-zinc-600">Subtotal</span>
               <span className="font-semibold">{formatMoney(subtotal, "USDT")}</span>

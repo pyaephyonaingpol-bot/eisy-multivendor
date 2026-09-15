@@ -153,8 +153,8 @@ export default async function VendorProductsPage() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right text-sm">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
+                  <div className="text-left text-sm sm:text-right">
                     <p className="font-medium text-zinc-950">
                       {formatMoney(Number(product.price), product.currency)}
                     </p>

@@ -28,6 +28,7 @@ export async function listWalletsForUser(userId: string): Promise<Wallet[]> {
     ...row,
     available_balance: Number(row.available_balance),
     pending_balance: Number(row.pending_balance),
+    escrow_balance: Number((row as { escrow_balance?: number }).escrow_balance ?? 0),
   }));
 }
 

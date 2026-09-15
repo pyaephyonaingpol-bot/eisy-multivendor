@@ -21,6 +21,10 @@ function formatTxType(txType: string) {
       return "Platform commission";
     case "sale_credit":
       return "Sale credit";
+    case "escrow_hold":
+      return "Escrow hold";
+    case "escrow_release":
+      return "Escrow release";
     default:
       return txType.replaceAll("_", " ");
   }
@@ -56,10 +60,15 @@ export function WalletDashboard({
             {formatMoney(usdt?.available_balance ?? 0, "USDT")}
           </p>
           <p className="mt-1 text-sm text-zinc-500">
-            Pending: {formatMoney(usdt?.pending_balance ?? 0, "USDT")}
+            Pending withdrawals: {formatMoney(usdt?.pending_balance ?? 0, "USDT")}
+          </p>
+          <p className="mt-1 text-sm text-amber-800">
+            Escrow (held until delivered):{" "}
+            {formatMoney(usdt?.escrow_balance ?? 0, "USDT")}
           </p>
           <p className="mt-3 text-xs text-zinc-500">
-            Deposits and withdrawals supported. Used for marketplace checkout.
+            Sale earnings stay in escrow until the order is marked delivered. Only
+            available balance can be withdrawn.
           </p>
         </div>
         <div className="rounded-xl border border-zinc-200 bg-white p-4">

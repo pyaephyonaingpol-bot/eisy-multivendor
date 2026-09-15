@@ -70,6 +70,49 @@ export async function updateOrderFulfillment(
   revalidatePath("/vendor/orders");
   revalidatePath("/orders");
   revalidatePath(`/orders/${orderId}`);
+  revalidatePath("/vendor/wallet");
+  revalidatePath("/account/wallet");
 
   return { success: "Fulfillment details saved." };
+}
+
+export type ConfirmDeliveryActionState = {
+  error?: string;
+  success?: string;
+} | null;
+
+/** Buyer confirms receipt → marks delivered → releases escrowed payouts. */
+export async function confirmOrderDeliveredByBuyer(
+  _prev: ConfirmDeliveryActionState,
+  formData: FormData,
+): Promise<ConfirmDeliveryActionState> {
+  const session = await getSessionProfile();
+  if (!session) {
+    return { error: "Sign in to confirm delivery." };
+  }
+
+  const orderId = String(formData.get("order_id") ?? "").trim();
+  if (!orderId) {
+    return { error: "Order id is required." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("confirm_order_delivered_by_buyer", {
+    p_order_id: orderId,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/orders");
+  revalidatePath(`/orders/${orderId}`);
+  revalidatePath("/vendor/orders");
+  revalidatePath("/vendor/wallet");
+  revalidatePath("/account/wallet");
+
+  return {
+    success:
+      "Delivery confirmed. Seller payouts will move from escrow to available balance.",
+  };
 }

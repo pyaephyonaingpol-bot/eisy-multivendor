@@ -201,5 +201,12 @@ export async function checkoutWithUsdt(
   revalidatePath("/orders");
   revalidatePath("/vendor/wallet");
 
+  // Wallet checkout marks orders paid immediately → SQL enqueues CJ/DSers jobs.
+  void import("@/lib/suppliers/fulfillment")
+    .then(({ processSupplierFulfillmentJobs }) =>
+      processSupplierFulfillmentJobs(10),
+    )
+    .catch(() => undefined);
+
   redirect(`/checkout/success?orders=${orderIds.join(",")}`);
 }

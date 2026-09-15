@@ -245,6 +245,15 @@ export async function confirmUsdtTrc20Payment(args: {
     amount_usdt?: number;
   };
 
+  // Paid orders enqueue CJ/DSers jobs via SQL trigger; process a batch promptly.
+  if (result.status === "confirmed" && (result.order_ids?.length ?? 0) > 0) {
+    void import("@/lib/suppliers/fulfillment")
+      .then(({ processSupplierFulfillmentJobs }) =>
+        processSupplierFulfillmentJobs(10),
+      )
+      .catch(() => undefined);
+  }
+
   return {
     status:
       result.status === "already_confirmed"

@@ -2,7 +2,7 @@ import Link from "next/link";
 
 const links = [
   { href: "/vendor/dashboard", label: "Overview" },
-  { href: "/vendor/settings", label: "Store branding" },
+  { href: "/vendor/settings", label: "Store settings" },
   { href: "/vendor/apply", label: "Application" },
   { href: "/vendor/products", label: "Products" },
   { href: "/vendor/sourcing", label: "Sourcing" },

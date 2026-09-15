@@ -181,6 +181,11 @@ export type Vendor = {
   commission_rate: number;
   /** Optional per-vendor import cap override (null = use plan/system default). */
   max_import_items_override?: number | null;
+  /**
+   * When non-empty, this seller's listings are only shown/sellable to these
+   * sourcing regions. Empty = worldwide (still subject to product-level ships_to).
+   */
+  ships_to_region_ids: string[];
   created_at: string;
   updated_at: string;
 };

@@ -1,7 +1,17 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useI18n } from "@/components/i18n/language-provider";
+import { SupplierSourceTabs } from "@/components/suppliers/supplier-source-tabs";
+import {
+  SupplierProductPreviewModal,
+  type PreviewQuotaHints,
+} from "@/components/suppliers/supplier-product-preview-modal";
+import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
+import {
+  kindsForSourceTab,
+  type SupplierSourceTab,
+} from "@/lib/suppliers";
 import {
   ONE_CLICK_IMPORT_MARKUP,
   MIN_IMPORT_STOCK_QUANTITY,
@@ -10,11 +20,6 @@ import {
   type ExternalCatalogProduct,
   type ExternalSupplierKind,
 } from "@/lib/suppliers/types";
-import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
-import {
-  SupplierProductPreviewModal,
-  type PreviewQuotaHints,
-} from "@/components/suppliers/supplier-product-preview-modal";
 
 export type ImportQuotaHints = PreviewQuotaHints;
 
@@ -24,7 +29,6 @@ export type SourcingRegionOption = {
   name: string;
 };
 
-type SourceTab = "all" | "dsers" | "cj_dropshipping" | "spocket" | "pod";
 type DeliverySpeedFilter = "any" | "fast" | "local";
 
 type Props = {
@@ -32,34 +36,6 @@ type Props = {
   importDisabled?: boolean;
   quota?: ImportQuotaHints | null;
 };
-
-const SOURCE_TAB_IDS: SourceTab[] = [
-  "all",
-  "dsers",
-  "cj_dropshipping",
-  "spocket",
-  "pod",
-];
-
-function sourceTabLabel(
-  tab: SourceTab,
-  t: (path: string, vars?: Record<string, string | number>) => string,
-) {
-  switch (tab) {
-    case "all":
-      return t("sourcing.sources.all");
-    case "dsers":
-      return t("sourcing.sources.dsers");
-    case "cj_dropshipping":
-      return t("sourcing.sources.cj");
-    case "spocket":
-      return t("sourcing.sources.spocket");
-    case "pod":
-      return t("sourcing.sources.pod");
-    default:
-      return tab;
-  }
-}
 
 const fallbackQuota: PreviewQuotaHints = {
   minActiveItems: 10,
@@ -91,13 +67,21 @@ function sourceBadge(kind: ExternalSupplierKind) {
   return supplierPlatformLabel(kind);
 }
 
+function matchesSourceTab(
+  product: ExternalCatalogProduct,
+  tab: SupplierSourceTab,
+) {
+  if (tab === "all") return true;
+  return kindsForSourceTab(tab).includes(product.providerKind);
+}
+
 export function UnifiedSupplierSourcingCatalog({
   regions,
   importDisabled = false,
   quota = null,
 }: Props) {
   const { t } = useI18n();
-  const [sourceTab, setSourceTab] = useState<SourceTab>("all");
+  const [sourceTab, setSourceTab] = useState<SupplierSourceTab>("all");
   const [query, setQuery] = useState("wireless earbuds");
   const [regionCode, setRegionCode] = useState(
     regions.find((region) => region.code === "MM")?.code ??
@@ -107,7 +91,8 @@ export function UnifiedSupplierSourcingCatalog({
   );
   const [deliverySpeed, setDeliverySpeed] =
     useState<DeliverySpeedFilter>("any");
-  const [products, setProducts] = useState<ExternalCatalogProduct[]>([]);
+  /** Full multi-source result set — tabs filter this client-side for instant toggles. */
+  const [catalog, setCatalog] = useState<ExternalCatalogProduct[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [previewKind, setPreviewKind] = useState<ExternalSupplierKind | null>(
@@ -115,18 +100,45 @@ export function UnifiedSupplierSourcingCatalog({
   );
   const [previewSuccess, setPreviewSuccess] = useState<string | null>(null);
   const [pendingSearch, startSearch] = useTransition();
+  const [hasSearched, setHasSearched] = useState(false);
 
   const atLimit = importDisabled || quota?.atImportLimit === true;
   const minActive = quota?.minActiveItems ?? 10;
   const previewQuota = quota ?? { ...fallbackQuota, atImportLimit: atLimit };
 
+  const tabCounts = useMemo(() => {
+    const counts: Partial<Record<SupplierSourceTab, number>> = {
+      all: catalog.length,
+      dsers: 0,
+      cj_dropshipping: 0,
+      spocket: 0,
+      pod: 0,
+    };
+    for (const product of catalog) {
+      if (product.providerKind === "dsers") {
+        counts.dsers = (counts.dsers ?? 0) + 1;
+      } else if (product.providerKind === "cj_dropshipping") {
+        counts.cj_dropshipping = (counts.cj_dropshipping ?? 0) + 1;
+      } else if (product.providerKind === "spocket") {
+        counts.spocket = (counts.spocket ?? 0) + 1;
+      } else if (
+        product.providerKind === "printful" ||
+        product.providerKind === "printify"
+      ) {
+        counts.pod = (counts.pod ?? 0) + 1;
+      }
+    }
+    return counts;
+  }, [catalog]);
+
   const visibleProducts = useMemo(() => {
-    return products.filter((product) => {
+    return catalog.filter((product) => {
+      if (!matchesSourceTab(product, sourceTab)) return false;
       if (deliverySpeed === "fast" && !isFastDispatch(product)) return false;
       if (deliverySpeed === "local" && !isLocalWarehouse(product)) return false;
       return true;
     });
-  }, [products, deliverySpeed]);
+  }, [catalog, sourceTab, deliverySpeed]);
 
   const previewProduct =
     visibleProducts.find(
@@ -140,8 +152,9 @@ export function UnifiedSupplierSourcingCatalog({
     setPreviewSuccess(null);
     startSearch(async () => {
       try {
+        // Always fetch all sources so tab clicks can filter instantly.
         const params = new URLSearchParams({
-          source: sourceTab,
+          source: "all",
           q: query,
           region: regionCode,
         });
@@ -153,16 +166,25 @@ export function UnifiedSupplierSourcingCatalog({
         };
         if (!response.ok || payload.ok === false) {
           setError(payload.error ?? t("sourcing.searchFailed"));
-          setProducts([]);
+          setCatalog([]);
+          setHasSearched(true);
           return;
         }
-        setProducts(payload.products ?? []);
+        setCatalog(payload.products ?? []);
+        setHasSearched(true);
       } catch {
         setError(t("sourcing.catalogUnreachable"));
-        setProducts([]);
+        setCatalog([]);
+        setHasSearched(true);
       }
     });
   }
+
+  // Seed mock/placeholder catalog on mount so dropshippers can toggle tabs immediately.
+  useEffect(() => {
+    runSearch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only seed load
+  }, []);
 
   return (
     <section className="space-y-5 rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5">
@@ -173,31 +195,16 @@ export function UnifiedSupplierSourcingCatalog({
         <p className="text-sm text-zinc-600">{t("sourcing.catalogSubtitle")}</p>
       </div>
 
-      <div
-        className="flex flex-wrap gap-2"
-        role="tablist"
-        aria-label={t("sourcing.sourceTabsLabel")}
-      >
-        {SOURCE_TAB_IDS.map((tabId) => {
-          const active = sourceTab === tabId;
-          return (
-            <button
-              key={tabId}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setSourceTab(tabId)}
-              className={`min-h-10 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                active
-                  ? "bg-zinc-950 text-white"
-                  : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
-              }`}
-            >
-              {sourceTabLabel(tabId, t)}
-            </button>
-          );
-        })}
-      </div>
+      <SupplierSourceTabs
+        value={sourceTab}
+        onChange={(tab) => {
+          setSourceTab(tab);
+          setPreviewId(null);
+          setPreviewKind(null);
+        }}
+        t={t}
+        counts={hasSearched ? tabCounts : undefined}
+      />
 
       <div className="rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-3 text-sm text-sky-950 sm:px-4">
         <p className="font-semibold text-sky-900">

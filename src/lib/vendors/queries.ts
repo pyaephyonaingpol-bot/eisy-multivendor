@@ -2,6 +2,17 @@ import { createClient } from "@/lib/supabase/server";
 import { getSupabasePublicEnv } from "@/lib/supabase/env";
 import type { Vendor, VendorStatus } from "@/lib/types/database";
 
+function normalizeVendor(row: Vendor): Vendor {
+  return {
+    ...row,
+    ships_to_region_ids: Array.isArray(
+      (row as Vendor & { ships_to_region_ids?: string[] }).ships_to_region_ids,
+    )
+      ? ((row as Vendor & { ships_to_region_ids?: string[] }).ships_to_region_ids as string[])
+      : [],
+  };
+}
+
 export async function getVendorForOwner(ownerId: string): Promise<Vendor | null> {
   if (!getSupabasePublicEnv()) {
     return null;
@@ -14,7 +25,7 @@ export async function getVendorForOwner(ownerId: string): Promise<Vendor | null>
     .eq("owner_id", ownerId)
     .maybeSingle();
 
-  return (data as Vendor | null) ?? null;
+  return data ? normalizeVendor(data as Vendor) : null;
 }
 
 export async function listVendorsForAdmin(status?: VendorStatus): Promise<Vendor[]> {
@@ -33,7 +44,7 @@ export async function listVendorsForAdmin(status?: VendorStatus): Promise<Vendor
   }
 
   const { data } = await query;
-  return (data as Vendor[] | null) ?? [];
+  return ((data as Vendor[] | null) ?? []).map(normalizeVendor);
 }
 
 /** Public storefront lookup — approved vendors only. */
@@ -57,5 +68,5 @@ export async function getApprovedVendorBySlug(
     .eq("status", "approved")
     .maybeSingle();
 
-  return (data as Vendor | null) ?? null;
+  return data ? normalizeVendor(data as Vendor) : null;
 }

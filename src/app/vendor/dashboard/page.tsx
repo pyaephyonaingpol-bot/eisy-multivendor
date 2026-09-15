@@ -53,7 +53,7 @@ export default async function VendorDashboardPage() {
           </Link>
           {" · "}
           <Link href="/vendor/settings" className="font-medium underline">
-            Edit branding
+            Store settings
           </Link>
         </p>
       </div>

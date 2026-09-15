@@ -1,0 +1,113 @@
+{
+  "brand": {
+    "short": "EISY",
+    "full": "EISY Marktplaats",
+    "tagline": "Multi-vendor handel voor Myanmar en daarbuiten"
+  },
+  "nav": {
+    "home": "Home",
+    "shop": "Shop",
+    "stores": "Winkels",
+    "cart": "Winkelwagen",
+    "orders": "Bestellingen",
+    "wallet": "Wallet",
+    "signIn": "Inloggen",
+    "signOut": "Uitloggen",
+    "vendorPortal": "Verkoper- & dropshipportaal"
+  },
+  "vendorNav": {
+    "title": "Verkoper",
+    "overview": "Overzicht",
+    "storeBranding": "Winkelbranding",
+    "application": "Aanvraag",
+    "products": "Producten",
+    "sourcing": "Sourcing",
+    "import": "Importeren",
+    "integrations": "Integraties",
+    "fees": "Kosten",
+    "wallet": "Wallet",
+    "orders": "Bestellingen",
+    "backToStorefront": "← Storefront"
+  },
+  "sourcing": {
+    "title": "Product sourcing",
+    "subtitle": "Blader door DSers, CJ, Spocket en POD, filter op regio en levertijd, en importeer vanaf 10 voorraadstuks.",
+    "catalogTitle": "Multi-leverancier sourcing",
+    "catalogSubtitle": "Filter DSers, CJ, Spocket en POD op één plek.",
+    "search": "Zoeken",
+    "searchPlaceholder": "Zoek producten bij leveranciers",
+    "shipToRegion": "Verzendregio",
+    "deliverySpeed": "Leversnelheid",
+    "anySpeed": "Elke snelheid",
+    "fastDispatch": "Snelle verzending",
+    "fastDispatchFilter": "Snelle verzending (≤7 dagen)",
+    "localWarehouse": "Lokaal magazijn",
+    "searchButton": "Zoeken",
+    "searching": "Zoeken…",
+    "previewImport": "Voorbeeld & importeren",
+    "stockBelowMin": "Onder minimum van {min} stuks",
+    "stockLabel": "voorraad {qty}",
+    "daysRange": "{min}–{max} dagen",
+    "emptySearch": "Voer een zoekopdracht uit om leveranciersproducten te laden.",
+    "emptySearchDev": "Voer een zoekopdracht uit (mockcatalogi wanneer API-sleutels ontbreken).",
+    "searchFailed": "Zoeken mislukt.",
+    "catalogUnreachable": "Kan de leverancierscatalogus-API niet bereiken.",
+    "sourceTabsLabel": "Leveranciersbron",
+    "importSuccess": "Geïmporteerd in uw winkel (product {id}…). Bouw door naar {min} actieve items voor de kostendrempel.",
+    "fastStrategiesTitle": "Strategieën voor snelle verzending",
+    "fastStrategiesBody": "Kies regionale magazijnen, filter ≤7 dagen en vervoerders zoals DHL, FedEx of ePacket.",
+    "manageCredentials": "Leverancierssleutels beheren",
+    "routeManagerTitle": "Regionale routes",
+    "routeManagerSubtitle": "Koppel CJ-, DSers-, Spocket- en POD-routes per kopersregio.",
+    "noSourceProducts": "Nog geen bronproducten.",
+    "manageRoutes": "Routes beheren",
+    "importLimitReached": "Importlimiet bereikt.",
+    "sources": {
+      "all": "Alles",
+      "dsers": "DSers",
+      "cj": "CJ Dropshipping",
+      "spocket": "Spocket",
+      "pod": "POD"
+    }
+  },
+  "escrow": {
+    "title": "Escrow",
+    "held": "Geld in escrow",
+    "released": "Escrow vrijgegeven aan verkoper",
+    "pending": "Wacht op leveringsbevestiging",
+    "info": "Betalingen blijven in escrow tot levering is bevestigd."
+  },
+  "checkout": {
+    "title": "Afrekenen",
+    "placeOrder": "Bestelling plaatsen",
+    "shipping": "Verzending",
+    "payment": "Betaling",
+    "usdtNote": "Betaal veilig met USDT.",
+    "subtotal": "Subtotaal",
+    "total": "Totaal"
+  },
+  "regions": {
+    "label": "Verzendregio",
+    "mm": "Myanmar",
+    "sea": "Zuidoost-Azië",
+    "cn": "China / Oost-Azië",
+    "eu": "Europa",
+    "us": "Noord-Amerika",
+    "global": "Rest van de wereld"
+  },
+  "stores": {
+    "title": "Winkels",
+    "openStore": "Winkel openen",
+    "noStores": "Geen winkels gevonden."
+  },
+  "language": {
+    "label": "Taal",
+    "switchTo": "Taal wijzigen"
+  },
+  "common": {
+    "loading": "Laden…",
+    "save": "Opslaan",
+    "cancel": "Annuleren",
+    "continue": "Doorgaan"
+  }
+}

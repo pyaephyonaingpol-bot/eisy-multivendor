@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { UnifiedSupplierSourcingCatalog } from "@/components/suppliers/unified-supplier-sourcing-catalog";
 import { getSessionProfile, canAccessVendor } from "@/lib/auth/session";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { getVendorImportQuota } from "@/lib/import-limits/queries";
 import { listProductsForVendor } from "@/lib/products/queries";
 import { listSourcingRegions } from "@/lib/sourcing/queries";
@@ -26,11 +28,13 @@ export default async function VendorSourcingIndexPage() {
     redirect("/vendor/apply");
   }
 
-  const [products, regions, quota] = await Promise.all([
+  const [products, regions, quota, locale] = await Promise.all([
     listProductsForVendor(vendor.id),
     listSourcingRegions(),
     getVendorImportQuota(vendor.id),
+    getRequestLocale(),
   ]);
+  const t = getDictionary(locale);
   const sourceProducts = products.filter((product) => !product.is_dropship);
 
   const quotaHints = quota
@@ -50,14 +54,9 @@ export default async function VendorSourcingIndexPage() {
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">
-          Product sourcing
+          {t.sourcing.title}
         </h1>
-        <p className="max-w-2xl text-zinc-600">
-          Browse DSers, CJ Dropshipping, Spocket, and POD (Printful / Printify)
-          catalogs, filter by ship-to region and delivery speed, then import
-          listings that meet the 10-unit stock minimum. Dropship routes still
-          inherit per-region supplier routing below.
-        </p>
+        <p className="max-w-2xl text-zinc-600">{t.sourcing.subtitle}</p>
       </div>
 
       <UnifiedSupplierSourcingCatalog
@@ -71,32 +70,27 @@ export default async function VendorSourcingIndexPage() {
       />
 
       <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 text-sm text-zinc-800 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-        <p>
-          Connect API keys for live catalogs under Integrations. Mock catalogs
-          work without credentials.
-        </p>
+        <p>{t.sourcing.catalogSubtitle}</p>
         <Link
           href="/vendor/integrations"
           className="inline-flex min-h-11 items-center justify-center rounded-lg bg-zinc-950 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 sm:min-h-0"
         >
-          Manage supplier credentials
+          {t.sourcing.manageCredentials}
         </Link>
       </div>
 
       <div className="space-y-2">
         <h2 className="text-lg font-semibold tracking-tight">
-          Regional route manager
+          {t.sourcing.routeManagerTitle}
         </h2>
         <p className="text-sm text-zinc-600">
-          Attach CJ, DSers, Spocket, POD, or warehouse routes per buyer region
-          for catalog source products.
+          {t.sourcing.routeManagerSubtitle}
         </p>
       </div>
 
       {sourceProducts.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-10 text-center text-sm text-zinc-600">
-          No source catalog products yet. Import from the multi-supplier catalog
-          above, or add a product and attach regional supplier routes.
+          {t.sourcing.noSourceProducts}
         </div>
       ) : (
         <ul className="divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-200 bg-white">
@@ -115,7 +109,7 @@ export default async function VendorSourcingIndexPage() {
                 href={`/vendor/sourcing/${product.id}`}
                 className="font-medium text-zinc-950 underline"
               >
-                Manage routes
+                {t.sourcing.manageRoutes}
               </Link>
             </li>
           ))}

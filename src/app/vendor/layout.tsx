@@ -1,27 +1,35 @@
 import Link from "next/link";
+import { LanguageSwitcher } from "@/components/i18n/language-switcher";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { getRequestLocale } from "@/lib/i18n/locale";
 
-const links = [
-  { href: "/vendor/dashboard", label: "Overview" },
-  { href: "/vendor/settings", label: "Store settings" },
-  { href: "/vendor/apply", label: "Application" },
-  { href: "/vendor/products", label: "Products" },
-  { href: "/vendor/sourcing", label: "Sourcing" },
-  { href: "/vendor/import", label: "Import" },
-  { href: "/vendor/integrations", label: "Integrations" },
-  { href: "/vendor/fees", label: "Fees" },
-  { href: "/vendor/wallet", label: "Wallet" },
-  { href: "/vendor/orders", label: "Orders" },
-];
-
-export default function VendorLayout({
+export default async function VendorLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const locale = await getRequestLocale();
+  const t = getDictionary(locale);
+  const links = [
+    { href: "/vendor/dashboard", label: t.vendorNav.overview },
+    { href: "/vendor/settings", label: t.vendorNav.storeBranding },
+    { href: "/vendor/apply", label: t.vendorNav.application },
+    { href: "/vendor/products", label: t.vendorNav.products },
+    { href: "/vendor/sourcing", label: t.vendorNav.sourcing },
+    { href: "/vendor/import", label: t.vendorNav.import },
+    { href: "/vendor/integrations", label: t.vendorNav.integrations },
+    { href: "/vendor/fees", label: t.vendorNav.fees },
+    { href: "/vendor/wallet", label: t.vendorNav.wallet },
+    { href: "/vendor/orders", label: t.vendorNav.orders },
+  ];
+
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 px-4 py-6 md:flex-row md:gap-8 md:py-8">
-      <aside className="w-full shrink-0 space-y-3 md:w-48 md:space-y-4">
-        <p className="text-sm font-semibold">Vendor</p>
+      <aside className="w-full shrink-0 space-y-3 md:w-52 md:space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold">{t.vendorNav.title}</p>
+          <LanguageSwitcher compact />
+        </div>
         <nav className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 text-sm text-zinc-600 [scrollbar-width:none] md:flex-col md:gap-2 md:overflow-visible md:pb-0 [&::-webkit-scrollbar]:hidden">
           {links.map((item) => (
             <Link
@@ -36,7 +44,7 @@ export default function VendorLayout({
             href="/"
             className="whitespace-nowrap rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-zinc-400 hover:text-zinc-950 md:rounded-none md:border-0 md:bg-transparent md:px-0 md:pb-0 md:pt-4"
           >
-            ← Storefront
+            {t.vendorNav.backToStorefront}
           </Link>
         </nav>
       </aside>

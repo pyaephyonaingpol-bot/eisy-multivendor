@@ -5,6 +5,7 @@ import {
   syncUsdtTrc20SettingsFromEnv,
   verifyUsdtTrc20Transfer,
 } from "@/lib/payments/usdt-trc20";
+import { createServiceClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,13 +18,10 @@ export const dynamic = "force-dynamic";
  * {
  *   payment_intent_id: string,
  *   tx_hash: string,
- *   from_address?: string,
- *   to_address?: string,
- *   amount_usdt?: number,
- *   confirmations?: number,
- *   skip_chain_verify?: boolean
+ *   from_address?: string
  * }
  *
+ * Always verifies the transfer on-chain via TronGrid before confirming.
  * On success: marks linked orders Pending → Paid and runs supplier/dropshipper/platform split.
  */
 export async function POST(request: Request) {
@@ -60,97 +58,85 @@ export async function POST(request: Request) {
   const fromAddress = (body.from_address ?? body.fromAddress ?? null) as
     | string
     | null;
-  let toAddress = (body.to_address ?? body.toAddress ?? null) as string | null;
-  let amountUsdt =
-    body.amount_usdt != null
-      ? Number(body.amount_usdt)
-      : body.amountUsdt != null
-        ? Number(body.amountUsdt)
-        : null;
-  let confirmations =
-    body.confirmations != null ? Number(body.confirmations) : null;
-  const skipChainVerify = Boolean(
-    body.skip_chain_verify ?? body.skipChainVerify ?? false,
-  );
 
   try {
+    // Reject legacy skip_chain_verify payloads — confirmation requires TronGrid proof.
+    if (body.skip_chain_verify === true || body.skipChainVerify === true) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "skip_chain_verify is not allowed. On-chain verification is required.",
+        },
+        { status: 400 },
+      );
+    }
+
     const depositAddress = await syncUsdtTrc20SettingsFromEnv();
-    if (!toAddress && depositAddress) {
-      toAddress = depositAddress;
+    if (!depositAddress) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "USDT TRC-20 deposit address is not configured (USDT_TRC20_DEPOSIT_ADDRESS).",
+        },
+        { status: 500 },
+      );
     }
 
-    let rawPayload: Record<string, unknown> = { ...body, source: "webhook" };
+    const admin = createServiceClient();
+    const { data: intent, error: intentError } = await admin
+      .from("usdt_payment_intents")
+      .select("id, amount_usdt, deposit_address, status")
+      .eq("id", paymentIntentId)
+      .maybeSingle();
 
-    if (!skipChainVerify && toAddress) {
-      try {
-        const verified = await verifyUsdtTrc20Transfer({
-          txHash,
-          expectedToAddress: toAddress,
-          expectedAmountUsdt:
-            amountUsdt != null && Number.isFinite(amountUsdt)
-              ? amountUsdt
-              : null,
-        });
-        amountUsdt = verified.amountUsdt;
-        confirmations = verified.confirmations;
-        toAddress = verified.toAddress;
-        rawPayload = {
-          ...rawPayload,
-          chain_verified: true,
-          chain: verified.raw,
-        };
-
-        const result = await confirmUsdtTrc20Payment({
-          paymentIntentId,
-          txHash: verified.txHash,
-          fromAddress: fromAddress ?? verified.fromAddress,
-          toAddress: verified.toAddress,
-          amountUsdt: verified.amountUsdt,
-          confirmations: verified.confirmations,
-          rawPayload,
-        });
-        return NextResponse.json({ ok: true, result, verified: true });
-      } catch (verifyError) {
-        const message =
-          verifyError instanceof Error
-            ? verifyError.message
-            : "Chain verification failed.";
-        if (
-          amountUsdt == null ||
-          !Number.isFinite(amountUsdt) ||
-          !toAddress
-        ) {
-          return NextResponse.json(
-            { ok: false, error: message, stage: "verify" },
-            { status: 400 },
-          );
-        }
-        rawPayload = {
-          ...rawPayload,
-          chain_verified: false,
-          chain_verify_error: message,
-        };
-      }
+    if (intentError) {
+      return NextResponse.json(
+        { ok: false, error: intentError.message },
+        { status: 500 },
+      );
     }
+    if (!intent) {
+      return NextResponse.json(
+        { ok: false, error: "Payment intent not found." },
+        { status: 404 },
+      );
+    }
+
+    const expectedTo = intent.deposit_address || depositAddress;
+    const verified = await verifyUsdtTrc20Transfer({
+      txHash,
+      expectedToAddress: expectedTo,
+      expectedAmountUsdt: Number(intent.amount_usdt),
+    });
+
+    const rawPayload: Record<string, unknown> = {
+      ...body,
+      source: "webhook",
+      chain_verified: true,
+      chain: verified.raw,
+    };
 
     const result = await confirmUsdtTrc20Payment({
       paymentIntentId,
-      txHash,
-      fromAddress,
-      toAddress,
-      amountUsdt:
-        amountUsdt != null && Number.isFinite(amountUsdt) ? amountUsdt : null,
-      confirmations:
-        confirmations != null && Number.isFinite(confirmations)
-          ? confirmations
-          : null,
+      txHash: verified.txHash,
+      fromAddress: fromAddress ?? verified.fromAddress,
+      toAddress: verified.toAddress,
+      amountUsdt: verified.amountUsdt,
+      confirmations: verified.confirmations,
       rawPayload,
     });
 
-    return NextResponse.json({ ok: true, result, verified: false });
+    return NextResponse.json({ ok: true, result, verified: true });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "USDT webhook failed.";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    const status = /not found|less than required|does not match|expired/i.test(
+      message,
+    )
+      ? 400
+      : 500;
+    return NextResponse.json({ ok: false, error: message }, { status });
   }
 }

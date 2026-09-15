@@ -164,13 +164,18 @@ export async function verifyUsdtTrc20Transfer(options: {
     throw new Error("Could not parse USDT amount from on-chain transfer.");
   }
 
-  if (
-    options.expectedAmountUsdt != null &&
-    amountUsdt + 0.000001 < options.expectedAmountUsdt
-  ) {
-    throw new Error(
-      `On-chain amount ${amountUsdt} USDT is less than required ${options.expectedAmountUsdt} USDT.`,
-    );
+  if (options.expectedAmountUsdt != null) {
+    if (amountUsdt + 0.000001 < options.expectedAmountUsdt) {
+      throw new Error(
+        `On-chain amount ${amountUsdt} USDT is less than required ${options.expectedAmountUsdt} USDT.`,
+      );
+    }
+    // Shared deposit address: reject claiming a larger transfer for a smaller intent.
+    if (amountUsdt > options.expectedAmountUsdt * 1.02 + 0.000001) {
+      throw new Error(
+        `On-chain amount ${amountUsdt} USDT does not match required ${options.expectedAmountUsdt} USDT.`,
+      );
+    }
   }
 
   const fromAddress = normalizeAddress(

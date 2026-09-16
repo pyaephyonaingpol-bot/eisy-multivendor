@@ -11,6 +11,9 @@ export const dynamic = "force-dynamic";
  * Cron: poll TronGrid for incoming USDT TRC-20 deposits, match pending
  * payment intents by amount, confirm orders, and expire stale intents.
  * Auth: Authorization: Bearer <CRON_SECRET>
+ *
+ * vercel.json uses a daily schedule for Hobby plan compatibility. On Pro,
+ * tighten to `* * * * *` (or invoke this route from an external scheduler).
  */
 async function handle(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();

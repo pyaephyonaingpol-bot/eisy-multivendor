@@ -9,6 +9,9 @@ export const dynamic = "force-dynamic";
  * Auth: Authorization: Bearer <CRON_SECRET>
  *
  * Mode via USDT_WALLET_OPS_MODE=mock|manual|live
+ *
+ * vercel.json uses a daily schedule for Hobby plan compatibility. On Pro,
+ * tighten to `*/5 * * * *` (or invoke this route from an external scheduler).
  */
 async function handle(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();

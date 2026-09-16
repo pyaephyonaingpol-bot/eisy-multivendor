@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AuthHeaderButton } from "@/components/auth/auth-header-button";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { CartTrigger } from "@/components/storefront/cart-trigger";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
@@ -66,12 +67,7 @@ export async function StorefrontHeader() {
               <SignOutButton />
             </div>
           ) : (
-            <Link
-              href="/login"
-              className="rounded-full bg-zinc-950 px-3 py-1.5 text-xs text-white hover:bg-zinc-800 sm:px-4 sm:text-sm"
-            >
-              {t.nav.signIn}
-            </Link>
+            <AuthHeaderButton label={`${t.nav.signIn} / Sign Up`} />
           )}
         </div>
       </div>

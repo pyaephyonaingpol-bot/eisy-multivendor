@@ -213,6 +213,11 @@ export type Vendor = {
    * sourcing regions. Empty = worldwide (still subject to product-level ships_to).
    */
   ships_to_region_ids: string[];
+  /** Optional unique HD-derived TRC-20 deposit address for this vendor. */
+  usdt_deposit_address?: string | null;
+  usdt_derivation_account?: number | null;
+  usdt_derivation_index?: number | null;
+  usdt_derivation_path?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -306,6 +311,10 @@ export type UsdtPaymentSettings = {
   sweep_destination_address: string | null;
   auto_sweep_enabled: boolean;
   min_sweep_amount_usdt: number;
+  hd_enabled: boolean;
+  hd_next_payment_index: number;
+  hd_next_vendor_index: number;
+  hd_master_address: string | null;
   updated_at: string;
 };
 
@@ -324,6 +333,9 @@ export type UsdtPaymentIntent = {
   order_ids: string[];
   shipping_address: Record<string, unknown> | null;
   raw_payload: Record<string, unknown>;
+  derivation_account: number | null;
+  derivation_index: number | null;
+  derivation_path: string | null;
   expires_at: string | null;
   confirmed_at: string | null;
   created_at: string;
@@ -981,6 +993,24 @@ export type Database = {
           expired_intents: number;
           cancelled_orders: number;
         };
+      };
+      allocate_usdt_hd_payment_index: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
+      allocate_usdt_hd_vendor_index: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
+      assign_usdt_intent_hd_deposit: {
+        Args: {
+          p_payment_intent_id: string;
+          p_deposit_address: string;
+          p_derivation_index: number;
+          p_derivation_account?: number | null;
+          p_derivation_path?: string | null;
+        };
+        Returns: UsdtPaymentIntent;
       };
       mark_usdt_payment_intent_detecting: {
         Args: {

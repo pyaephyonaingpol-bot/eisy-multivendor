@@ -8,12 +8,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Cron: poll TronGrid for incoming USDT TRC-20 deposits, match pending
- * payment intents by amount, confirm orders, and expire stale intents.
+ * Cron / background listener: poll derived HD (and shared) USDT deposit
+ * addresses for open payment intents, confirm escrow funding, expire stale.
  * Auth: Authorization: Bearer <CRON_SECRET>
  *
- * Not registered in vercel.json on Hobby (only daily crons allowed; frequent
- * deposit polling needs Pro or an external scheduler hitting this route).
+ * Keep vercel.json on daily Hobby-compatible schedules (or invoke externally).
  */
 async function handle(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();

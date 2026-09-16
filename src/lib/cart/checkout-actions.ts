@@ -152,7 +152,7 @@ export async function checkoutWithUsdt(
       if (!deposit) {
         return {
           error:
-            "USDT TRC-20 gateway is not configured. Set USDT_TRC20_DEPOSIT_ADDRESS or pay with your wallet.",
+            "USDT TRC-20 gateway is not configured. Set USDT_TRC20_HD_MNEMONIC or USDT_TRC20_DEPOSIT_ADDRESS, or pay with your wallet.",
         };
       }
     } catch (error) {
@@ -178,6 +178,28 @@ export async function checkoutWithUsdt(
       return { error: "Checkout completed but no payment intent was returned." };
     }
 
+    // Prefer a unique HD child address per intent when a mnemonic is configured.
+    let depositAddress = result?.deposit_address ?? "";
+    try {
+      const { isHdWalletConfigured } = await import(
+        "@/lib/payments/tron-hd-wallet"
+      );
+      if (isHdWalletConfigured()) {
+        const { provisionPaymentIntentHdDeposit } = await import(
+          "@/lib/payments/usdt-hd-deposits"
+        );
+        const derived = await provisionPaymentIntentHdDeposit(intentId);
+        depositAddress = derived.address;
+      }
+    } catch (error) {
+      return {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to allocate a unique USDT deposit address.",
+      };
+    }
+
     revalidatePath("/cart");
     revalidatePath("/checkout");
     revalidatePath("/orders");
@@ -186,7 +208,7 @@ export async function checkoutWithUsdt(
       orders: orderIds.join(","),
       intent: intentId,
       method: "trc20",
-      address: result?.deposit_address ?? "",
+      address: depositAddress,
       amount: String(result?.total ?? ""),
       expires: result?.expires_at ?? "",
     });

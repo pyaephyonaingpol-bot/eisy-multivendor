@@ -62,9 +62,29 @@ export function getUsdtWebhookSecret(): string | null {
 /**
  * Syncs deposit/contract settings from env into usdt_payment_settings so the
  * SQL checkout RPCs can resolve a deposit address.
+ *
+ * Prefer an explicit USDT_TRC20_DEPOSIT_ADDRESS; otherwise when an HD mnemonic
+ * is configured, use the BIP-44 master address (account 0 / index 0).
  */
 export async function syncUsdtTrc20SettingsFromEnv(): Promise<string | null> {
-  const depositAddress = getConfiguredUsdtDepositAddress();
+  const { isHdWalletConfigured, getHdMasterDepositAddress } = await import(
+    "@/lib/payments/tron-hd-wallet"
+  );
+
+  let depositAddress = getConfiguredUsdtDepositAddress();
+  let hdMaster: string | null = null;
+
+  if (!depositAddress && isHdWalletConfigured()) {
+    hdMaster = getHdMasterDepositAddress();
+    depositAddress = hdMaster;
+  } else if (isHdWalletConfigured()) {
+    try {
+      hdMaster = getHdMasterDepositAddress();
+    } catch {
+      hdMaster = null;
+    }
+  }
+
   if (!depositAddress) {
     return null;
   }
@@ -79,6 +99,9 @@ export async function syncUsdtTrc20SettingsFromEnv(): Promise<string | null> {
       deposit_address: depositAddress,
       contract_address: getConfiguredUsdtContractAddress(),
       network: "TRC20",
+      ...(hdMaster
+        ? { hd_master_address: hdMaster, hd_enabled: true }
+        : {}),
       ...(sweepDestination
         ? {
             sweep_destination_address: sweepDestination,

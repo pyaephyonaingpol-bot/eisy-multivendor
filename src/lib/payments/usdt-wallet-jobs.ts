@@ -1,4 +1,8 @@
 import { createServiceClient } from "@/lib/supabase/admin";
+import {
+  deriveTronPrivateKey,
+  isHdWalletConfigured,
+} from "@/lib/payments/tron-hd-wallet";
 
 export type UsdtWalletOpsMode = "mock" | "manual" | "live";
 
@@ -27,16 +31,59 @@ export function getHotWalletPrivateKey(): string | null {
   return process.env.USDT_TRC20_HOT_WALLET_PRIVATE_KEY?.trim() || null;
 }
 
+async function resolveSignerPrivateKey(args: {
+  fromAddress?: string | null;
+  paymentIntentId?: string | null;
+}): Promise<{ privateKeyHex: string; address: string } | null> {
+  // Prefer HD child key when the payment intent was provisioned from the mnemonic.
+  if (args.paymentIntentId && isHdWalletConfigured()) {
+    const supabase = createServiceClient();
+    const { data } = await supabase
+      .from("usdt_payment_intents")
+      .select("deposit_address, derivation_account, derivation_index")
+      .eq("id", args.paymentIntentId)
+      .maybeSingle();
+
+    const row = data as {
+      deposit_address: string;
+      derivation_account: number | null;
+      derivation_index: number | null;
+    } | null;
+
+    if (row?.derivation_index != null) {
+      const derived = deriveTronPrivateKey({
+        account: row.derivation_account ?? 0,
+        index: row.derivation_index,
+      });
+      return {
+        privateKeyHex: derived.privateKeyHex,
+        address: derived.address,
+      };
+    }
+  }
+
+  const hot = getHotWalletPrivateKey();
+  if (hot) {
+    return {
+      privateKeyHex: hot.replace(/^0x/i, ""),
+      address: args.fromAddress?.trim() || "",
+    };
+  }
+
+  return null;
+}
+
 /**
- * Broadcast USDT TRC-20 from the hot wallet.
+ * Broadcast USDT TRC-20 from an HD child deposit address or the hot wallet.
  * - mock: returns a deterministic mock hash (dev / CI)
  * - manual: leaves job for an operator to attach a real tx_hash
- * - live: requires USDT_TRC20_HOT_WALLET_PRIVATE_KEY + optional Tron signer hook
+ * - live: signs with HD child key (when available) or USDT_TRC20_HOT_WALLET_PRIVATE_KEY
  */
 export async function broadcastUsdtTrc20Transfer(args: {
   toAddress: string;
   amountUsdt: number;
   fromAddress?: string | null;
+  paymentIntentId?: string | null;
   memo?: string | null;
 }): Promise<{ txHash: string; mode: UsdtWalletOpsMode; deferred?: boolean }> {
   const mode = getUsdtWalletOpsMode();
@@ -64,19 +111,60 @@ export async function broadcastUsdtTrc20Transfer(args: {
     };
   }
 
-  const privateKey = getHotWalletPrivateKey();
-  if (!privateKey) {
+  const signer = await resolveSignerPrivateKey({
+    fromAddress: args.fromAddress,
+    paymentIntentId: args.paymentIntentId,
+  });
+  if (!signer) {
     throw new Error(
-      "USDT_TRC20_HOT_WALLET_PRIVATE_KEY is required for live wallet broadcasts.",
+      "No signing key available. Configure USDT_TRC20_HD_MNEMONIC (for HD child sweeps) or USDT_TRC20_HOT_WALLET_PRIVATE_KEY.",
     );
   }
 
-  // Live signing is intentionally not inlined (no tronweb dependency yet).
-  // Configure USDT_WALLET_OPS_MODE=manual and POST tx hashes to
-  // /api/payments/usdt/jobs/complete, or set mode=mock for non-mainnet envs.
-  throw new Error(
-    "Live TRC-20 broadcast is not enabled in this build. Set USDT_WALLET_OPS_MODE=manual (attach tx hash after sending) or mock.",
-  );
+  // Live TRC-20 transfer via TronWeb. Requires energy/bandwidth on the from address.
+  const TronWebModule = await import("tronweb");
+  const TronWebCtor = (TronWebModule.default ?? TronWebModule) as unknown as {
+    new (options: {
+      fullHost: string;
+      headers?: Record<string, string>;
+      privateKey: string;
+    }): {
+      defaultAddress: { base58: string };
+      contract: () => {
+        at: (address: string) => Promise<{
+          methods: {
+            transfer: (
+              to: string,
+              amount: number,
+            ) => { send: (opts: { from: string }) => Promise<string> };
+          };
+        }>;
+      };
+    };
+  };
+  const fullHost =
+    process.env.TRONGRID_API_BASE?.trim() || "https://api.trongrid.io";
+  const tronWeb = new TronWebCtor({
+    fullHost,
+    headers: process.env.TRONGRID_API_KEY?.trim()
+      ? { "TRON-PRO-API-KEY": process.env.TRONGRID_API_KEY.trim() }
+      : undefined,
+    privateKey: signer.privateKeyHex,
+  });
+
+  const contractAddress =
+    process.env.USDT_TRC20_CONTRACT_ADDRESS?.trim() ||
+    "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+  const sunAmount = Math.round(args.amountUsdt * 1e6);
+  const contract = await tronWeb.contract().at(contractAddress);
+  const txHash = await contract.methods
+    .transfer(toAddress, sunAmount)
+    .send({ from: signer.address || tronWeb.defaultAddress.base58 });
+
+  return {
+    mode,
+    txHash: String(txHash),
+  };
 }
 
 export async function processUsdtWalletJobs(options?: {
@@ -132,6 +220,7 @@ export async function processUsdtWalletJobs(options?: {
         toAddress: job.to_address,
         amountUsdt: Number(job.amount_usdt),
         fromAddress: job.from_address,
+        paymentIntentId: job.payment_intent_id,
         memo: job.kind,
       });
 

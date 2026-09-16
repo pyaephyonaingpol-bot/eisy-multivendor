@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ConfirmDeliveryForm } from "@/components/orders/confirm-delivery-form";
+import { OpenDisputeForm } from "@/components/orders/open-dispute-form";
 import { OrderStatusTimeline } from "@/components/orders/order-status-timeline";
 import { getSessionProfile } from "@/lib/auth/session";
+import { getOpenDisputeForOrder } from "@/lib/disputes/queries";
 import { formatMoney } from "@/lib/money";
 import { getOrderForCustomer } from "@/lib/orders/queries";
 import {
@@ -50,6 +52,7 @@ export default async function OrderDetailPage({
     notFound();
   }
 
+  const openDispute = await getOpenDisputeForOrder(order.id);
   const shippingLines = addressLines(order.shipping_address);
 
   return (
@@ -106,6 +109,13 @@ export default async function OrderDetailPage({
           status={order.status}
           paymentStatus={order.payment_status}
           payoutStatus={order.payout_status ?? "not_applicable"}
+        />
+        <OpenDisputeForm
+          orderId={order.id}
+          status={order.status}
+          paymentStatus={order.payment_status}
+          payoutStatus={order.payout_status ?? "not_applicable"}
+          existingDispute={openDispute}
         />
       </section>
 

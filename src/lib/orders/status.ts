@@ -85,6 +85,8 @@ export const PAYOUT_STATUS_LABELS: Record<OrderPayoutStatus, string> = {
   held: "Held in escrow",
   released: "Released",
   not_applicable: "N/A",
+  disputed: "Disputed — paused",
+  refunded: "Refunded",
 };
 
 export function payoutStatusLabel(status: OrderPayoutStatus) {
@@ -97,6 +99,10 @@ export function payoutStatusBadgeClass(status: OrderPayoutStatus) {
       return "bg-amber-50 text-amber-900 ring-amber-200";
     case "released":
       return "bg-emerald-50 text-emerald-900 ring-emerald-200";
+    case "disputed":
+      return "bg-rose-50 text-rose-900 ring-rose-200";
+    case "refunded":
+      return "bg-zinc-100 text-zinc-700 ring-zinc-200";
     default:
       return "bg-zinc-100 text-zinc-700 ring-zinc-200";
   }

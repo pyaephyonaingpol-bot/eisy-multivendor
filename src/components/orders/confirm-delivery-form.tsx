@@ -29,10 +29,19 @@ export function ConfirmDeliveryForm({
 
   const canConfirm =
     paymentStatus === "paid" &&
+    payoutStatus !== "disputed" &&
+    payoutStatus !== "refunded" &&
     (CONFIRMABLE.includes(status) ||
       (status === "delivered" && payoutStatus === "held"));
 
   if (!canConfirm && !state?.success) {
+    if (payoutStatus === "disputed") {
+      return (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          Delivery confirmation is paused while your dispute is under review.
+        </p>
+      );
+    }
     if (status === "delivered" && payoutStatus === "released") {
       return (
         <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">

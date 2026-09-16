@@ -92,7 +92,23 @@ export default async function AdminTransactionsPage({ searchParams }: Props) {
                     </Link>
                   </td>
                   <td className="px-4 py-3">
-                    {order.seller?.name ?? order.fulfillment?.name ?? "—"}
+                    <div>
+                      <p className="font-medium">
+                        {order.seller?.store_name ||
+                          order.seller?.name ||
+                          order.fulfillment?.store_name ||
+                          order.fulfillment?.name ||
+                          "—"}
+                      </p>
+                      {(order.seller || order.fulfillment) && (
+                        <Link
+                          href={`/admin/orders?vendor=${order.seller?.id ?? order.fulfillment?.id}`}
+                          className="text-xs underline"
+                        >
+                          Filter orders
+                        </Link>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     {formatMoney(Number(order.total), order.currency)}

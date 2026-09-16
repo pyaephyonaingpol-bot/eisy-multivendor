@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ShippingRegionsForm } from "@/components/vendors/shipping-regions-form";
 import { StoreBrandingForm } from "@/components/vendors/store-branding-form";
+import { VendorContactForm } from "@/components/vendors/vendor-contact-form";
 import { VendorKycForm } from "@/components/vendors/vendor-kyc-form";
 import { canAccessVendor, getSessionProfile } from "@/lib/auth/session";
 import { listSourcingRegions } from "@/lib/sourcing/queries";
@@ -66,6 +67,19 @@ export default async function VendorSettingsPage() {
           </p>
         </div>
         <StoreBrandingForm vendor={vendor} />
+      </section>
+
+      <section className="space-y-4 border-t border-zinc-200 pt-8">
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold tracking-tight">
+            Contact & payout wallet
+          </h2>
+          <p className="max-w-2xl text-sm text-zinc-600">
+            These details appear on admin order screens so support can reach you
+            and verify your USDT TRC-20 payout address.
+          </p>
+        </div>
+        <VendorContactForm vendor={vendor} />
       </section>
 
       <section className="space-y-4 border-t border-zinc-200 pt-8">

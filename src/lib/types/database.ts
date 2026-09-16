@@ -213,6 +213,12 @@ export type Vendor = {
    * sourcing regions. Empty = worldwide (still subject to product-level ships_to).
    */
   ships_to_region_ids: string[];
+  /** Public store / brand name (falls back to `name`). */
+  store_name?: string | null;
+  contact_email?: string | null;
+  telegram_handle?: string | null;
+  /** USDT TRC-20 payout wallet for seller withdrawals. */
+  usdt_payout_address?: string | null;
   /** Optional unique HD-derived TRC-20 deposit address for this vendor. */
   usdt_deposit_address?: string | null;
   usdt_derivation_account?: number | null;
@@ -854,6 +860,16 @@ export type Database = {
       vendor_kyc_is_approved: {
         Args: { p_vendor_id: string };
         Returns: boolean;
+      };
+      update_vendor_contact_profile: {
+        Args: {
+          p_vendor_id: string;
+          p_store_name?: string | null;
+          p_contact_email?: string | null;
+          p_telegram_handle?: string | null;
+          p_usdt_payout_address?: string | null;
+        };
+        Returns: Vendor;
       };
       ensure_user_wallets: {
         Args: {

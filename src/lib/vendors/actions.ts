@@ -363,3 +363,51 @@ export async function updateVendorShippingRegions(
         : "Shipping regions saved.",
   };
 }
+
+export async function updateVendorContactProfile(
+  _prev: VendorActionState,
+  formData: FormData,
+): Promise<VendorActionState> {
+  const storeName = String(formData.get("store_name") ?? "").trim();
+  const contactEmail = String(formData.get("contact_email") ?? "").trim();
+  const telegramHandle = String(formData.get("telegram_handle") ?? "").trim();
+  const usdtPayoutAddress = String(
+    formData.get("usdt_payout_address") ?? "",
+  ).trim();
+
+  if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+    return { error: "Enter a valid contact email." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be signed in." };
+  }
+
+  const vendor = await getVendorForOwner(user.id);
+  if (!vendor) {
+    return { error: "Create a store before editing contact details." };
+  }
+
+  const { error } = await supabase.rpc("update_vendor_contact_profile", {
+    p_vendor_id: vendor.id,
+    p_store_name: storeName || null,
+    p_contact_email: contactEmail || null,
+    p_telegram_handle: telegramHandle,
+    p_usdt_payout_address: usdtPayoutAddress,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/vendor/settings");
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin/transactions");
+
+  return { success: "Contact and payout details saved." };
+}

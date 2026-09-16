@@ -45,8 +45,8 @@ export default async function AdminDashboardPage() {
     {
       label: "Escrow held",
       value: heldEscrow.length,
-      href: "/admin/transactions?payout=held",
-      cta: "Monitor transactions",
+      href: "/admin/orders?payout=held",
+      cta: "Review seller orders",
     },
     {
       label: "Pending deposits",

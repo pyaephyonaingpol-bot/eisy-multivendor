@@ -7,14 +7,6 @@
     {
       "path": "/api/cron/fulfill-supplier-orders",
       "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/cron/monitor-usdt-deposits",
-      "schedule": "5 2 * * *"
-    },
-    {
-      "path": "/api/cron/process-usdt-wallet-jobs",
-      "schedule": "20 2 * * *"
     }
   ]
 }

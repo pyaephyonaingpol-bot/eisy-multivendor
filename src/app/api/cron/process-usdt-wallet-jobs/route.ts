@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
  *
  * Mode via USDT_WALLET_OPS_MODE=mock|manual|live
  *
- * vercel.json uses a daily schedule for Hobby plan compatibility. On Pro,
- * tighten to `*/5 * * * *` (or invoke this route from an external scheduler).
+ * Not registered in vercel.json on Hobby (only daily crons allowed). Invoke
+ * from Pro schedules (`*/5 * * * *`) or an external scheduler.
  */
 async function handle(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();

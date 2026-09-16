@@ -12,8 +12,8 @@ export const dynamic = "force-dynamic";
  * payment intents by amount, confirm orders, and expire stale intents.
  * Auth: Authorization: Bearer <CRON_SECRET>
  *
- * vercel.json uses a daily schedule for Hobby plan compatibility. On Pro,
- * tighten to `* * * * *` (or invoke this route from an external scheduler).
+ * Not registered in vercel.json on Hobby (only daily crons allowed; frequent
+ * deposit polling needs Pro or an external scheduler hitting this route).
  */
 async function handle(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();

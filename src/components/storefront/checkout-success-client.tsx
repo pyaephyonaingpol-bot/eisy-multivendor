@@ -24,11 +24,76 @@ export function CheckoutSuccessClient() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [intentStatus, setIntentStatus] = useState<string>("pending");
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
     clearCart();
   }, [clearCart]);
+
+  // Auto-poll pending TRC-20 payment until confirmed/expired (deposit monitor).
+  useEffect(() => {
+    if (!isTrc20 || !intentId || confirmed) return;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    async function poll() {
+      try {
+        const response = await fetch(
+          `/api/payments/usdt/status?intent=${encodeURIComponent(intentId)}`,
+          { cache: "no-store" },
+        );
+        const payload = (await response.json()) as {
+          ok?: boolean;
+          payment_status?: string;
+          pending_payment?: boolean;
+          intent?: { status?: string; tx_hash?: string | null };
+          error?: string;
+        };
+        if (cancelled || !response.ok || !payload.ok) {
+          timer = setTimeout(poll, 8_000);
+          return;
+        }
+
+        const status = payload.payment_status ?? payload.intent?.status ?? "";
+        setIntentStatus(status);
+
+        if (status === "confirmed") {
+          setConfirmed(true);
+          setMessage(
+            "Payment confirmed on-chain. Orders are now paid and escrow holds are active.",
+          );
+          return;
+        }
+        if (status === "expired" || status === "cancelled") {
+          setError(
+            status === "expired"
+              ? "This payment intent expired. Please checkout again."
+              : "This payment was cancelled.",
+          );
+          return;
+        }
+
+        if (payload.intent?.tx_hash) {
+          setMessage(
+            `Detected transfer ${payload.intent.tx_hash.slice(0, 10)}… — confirming.`,
+          );
+        }
+      } catch {
+        // keep polling
+      }
+      if (!cancelled) {
+        timer = setTimeout(poll, 6_000);
+      }
+    }
+
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [isTrc20, intentId, confirmed]);
 
   function submitTxHash() {
     setError(null);
@@ -53,6 +118,7 @@ export function CheckoutSuccessClient() {
           return;
         }
         setConfirmed(true);
+        setIntentStatus("confirmed");
         setMessage(
           payload.result?.status === "already_confirmed"
             ? "Payment was already confirmed."
@@ -69,15 +135,15 @@ export function CheckoutSuccessClient() {
       <section className="mx-auto max-w-xl space-y-6 rounded-2xl border border-zinc-200 bg-white px-6 py-10 text-center">
         <div className="space-y-2">
           <p className="text-sm font-medium uppercase tracking-wide text-amber-700">
-            Awaiting TRC-20 payment
+            Pending payment · {intentStatus || "pending"}
           </p>
           <h1 className="text-3xl font-semibold tracking-tight">
             Send USDT on TRON
           </h1>
           <p className="text-sm text-zinc-600">
-            Orders stay pending until the on-chain transfer is confirmed. The
-            webhook marks them paid and runs the supplier / dropshipper /
-            platform split automatically.
+            Orders stay in Pending Payment until the USDT TRC-20 transfer is
+            confirmed on-chain. Our deposit monitor matches your payment by
+            amount automatically — you can also paste a tx hash below.
           </p>
         </div>
 
@@ -164,6 +230,9 @@ export function CheckoutSuccessClient() {
           {message ? (
             <p className="text-sm text-emerald-700">{message}</p>
           ) : null}
+          <p className="text-xs text-zinc-500">
+            Listening for deposits… status refreshes every few seconds.
+          </p>
         </div>
 
         <div className="flex flex-wrap justify-center gap-3">
@@ -195,7 +264,7 @@ export function CheckoutSuccessClient() {
         </h1>
         <p className="text-sm text-zinc-600">
           {isTrc20
-            ? "On-chain USDT was confirmed. Vendors and the platform received their profit split."
+            ? "On-chain USDT was confirmed. Vendors and the platform received their profit split into escrow."
             : "Your USDT wallet was debited and vendors received sale credits. Keep these order IDs for your records."}
         </p>
       </div>

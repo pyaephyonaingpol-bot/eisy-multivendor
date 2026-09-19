@@ -317,6 +317,84 @@ export async function fetchPrintifyProducts(
   };
 }
 
+export type GetPrintifyProductsResult = {
+  ok: boolean;
+  products: PrintifyProduct[];
+  page: number;
+  lastPage: number;
+  total: number;
+  shopId: string | null;
+  error: string | null;
+};
+
+/**
+ * Fetch shop products from Printify without throwing.
+ * Uses PRINTIFY_API_KEY + PRINTIFY_SHOP_ID from the environment.
+ * Safe for UI/server components — returns `{ ok, products, error }` instead of crashing.
+ */
+export async function getPrintifyProducts(
+  options: FetchPrintifyProductsOptions = {},
+): Promise<GetPrintifyProductsResult> {
+  const shopId =
+    options.shopId?.trim() || process.env.PRINTIFY_SHOP_ID?.trim() || null;
+
+  try {
+    if (!isPrintifyConfigured({ apiKey: options.apiKey, shopId })) {
+      return {
+        ok: false,
+        products: [],
+        page: 1,
+        lastPage: 1,
+        total: 0,
+        shopId,
+        error:
+          "Printify is not configured. Set PRINTIFY_API_KEY and PRINTIFY_SHOP_ID in .env.local.",
+      };
+    }
+
+    const result = await fetchPrintifyProducts(options);
+    return {
+      ok: true,
+      products: result.products,
+      page: result.page,
+      lastPage: result.lastPage,
+      total: result.total,
+      shopId,
+      error: null,
+    };
+  } catch (error) {
+    const message =
+      error instanceof PrintifyConfigError ||
+      error instanceof PrintifyApiError ||
+      error instanceof Error
+        ? error.message
+        : "Failed to fetch Printify products.";
+
+    console.error("[printify] getPrintifyProducts failed:", message);
+
+    return {
+      ok: false,
+      products: [],
+      page: Math.max(1, options.page ?? 1),
+      lastPage: 1,
+      total: 0,
+      shopId,
+      error: message,
+    };
+  }
+}
+
+/** First image URL from a Printify product, if any. */
+export function getPrintifyProductImageUrl(
+  product: PrintifyProduct,
+): string | null {
+  const images = product.images;
+  if (!Array.isArray(images) || images.length === 0) return null;
+  const first = images[0];
+  if (typeof first === "string") return first || null;
+  return first?.src?.trim() || null;
+}
+
 /** GET /shops/{shop_id}/products/{product_id}.json */
 export async function fetchPrintifyProduct(
   productId: string,

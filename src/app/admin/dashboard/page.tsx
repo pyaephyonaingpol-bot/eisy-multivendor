@@ -45,7 +45,7 @@ export default async function AdminDashboardPage() {
     {
       label: "Escrow held",
       value: heldEscrow.length,
-      href: "/admin/orders?payout=held",
+      href: "/admin/orders?escrow=escrow_held",
       cta: "Review seller orders",
     },
     {

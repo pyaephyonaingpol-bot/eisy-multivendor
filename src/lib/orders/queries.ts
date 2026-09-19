@@ -1,5 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSupabasePublicEnv } from "@/lib/supabase/env";
+import {
+  deriveAdminEscrowStatus,
+  type AdminEscrowStatus,
+} from "@/lib/orders/status";
 import type {
   Order,
   OrderFulfillmentEvent,
@@ -48,6 +52,13 @@ export type AdminOrderRow = Order & {
   fulfillment: AdminVendorSummary | null;
   open_dispute_count: number;
   dispute_ids: string[];
+  /** Buyer profile email (from profiles via customer_id). */
+  buyer_email: string | null;
+  buyer_name: string | null;
+  /** Assigned USDT TRC-20 deposit address for this order's payment intent. */
+  deposit_address: string | null;
+  /** Composite escrow pipeline status for the admin dashboard. */
+  escrow_status: AdminEscrowStatus;
 };
 
 async function attachVendorsAndItems(
@@ -216,6 +227,7 @@ export async function listOrdersForVendor(
 export async function listOrdersForAdmin(opts?: {
   payoutStatus?: Order["payout_status"];
   status?: Order["status"];
+  escrowStatus?: AdminEscrowStatus;
   vendorId?: string;
   q?: string;
   limit?: number;
@@ -231,10 +243,29 @@ export async function listOrdersForAdmin(opts?: {
     .order("created_at", { ascending: false })
     .limit(opts?.limit ?? 100);
 
-  if (opts?.payoutStatus) {
+  // Map composite escrow filters onto underlying columns when possible.
+  if (opts?.escrowStatus === "pending_payment") {
+    query = query.eq("payment_status", "pending");
+  } else if (opts?.escrowStatus === "escrow_held") {
+    query = query
+      .eq("payment_status", "paid")
+      .in("payout_status", ["held", "not_applicable"])
+      .not("status", "in", '("shipped","delivered","cancelled","refunded")');
+  } else if (opts?.escrowStatus === "shipped") {
+    query = query.eq("status", "shipped");
+  } else if (opts?.escrowStatus === "completed") {
+    query = query.or("status.eq.delivered,payout_status.eq.released");
+  } else if (opts?.escrowStatus === "disputed") {
+    query = query.eq("payout_status", "disputed");
+  } else if (opts?.escrowStatus === "refunded") {
+    query = query.or(
+      "payout_status.eq.refunded,status.eq.refunded,payment_status.eq.refunded",
+    );
+  } else if (opts?.payoutStatus) {
     query = query.eq("payout_status", opts.payoutStatus);
   }
-  if (opts?.status) {
+
+  if (opts?.status && !opts?.escrowStatus) {
     query = query.eq("status", opts.status);
   }
   if (opts?.vendorId) {
@@ -264,16 +295,34 @@ export async function listOrdersForAdmin(opts?: {
       const vendorIds = new Set(
         ((vendorMatches as { id: string }[] | null) ?? []).map((v) => v.id),
       );
+
+      const { data: buyerMatches } = await supabase
+        .from("profiles")
+        .select("id, email, full_name")
+        .or(`email.ilike.%${safe}%,full_name.ilike.%${safe}%`)
+        .limit(50);
+      const buyerIds = new Set(
+        ((buyerMatches as { id: string }[] | null) ?? []).map((p) => p.id),
+      );
+
       orders = orders.filter((order) => {
         if (order.id.toLowerCase().includes(safe)) return true;
+        if (order.payment_tx_hash?.toLowerCase().includes(safe)) return true;
         if (vendorIds.has(order.seller_vendor_id)) return true;
         if (vendorIds.has(order.vendor_id)) return true;
+        if (buyerIds.has(order.customer_id)) return true;
         return false;
       });
     }
   }
 
-  return attachAdminVendorsItemsAndDisputes(orders);
+  const rows = await attachAdminVendorsItemsAndDisputes(orders);
+
+  // Refine composite filters that may over-fetch (e.g. completed / escrow_held).
+  if (opts?.escrowStatus) {
+    return rows.filter((row) => row.escrow_status === opts.escrowStatus);
+  }
+  return rows;
 }
 
 export async function getOrderForAdmin(
@@ -318,22 +367,49 @@ async function attachAdminVendorsItemsAndDisputes(
       ),
     ),
   ];
+  const customerIds = [
+    ...new Set(orders.map((order) => order.customer_id).filter(Boolean)),
+  ];
+  const intentIds = [
+    ...new Set(
+      orders
+        .map((order) => order.payment_intent_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
 
-  const [{ data: itemRows }, { data: vendorRows }, { data: disputeRows }] =
-    await Promise.all([
-      supabase.from("order_items").select("*").in("order_id", orderIds),
-      supabase
-        .from("vendors")
-        .select(
-          "id, name, slug, store_name, contact_email, telegram_handle, usdt_payout_address, usdt_deposit_address, kyc_status, status, owner_id",
-        )
-        .in("id", vendorIds),
-      supabase
-        .from("disputes")
-        .select("id, order_id, status")
-        .in("order_id", orderIds)
-        .in("status", ["open", "under_review"]),
-    ]);
+  const [
+    { data: itemRows },
+    { data: vendorRows },
+    { data: disputeRows },
+    { data: buyerProfileRows },
+    { data: intentRows },
+  ] = await Promise.all([
+    supabase.from("order_items").select("*").in("order_id", orderIds),
+    supabase
+      .from("vendors")
+      .select(
+        "id, name, slug, store_name, contact_email, telegram_handle, usdt_payout_address, usdt_deposit_address, kyc_status, status, owner_id",
+      )
+      .in("id", vendorIds),
+    supabase
+      .from("disputes")
+      .select("id, order_id, status")
+      .in("order_id", orderIds)
+      .in("status", ["open", "under_review"]),
+    customerIds.length > 0
+      ? supabase
+          .from("profiles")
+          .select("id, email, full_name")
+          .in("id", customerIds)
+      : Promise.resolve({ data: [] }),
+    intentIds.length > 0
+      ? supabase
+          .from("usdt_payment_intents")
+          .select("id, deposit_address")
+          .in("id", intentIds)
+      : Promise.resolve({ data: [] }),
+  ]);
 
   const ownerIds = [
     ...new Set(
@@ -356,6 +432,21 @@ async function attachAdminVendorsItemsAndDisputes(
         | Array<{ id: string; email: string; full_name: string | null }>
         | null) ?? []
     ).map((p) => [p.id, p]),
+  );
+
+  const buyersById = new Map(
+    (
+      (buyerProfileRows as
+        | Array<{ id: string; email: string; full_name: string | null }>
+        | null) ?? []
+    ).map((p) => [p.id, p]),
+  );
+
+  const depositByIntentId = new Map(
+    (
+      (intentRows as Array<{ id: string; deposit_address: string }> | null) ??
+      []
+    ).map((intent) => [intent.id, intent.deposit_address]),
   );
 
   type VendorRow = {
@@ -410,6 +501,7 @@ async function attachAdminVendorsItemsAndDisputes(
 
   return orders.map((order) => {
     const disputeIds = disputesByOrder.get(order.id) ?? [];
+    const buyer = buyersById.get(order.customer_id);
     return {
       ...order,
       items: itemsByOrder.get(order.id) ?? [],
@@ -420,6 +512,12 @@ async function attachAdminVendorsItemsAndDisputes(
       fulfillment: vendorsById.get(order.vendor_id) ?? null,
       open_dispute_count: disputeIds.length,
       dispute_ids: disputeIds,
+      buyer_email: buyer?.email ?? null,
+      buyer_name: buyer?.full_name ?? null,
+      deposit_address: order.payment_intent_id
+        ? depositByIntentId.get(order.payment_intent_id) ?? null
+        : null,
+      escrow_status: deriveAdminEscrowStatus(order),
     };
   });
 }

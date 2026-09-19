@@ -198,8 +198,51 @@ export async function searchPodProducts(
   if (supplierIntegrationsMode() === "mock") {
     return mockCatalog(kind, query);
   }
+
+  if (kind === "printify") {
+    try {
+      const { fetchPrintifyProducts, isPrintifyConfigured } = await import(
+        "@/lib/printify"
+      );
+      const shopId =
+        (credentials?.metadata?.shop_id as string | undefined) ||
+        (credentials?.metadata?.shopId as string | undefined) ||
+        process.env.PRINTIFY_SHOP_ID?.trim() ||
+        null;
+      const apiKey =
+        credentials?.apiKey?.trim() ||
+        credentials?.accessToken?.trim() ||
+        process.env.PRINTIFY_API_KEY?.trim() ||
+        null;
+
+      if (!isPrintifyConfigured({ apiKey, shopId })) {
+        return mockCatalog(kind, query);
+      }
+
+      const { products } = await fetchPrintifyProducts({
+        page,
+        limit: 24,
+        apiKey,
+        shopId,
+      });
+      const q = query.trim().toLowerCase();
+      const mapped = products
+        .map((row) => mapPodProduct(kind, row as Record<string, unknown>))
+        .filter((product) =>
+          q
+            ? product.name.toLowerCase().includes(q) ||
+              (product.description ?? "").toLowerCase().includes(q)
+            : true,
+        );
+      if (mapped.length === 0) return mockCatalog(kind, query);
+      return mapped;
+    } catch {
+      return mockCatalog(kind, query);
+    }
+  }
+
   try {
-    const path = kind === "printful" ? "/store/products" : "/shops/products.json";
+    const path = "/store/products";
     const json = await podFetch(kind, path, {
       query: { search: query, page, limit: 24 },
       credentials,
@@ -234,11 +277,32 @@ export async function getPodProduct(
       null
     );
   }
+
+  if (kind === "printify") {
+    try {
+      const { fetchPrintifyProduct } = await import("@/lib/printify");
+      const shopId =
+        (credentials?.metadata?.shop_id as string | undefined) ||
+        (credentials?.metadata?.shopId as string | undefined) ||
+        process.env.PRINTIFY_SHOP_ID?.trim() ||
+        null;
+      const apiKey =
+        credentials?.apiKey?.trim() ||
+        credentials?.accessToken?.trim() ||
+        process.env.PRINTIFY_API_KEY?.trim() ||
+        null;
+      const product = await fetchPrintifyProduct(externalProductId, {
+        apiKey,
+        shopId,
+      });
+      return mapPodProduct(kind, product as Record<string, unknown>);
+    } catch {
+      return mockCatalog(kind, externalProductId)[0] ?? null;
+    }
+  }
+
   try {
-    const path =
-      kind === "printful"
-        ? `/store/products/${encodeURIComponent(externalProductId)}`
-        : `/products/${encodeURIComponent(externalProductId)}.json`;
+    const path = `/store/products/${encodeURIComponent(externalProductId)}`;
     const json = await podFetch(kind, path, { credentials });
     const row = (json.result ?? json.data ?? json) as Record<string, unknown>;
     return mapPodProduct(kind, row);
@@ -331,9 +395,20 @@ export async function createPodOrder(
       };
     }
 
-    // Printify — requires shop id
+    // Printify — dedicated client (PRINTIFY_API_KEY + PRINTIFY_SHOP_ID)
+    const {
+      submitPrintifyOrderOnPurchase,
+      PrintifyConfigError,
+      PrintifyApiError,
+    } = await import("@/lib/printify");
     const { getPrintifyShopId } = await import("@/lib/suppliers/auth");
     const shopId = getPrintifyShopId(credentials);
+    const apiKey =
+      credentials?.apiKey?.trim() ||
+      credentials?.accessToken?.trim() ||
+      process.env.PRINTIFY_API_KEY?.trim() ||
+      null;
+
     if (!shopId) {
       return {
         ok: false,
@@ -344,59 +419,87 @@ export async function createPodOrder(
           "Printify shop id missing. Set PRINTIFY_SHOP_ID or credentials.metadata.shop_id.",
       };
     }
-
-    const json = await podFetch(
-      kind,
-      `/shops/${encodeURIComponent(shopId)}/orders.json`,
-      {
-        method: "POST",
-        credentials,
-        body: {
-          external_id: request.orderId,
-          line_items: request.lines.map((line) => ({
-            product_id: line.externalProductId,
-            variant_id: Number(line.externalVariantId) || line.externalVariantId,
-            quantity: line.quantity,
-          })),
-          shipping_method: 1,
-          is_printify_express: false,
-          send_shipping_notification: false,
-          address_to: {
-            first_name: request.shipTo.fullName.split(" ")[0] || "Customer",
-            last_name:
-              request.shipTo.fullName.split(" ").slice(1).join(" ") || "Buyer",
-            email: request.shipTo.email ?? "buyer@example.com",
-            phone: request.shipTo.phone ?? "",
-            country: request.shipTo.countryCode,
-            region: request.shipTo.region ?? "",
-            address1: request.shipTo.line1,
-            address2: request.shipTo.line2 ?? "",
-            city: request.shipTo.city,
-            zip: request.shipTo.postalCode ?? "",
-          },
-        },
-      },
-    );
-    const result = (json.result ?? json) as Record<string, unknown>;
-    const ref = String(result.id ?? result.order_id ?? "");
-    if (ref) {
-      try {
-        await podFetch(
-          kind,
-          `/shops/${encodeURIComponent(shopId)}/orders/${encodeURIComponent(ref)}/send_to_production.json`,
-          { method: "POST", credentials },
-        );
-      } catch {
-        // Production submit may require billing — keep created order ref.
-      }
+    if (!apiKey) {
+      return {
+        ok: false,
+        supplierOrderRef: null,
+        status: "failed",
+        raw: {},
+        error: "Printify API key missing. Set PRINTIFY_API_KEY.",
+      };
     }
-    return {
-      ok: Boolean(ref),
-      supplierOrderRef: ref || null,
-      status: String(result.status ?? (ref ? "submitted" : "failed")),
-      raw: json,
-      error: ref ? undefined : "Printify create order returned no id.",
-    };
+
+    const lines = request.lines
+      .filter((line) => line.externalProductId && line.externalVariantId)
+      .map((line) => ({
+        productId: String(line.externalProductId),
+        variantId: line.externalVariantId as string | number,
+        quantity: line.quantity,
+      }));
+
+    if (lines.length === 0) {
+      return {
+        ok: false,
+        supplierOrderRef: null,
+        status: "failed",
+        raw: {},
+        error:
+          "Printify order requires external product_id and variant_id on each line.",
+      };
+    }
+
+    try {
+      const result = await submitPrintifyOrderOnPurchase({
+        orderId: request.orderId,
+        shippingAddress: {
+          full_name: request.shipTo.fullName,
+          phone: request.shipTo.phone,
+          email: request.shipTo.email,
+          line1: request.shipTo.line1,
+          line2: request.shipTo.line2,
+          city: request.shipTo.city,
+          region: request.shipTo.region,
+          postal_code: request.shipTo.postalCode,
+          country: request.shipTo.countryCode,
+        },
+        buyerEmail: request.shipTo.email,
+        lines,
+        apiKey,
+        shopId,
+        sendToProduction: true,
+      });
+
+      const ref = String(result.order.id ?? "");
+      return {
+        ok: Boolean(ref),
+        supplierOrderRef: ref || null,
+        status: String(
+          result.order.status ?? (ref ? "submitted" : "failed"),
+        ),
+        raw: {
+          order: result.order,
+          sent_to_production: result.sentToProduction,
+          production_error: result.productionError ?? null,
+        },
+        error: ref
+          ? result.productionError
+          : "Printify create order returned no id.",
+      };
+    } catch (error) {
+      const message =
+        error instanceof PrintifyConfigError ||
+        error instanceof PrintifyApiError ||
+        error instanceof Error
+          ? error.message
+          : "Printify order failed";
+      return {
+        ok: false,
+        supplierOrderRef: null,
+        status: "failed",
+        raw: {},
+        error: message,
+      };
+    }
   } catch (error) {
     return {
       ok: false,

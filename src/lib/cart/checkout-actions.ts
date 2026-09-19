@@ -203,16 +203,13 @@ export async function checkoutWithUsdt(
     revalidatePath("/cart");
     revalidatePath("/checkout");
     revalidatePath("/orders");
+    for (const orderId of orderIds) {
+      revalidatePath(`/checkout/${orderId}`);
+    }
 
-    const params = new URLSearchParams({
-      orders: orderIds.join(","),
-      intent: intentId,
-      method: "trc20",
-      address: depositAddress,
-      amount: String(result?.total ?? ""),
-      expires: result?.expires_at ?? "",
-    });
-    redirect(`/checkout/success?${params.toString()}`);
+    // Primary deposit UX: per-order checkout page with QR + TxID confirm.
+    // Multi-order intents share one deposit address; land on the first order.
+    redirect(`/checkout/${orderIds[0]}`);
   }
 
   const { data, error } = await supabase.rpc("checkout_with_usdt", {

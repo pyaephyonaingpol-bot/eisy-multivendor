@@ -190,10 +190,10 @@ export function CheckoutSuccessClient() {
             {orderIds.map((id) => (
               <li key={id} className="font-mono text-zinc-800">
                 <Link
-                  href={`/orders/${id}`}
+                  href={`/checkout/${id}`}
                   className="underline underline-offset-2"
                 >
-                  {id}
+                  Open deposit page · {id.slice(0, 8)}…
                 </Link>
               </li>
             ))}

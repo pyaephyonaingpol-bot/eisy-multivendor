@@ -13,7 +13,8 @@
     "wallet": "ပိုက်ဆံအိတ်",
     "signIn": "ဝင်ရန်",
     "signOut": "ထွက်ရန်",
-    "vendorPortal": "ရောင်းသူနှင့် Dropship ပေါ်တယ်"
+    "vendorPortal": "ရောင်းသူနှင့် Dropship ပေါ်တယ်",
+    "adminDashboard": "အက်ဒမင် ဒက်ရှ်ဘုတ်"
   },
   "vendorNav": {
     "title": "ရောင်းသူ",

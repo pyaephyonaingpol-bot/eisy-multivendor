@@ -13,7 +13,8 @@
     "wallet": "Billetera",
     "signIn": "Iniciar sesión",
     "signOut": "Cerrar sesión",
-    "vendorPortal": "Portal de vendedor y dropship"
+    "vendorPortal": "Portal de vendedor y dropship",
+    "adminDashboard": "Panel de administración"
   },
   "vendorNav": {
     "title": "Vendedor",

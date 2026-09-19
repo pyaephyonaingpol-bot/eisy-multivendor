@@ -34,12 +34,20 @@ export function StorefrontFooter() {
       <div className="border-t border-zinc-100">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4 text-xs text-zinc-500">
           <p>© 2026 EISY Marketplace · Checkout in USDT</p>
-          <Link
-            href="/vendor/dashboard"
-            className="text-zinc-400 transition hover:text-zinc-600"
-          >
-            Vendor &amp; Dropshipper Portal
-          </Link>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <Link
+              href="/admin/dashboard"
+              className="text-zinc-400 transition hover:text-zinc-600"
+            >
+              Admin Dashboard
+            </Link>
+            <Link
+              href="/vendor/dashboard"
+              className="text-zinc-400 transition hover:text-zinc-600"
+            >
+              Vendor &amp; Dropshipper Portal
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

@@ -13,7 +13,8 @@
     "wallet": "Wallet",
     "signIn": "Anmelden",
     "signOut": "Abmelden",
-    "vendorPortal": "Händler- & Dropship-Portal"
+    "vendorPortal": "Händler- & Dropship-Portal",
+    "adminDashboard": "Admin-Dashboard"
   },
   "vendorNav": {
     "title": "Händler",

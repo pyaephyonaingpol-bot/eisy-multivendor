@@ -13,7 +13,8 @@
     "wallet": "Кошелёк",
     "signIn": "Войти",
     "signOut": "Выйти",
-    "vendorPortal": "Портал продавца и дропшиппинга"
+    "vendorPortal": "Портал продавца и дропшиппинга",
+    "adminDashboard": "Панель администратора"
   },
   "vendorNav": {
     "title": "Продавец",

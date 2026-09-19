@@ -3,11 +3,9 @@ import { AuthHeaderButton } from "@/components/auth/auth-header-button";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { CartTrigger } from "@/components/storefront/cart-trigger";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
-import { RegionSelector } from "@/components/storefront/region-selector";
 import { getSessionProfile } from "@/lib/auth/session";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { getRequestLocale } from "@/lib/i18n/locale";
-import { getBuyerSourcingContext } from "@/lib/sourcing/queries";
 
 export async function StorefrontHeader() {
   const [session, locale] = await Promise.all([
@@ -15,9 +13,6 @@ export async function StorefrontHeader() {
     getRequestLocale(),
   ]);
   const t = getDictionary(locale);
-  const sourcing = await getBuyerSourcingContext(
-    session?.profile?.preferred_country_code ?? null,
-  );
 
   const nav = [
     { href: "/", label: t.nav.home },
@@ -53,11 +48,6 @@ export async function StorefrontHeader() {
 
         <div className="flex shrink-0 items-center gap-2 text-sm text-zinc-600 sm:gap-3">
           <LanguageSwitcher compact />
-          <RegionSelector
-            countryCode={sourcing.countryCode}
-            regionCode={sourcing.regionCode}
-            regionName={sourcing.regionName}
-          />
           <CartTrigger />
           {session ? (
             <div className="flex items-center gap-2 sm:gap-3">

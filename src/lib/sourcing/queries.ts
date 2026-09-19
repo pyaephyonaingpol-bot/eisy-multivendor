@@ -1,9 +1,7 @@
-import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabasePublicEnv } from "@/lib/supabase/env";
+import { getSessionProfile } from "@/lib/auth/session";
 import {
-  BUYER_COUNTRY_COOKIE,
-  BUYER_REGION_COOKIE,
   DEFAULT_BUYER_COUNTRY,
   DEFAULT_BUYER_REGION,
   FALLBACK_REGIONS,
@@ -22,6 +20,9 @@ export type BuyerSourcingContext = {
   regionCode: string;
   regionName: string;
   region: SourcingRegion | null;
+  /** True when country/region came from the signed-in profile. */
+  fromProfile: boolean;
+  isAuthenticated: boolean;
 };
 
 function fallbackRegion(code: string): SourcingRegion {
@@ -81,33 +82,61 @@ export async function listSupplierProviders(): Promise<SupplierProvider[]> {
   }
 }
 
+/**
+ * Resolve buyer shipping country/region for catalog filtering.
+ *
+ * Priority:
+ * 1. Explicit `preferredCountry` override (e.g. checkout form)
+ * 2. Signed-in profile `preferred_country_code` / `preferred_region_id`
+ * 3. Default region (Myanmar) for guests
+ *
+ * Manual header "Ship to" cookies are no longer used for catalog filtering.
+ */
 export async function getBuyerSourcingContext(
   preferredCountry?: string | null,
 ): Promise<BuyerSourcingContext> {
-  const cookieStore = await cookies();
-  const cookieCountry = cookieStore.get(BUYER_COUNTRY_COOKIE)?.value;
-  const cookieRegion = cookieStore.get(BUYER_REGION_COOKIE)?.value;
+  const hasExplicitCountry =
+    preferredCountry !== undefined &&
+    preferredCountry !== null &&
+    String(preferredCountry).trim() !== "";
+
+  const session = !hasExplicitCountry ? await getSessionProfile() : null;
+
+  const profileCountry = session?.profile?.preferred_country_code ?? null;
+  const profileRegionId = session?.profile?.preferred_region_id ?? null;
 
   const countryCode = normalizeCountryCode(
-    preferredCountry || cookieCountry || DEFAULT_BUYER_COUNTRY,
+    (hasExplicitCountry ? preferredCountry : null) ||
+      profileCountry ||
+      DEFAULT_BUYER_COUNTRY,
   );
-  const regions = await listSourcingRegions();
-  const regionCode =
-    cookieRegion && regions.some((region) => region.code === cookieRegion)
-      ? cookieRegion
-      : matchRegionCodeForCountry(countryCode, regions);
 
-  const region =
-    regions.find((row) => row.code === regionCode) ??
-    regions.find((row) => row.is_default) ??
-    regions[0] ??
-    null;
+  const regions = await listSourcingRegions();
+
+  let region: SourcingRegion | null = null;
+  if (profileRegionId && !hasExplicitCountry) {
+    region = regions.find((row) => row.id === profileRegionId) ?? null;
+  }
+  if (!region) {
+    const regionCode = matchRegionCodeForCountry(countryCode, regions);
+    region =
+      regions.find((row) => row.code === regionCode) ??
+      regions.find((row) => row.is_default) ??
+      regions[0] ??
+      null;
+  }
+
+  const fromProfile = Boolean(
+    !hasExplicitCountry && session && (profileCountry || profileRegionId),
+  );
 
   return {
     countryCode,
     regionCode: region?.code ?? DEFAULT_BUYER_REGION,
     regionName: region?.name ?? "Myanmar",
     region,
+    fromProfile,
+    isAuthenticated: Boolean(session),
   };
 }
 

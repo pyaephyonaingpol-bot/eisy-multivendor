@@ -107,3 +107,95 @@ export function payoutStatusBadgeClass(status: OrderPayoutStatus) {
       return "bg-zinc-100 text-zinc-700 ring-zinc-200";
   }
 }
+
+/**
+ * Admin dashboard escrow pipeline labels (composite of payment / payout / fulfillment).
+ */
+export type AdminEscrowStatus =
+  | "pending_payment"
+  | "escrow_held"
+  | "shipped"
+  | "completed"
+  | "disputed"
+  | "refunded";
+
+export const ADMIN_ESCROW_STATUS_LABELS: Record<AdminEscrowStatus, string> = {
+  pending_payment: "Pending payment",
+  escrow_held: "Escrow held",
+  shipped: "Shipped",
+  completed: "Completed",
+  disputed: "Disputed",
+  refunded: "Refunded",
+};
+
+export const ADMIN_ESCROW_STATUSES: AdminEscrowStatus[] = [
+  "pending_payment",
+  "escrow_held",
+  "shipped",
+  "completed",
+  "disputed",
+  "refunded",
+];
+
+export function deriveAdminEscrowStatus(order: {
+  status: OrderStatus;
+  payment_status: PaymentStatus;
+  payout_status: OrderPayoutStatus;
+}): AdminEscrowStatus {
+  if (
+    order.payout_status === "refunded" ||
+    order.status === "refunded" ||
+    order.payment_status === "refunded"
+  ) {
+    return "refunded";
+  }
+  if (order.payout_status === "disputed") {
+    return "disputed";
+  }
+  if (
+    order.status === "delivered" ||
+    order.payout_status === "released"
+  ) {
+    return "completed";
+  }
+  if (order.status === "shipped") {
+    return "shipped";
+  }
+  if (
+    order.payment_status === "paid" &&
+    (order.payout_status === "held" ||
+      order.payout_status === "not_applicable")
+  ) {
+    return "escrow_held";
+  }
+  return "pending_payment";
+}
+
+export function adminEscrowStatusLabel(status: AdminEscrowStatus) {
+  return ADMIN_ESCROW_STATUS_LABELS[status] ?? status;
+}
+
+export function adminEscrowStatusBadgeClass(status: AdminEscrowStatus) {
+  switch (status) {
+    case "pending_payment":
+      return "bg-amber-50 text-amber-900 ring-amber-200";
+    case "escrow_held":
+      return "bg-sky-50 text-sky-900 ring-sky-200";
+    case "shipped":
+      return "bg-indigo-50 text-indigo-900 ring-indigo-200";
+    case "completed":
+      return "bg-emerald-50 text-emerald-900 ring-emerald-200";
+    case "disputed":
+      return "bg-rose-50 text-rose-900 ring-rose-200";
+    case "refunded":
+      return "bg-zinc-100 text-zinc-700 ring-zinc-200";
+    default:
+      return "bg-zinc-100 text-zinc-700 ring-zinc-200";
+  }
+}
+
+export function tronscanTxUrl(txHash: string) {
+  const hash = txHash.trim();
+  if (!hash) return null;
+  return `https://tronscan.org/#/transaction/${encodeURIComponent(hash)}`;
+}

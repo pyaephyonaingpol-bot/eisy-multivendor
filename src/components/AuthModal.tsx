@@ -193,13 +193,13 @@ export function AuthModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       role="presentation"
     >
       <button
         type="button"
         aria-label="Close authentication dialog"
-        className="absolute inset-0 bg-zinc-950/50 backdrop-blur-[2px] transition-opacity"
+        className="absolute inset-0 cursor-default"
         onClick={onClose}
       />
 
@@ -208,7 +208,7 @@ export function AuthModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative z-[101] flex max-h-[min(92vh,640px)] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-zinc-200 bg-white shadow-2xl sm:rounded-2xl"
+        className="relative z-10 mx-auto flex max-h-[min(92vh,640px)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl"
       >
         <div className="flex items-start justify-between gap-3 border-b border-zinc-100 px-5 py-4">
           <div>

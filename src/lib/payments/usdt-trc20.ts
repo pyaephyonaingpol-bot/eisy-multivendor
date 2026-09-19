@@ -245,6 +245,153 @@ export async function verifyUsdtTrc20Transfer(options: {
   };
 }
 
+/**
+ * Verify a USDT TRC-20 transfer by transaction id via TronGrid
+ * `/v1/transactions/{txId}` (+ `/events` fallback for Transfer events).
+ */
+export async function verifyUsdtTrc20TransferByTxId(options: {
+  txId: string;
+  expectedToAddress: string;
+  expectedAmountUsdt: number;
+  minConfirmations?: number;
+}): Promise<UsdtTrc20Transfer> {
+  const txId = options.txId.trim();
+  if (txId.length < 8) {
+    throw new Error("Invalid transaction id.");
+  }
+
+  const contract = getConfiguredUsdtContractAddress().toLowerCase();
+  const expectedTo = options.expectedToAddress.trim().toLowerCase();
+  const base = trongridBaseUrl();
+
+  const txResponse = await fetch(`${base}/v1/transactions/${txId}`, {
+    headers: trongridHeaders(),
+    cache: "no-store",
+  });
+
+  if (!txResponse.ok) {
+    const text = await txResponse.text().catch(() => "");
+    throw new Error(
+      `TronGrid transaction lookup failed (${txResponse.status}): ${text.slice(0, 200)}`,
+    );
+  }
+
+  const txPayload = (await txResponse.json()) as {
+    data?: Array<Record<string, unknown>>;
+    success?: boolean;
+  };
+  const txRow = Array.isArray(txPayload.data) ? txPayload.data[0] : null;
+  if (!txRow) {
+    throw new Error("Transaction not found on TronGrid.");
+  }
+
+  const ret =
+    Array.isArray(txRow.ret) && txRow.ret[0]
+      ? (txRow.ret[0] as Record<string, unknown>)
+      : null;
+  const contractRet = String(ret?.contractRet ?? "");
+  if (contractRet && contractRet !== "SUCCESS") {
+    throw new Error(`Transaction failed on-chain (${contractRet}).`);
+  }
+
+  const confirmed =
+    txRow.confirmed === true ||
+    txRow.ret != null ||
+    Boolean(txRow.blockNumber ?? txRow.block_timestamp);
+
+  if (!confirmed) {
+    throw new Error("Transaction is not confirmed yet.");
+  }
+
+  // Prefer TRC-20 Transfer events for this tx.
+  const eventsResponse = await fetch(
+    `${base}/v1/transactions/${txId}/events`,
+    {
+      headers: trongridHeaders(),
+      cache: "no-store",
+    },
+  );
+
+  let amountUsdt: number | null = null;
+  let fromAddress: string | null = null;
+  let toAddress: string | null = null;
+  let eventRaw: Record<string, unknown> = txRow;
+
+  if (eventsResponse.ok) {
+    const eventsPayload = (await eventsResponse.json()) as {
+      data?: Array<Record<string, unknown>>;
+    };
+    const events = Array.isArray(eventsPayload.data) ? eventsPayload.data : [];
+    const transfer = events.find((event) => {
+      const eventName = String(event.event_name ?? event.name ?? "");
+      const contractAddress = String(
+        event.contract_address ?? event.contractAddress ?? "",
+      ).toLowerCase();
+      return (
+        eventName.toLowerCase() === "transfer" &&
+        (contractAddress === contract ||
+          contractAddress.includes(contract.slice(0, 8)))
+      );
+    });
+
+    if (transfer) {
+      eventRaw = transfer;
+      const result = (transfer.result ?? transfer) as Record<string, unknown>;
+      fromAddress = normalizeAddress(
+        String(result.from ?? result[0] ?? transfer.from ?? ""),
+      );
+      toAddress = normalizeAddress(
+        String(result.to ?? result[1] ?? transfer.to ?? ""),
+      );
+      const rawValue = result.value ?? result[2] ?? transfer.value;
+      if (typeof rawValue === "string" && /^\d+$/.test(rawValue.trim())) {
+        amountUsdt = Number(rawValue.trim()) / 1e6;
+      } else if (typeof rawValue === "number" && Number.isFinite(rawValue)) {
+        amountUsdt = rawValue > 1e6 ? rawValue / 1e6 : rawValue;
+      }
+    }
+  }
+
+  // Fallback: scan deposit-address TRC-20 history for this tx id.
+  if (amountUsdt == null || !toAddress) {
+    const fallback = await verifyUsdtTrc20Transfer({
+      txHash: txId,
+      expectedToAddress: options.expectedToAddress,
+      expectedAmountUsdt: options.expectedAmountUsdt,
+      minConfirmations: options.minConfirmations,
+    });
+    return fallback;
+  }
+
+  if (toAddress.toLowerCase() !== expectedTo) {
+    throw new Error(
+      "Transfer recipient does not match the order deposit address.",
+    );
+  }
+
+  if (amountUsdt + 0.000001 < options.expectedAmountUsdt) {
+    throw new Error(
+      `On-chain amount ${amountUsdt} USDT is less than required ${options.expectedAmountUsdt} USDT.`,
+    );
+  }
+  if (amountUsdt > options.expectedAmountUsdt * 1.02 + 0.000001) {
+    throw new Error(
+      `On-chain amount ${amountUsdt} USDT does not match required ${options.expectedAmountUsdt} USDT.`,
+    );
+  }
+
+  return {
+    txHash: txId,
+    fromAddress,
+    toAddress,
+    amountUsdt,
+    confirmations: 1,
+    contractAddress: getConfiguredUsdtContractAddress(),
+    confirmed: true,
+    raw: eventRaw,
+  };
+}
+
 export async function confirmUsdtTrc20Payment(args: {
   paymentIntentId: string;
   txHash: string;

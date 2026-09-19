@@ -13,7 +13,8 @@
     "wallet": "Portefeuille",
     "signIn": "Connexion",
     "signOut": "Déconnexion",
-    "vendorPortal": "Portail vendeur & dropship"
+    "vendorPortal": "Portail vendeur & dropship",
+    "adminDashboard": "Tableau de bord admin"
   },
   "vendorNav": {
     "title": "Vendeur",

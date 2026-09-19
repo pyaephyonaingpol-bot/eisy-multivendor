@@ -13,7 +13,8 @@
     "wallet": "المحفظة",
     "signIn": "تسجيل الدخول",
     "signOut": "تسجيل الخروج",
-    "vendorPortal": "بوابة البائع والدروبشيب"
+    "vendorPortal": "بوابة البائع والدروبشيب",
+    "adminDashboard": "لوحة تحكم المسؤول"
   },
   "vendorNav": {
     "title": "البائع",

@@ -13,7 +13,8 @@
     "wallet": "Wallet",
     "signIn": "Sign in",
     "signOut": "Sign out",
-    "vendorPortal": "Vendor & Dropshipper Portal"
+    "vendorPortal": "Vendor & Dropshipper Portal",
+    "adminDashboard": "Admin Dashboard"
   },
   "vendorNav": {
     "title": "Vendor",

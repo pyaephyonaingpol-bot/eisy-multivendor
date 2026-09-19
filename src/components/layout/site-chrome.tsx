@@ -94,12 +94,20 @@ export async function Footer() {
         <p>
           © 2026 {t.brand.full} · USDT
         </p>
-        <Link
-          href="/vendor/dashboard"
-          className="text-xs text-zinc-400 transition hover:text-zinc-600"
-        >
-          {t.nav.vendorPortal}
-        </Link>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <Link
+            href="/admin/dashboard"
+            className="text-xs text-zinc-400 transition hover:text-zinc-600"
+          >
+            {t.nav.adminDashboard}
+          </Link>
+          <Link
+            href="/vendor/dashboard"
+            className="text-xs text-zinc-400 transition hover:text-zinc-600"
+          >
+            {t.nav.vendorPortal}
+          </Link>
+        </div>
       </div>
     </footer>
   );

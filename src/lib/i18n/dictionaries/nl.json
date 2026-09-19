@@ -13,7 +13,8 @@
     "wallet": "Wallet",
     "signIn": "Inloggen",
     "signOut": "Uitloggen",
-    "vendorPortal": "Verkoper- & dropshipportaal"
+    "vendorPortal": "Verkoper- & dropshipportaal",
+    "adminDashboard": "Admin-dashboard"
   },
   "vendorNav": {
     "title": "Verkoper",

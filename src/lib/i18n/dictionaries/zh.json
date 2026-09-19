@@ -13,7 +13,8 @@
     "wallet": "钱包",
     "signIn": "登录",
     "signOut": "退出",
-    "vendorPortal": "商家与代发门户"
+    "vendorPortal": "商家与代发门户",
+    "adminDashboard": "管理后台"
   },
   "vendorNav": {
     "title": "商家",

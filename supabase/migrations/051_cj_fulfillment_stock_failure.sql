@@ -5,6 +5,10 @@
 --   1) order.status → out_of_stock | fulfillment_failed
 --   2) audit event + vendor/admin alert row
 --   3) clear cancel/refund path via refund_order_supplier_unavailable
+--
+-- NOTE: refund_order_supplier_unavailable requires public.wallets.
+-- If wallets are missing on a partial DB, also run
+-- 052_ensure_wallets_for_supplier_refund.sql (or the paste-ready script).
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------

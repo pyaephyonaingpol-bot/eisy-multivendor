@@ -137,5 +137,3 @@ create policy "kyc_documents_delete_owner_or_admin"
   );
 
 -- Service role bypasses RLS for trusted server uploads (createServiceClient).
-comment on table storage.buckets is
-  'Includes private kyc-documents bucket for vendor identity verification uploads.';

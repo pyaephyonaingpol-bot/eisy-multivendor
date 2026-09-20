@@ -18,6 +18,7 @@ export async function Header() {
     { href: "/cart", label: t.nav.cart },
     { href: "/orders", label: t.nav.orders },
     { href: "/account/wallet", label: t.nav.wallet },
+    { href: "/profile", label: t.nav.profile },
   ];
 
   return (

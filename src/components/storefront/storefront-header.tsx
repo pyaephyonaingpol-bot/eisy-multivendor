@@ -21,6 +21,7 @@ export async function StorefrontHeader() {
     { href: "/vendors", label: t.nav.stores },
     { href: "/orders", label: t.nav.orders },
     { href: "/account/wallet", label: t.nav.wallet },
+    { href: "/profile", label: t.nav.profile },
   ];
 
   return (

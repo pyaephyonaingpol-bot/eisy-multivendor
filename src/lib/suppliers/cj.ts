@@ -474,6 +474,179 @@ function maybeMockFallback<T>(
   return fallback();
 }
 
+/** Max page size allowed by CJ listV2 (`size` ≤ 100). */
+const CJ_LIST_V2_PAGE_SIZE = 100;
+/** Classic list allows up to 200; keep 100 for balanced latency. */
+const CJ_LIST_V1_PAGE_SIZE = 100;
+/** Soft target for a rich first-page catalog response. */
+const CJ_SEARCH_TARGET_RESULTS = 180;
+/** Extra listV2 pages to pull for the requested page window. */
+const CJ_SEARCH_MAX_EXTRA_PAGES = 2;
+
+const CJ_KEYWORD_SYNONYMS: Record<string, string[]> = {
+  earbud: ["earbuds", "earphone", "earphones", "headset", "headphones"],
+  earbuds: ["earbud", "earphone", "earphones", "headset", "headphones"],
+  earphone: ["earphones", "earbuds", "earbud", "headset", "headphones"],
+  earphones: ["earphone", "earbuds", "earbud", "headset", "headphones"],
+  headphone: ["headphones", "headset", "earbuds", "earphones"],
+  headphones: ["headphone", "headset", "earbuds", "earphones"],
+  phone: ["smartphone", "mobile phone", "cellphone"],
+  watch: ["smartwatch", "wristwatch"],
+  charger: ["charging cable", "usb charger", "fast charger"],
+  cable: ["usb cable", "charging cable"],
+  case: ["phone case", "protective case"],
+  lamp: ["led lamp", "desk lamp", "light"],
+  light: ["led light", "lamp"],
+  bag: ["backpack", "handbag", "tote bag"],
+  shoe: ["shoes", "sneakers"],
+  shoes: ["shoe", "sneakers"],
+};
+
+/**
+ * Expand a user query into related CJ keywords (singular/plural, synonyms,
+ * leading token) so sparse exact matches still yield a rich catalog.
+ */
+export function expandCjSearchKeywords(query: string): string[] {
+  const raw = query.trim();
+  if (!raw) return [""];
+
+  const lower = raw.toLowerCase().replace(/\s+/g, " ");
+  const variants = new Set<string>([raw, lower]);
+
+  // Singular / plural variants.
+  if (lower.endsWith("ies") && lower.length > 4) {
+    variants.add(`${lower.slice(0, -3)}y`);
+  } else if (lower.endsWith("es") && lower.length > 4) {
+    variants.add(lower.slice(0, -2));
+  } else if (lower.endsWith("s") && lower.length > 3) {
+    variants.add(lower.slice(0, -1));
+  } else {
+    variants.add(`${lower}s`);
+  }
+  if (lower.endsWith("y") && !/[aeiou]y$/i.test(lower)) {
+    variants.add(`${lower.slice(0, -1)}ies`);
+  }
+
+  // Synonym expansion for common marketplace terms.
+  for (const [key, alts] of Object.entries(CJ_KEYWORD_SYNONYMS)) {
+    if (lower === key || lower.includes(key)) {
+      for (const alt of alts) variants.add(alt);
+    }
+  }
+
+  // Broader match on the first meaningful token of a multi-word query.
+  const tokens = lower.split(" ").filter((token) => token.length >= 3);
+  if (tokens.length > 1) {
+    variants.add(tokens[0]!);
+  }
+
+  // Prefer original query first, then shorter/related forms.
+  const ordered = [...variants].sort((a, b) => {
+    if (a.toLowerCase() === lower) return -1;
+    if (b.toLowerCase() === lower) return 1;
+    return a.length - b.length;
+  });
+
+  // Cap variants to keep API usage reasonable.
+  return ordered.slice(0, 5);
+}
+
+function productKey(row: Record<string, unknown>): string {
+  return String(row.pid ?? row.productId ?? row.id ?? "").trim();
+}
+
+function dedupeCjRows(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  const seen = new Set<string>();
+  const out: Record<string, unknown>[] = [];
+  for (const row of rows) {
+    const key = productKey(row);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+  return out;
+}
+
+function readTotalPages(json: CjJson): number | null {
+  const data = asRecord(json.data) ?? asRecord(json.result) ?? {};
+  const totalPages = Number(data.totalPages ?? data.totalPage ?? 0);
+  if (Number.isFinite(totalPages) && totalPages > 0) return totalPages;
+  const total = Number(data.totalRecords ?? data.total ?? 0);
+  const pageSize = Number(data.pageSize ?? data.size ?? CJ_LIST_V2_PAGE_SIZE);
+  if (Number.isFinite(total) && total > 0 && pageSize > 0) {
+    return Math.ceil(total / pageSize);
+  }
+  return null;
+}
+
+async function fetchCjListV2Page(
+  credentials: SupplierCredentials | null | undefined,
+  keyWord: string,
+  page: number,
+  size = CJ_LIST_V2_PAGE_SIZE,
+): Promise<{ rows: Record<string, unknown>[]; totalPages: number | null }> {
+  const json = await cjFetch("/product/listV2", {
+    credentials,
+    query: {
+      keyWord: keyWord || undefined,
+      page,
+      size,
+      orderBy: 0, // best match
+      isWarehouse: true, // include global warehouse inventory
+    },
+  });
+  return {
+    rows: extractCjProductRows(json),
+    totalPages: readTotalPages(json),
+  };
+}
+
+async function fetchCjListV1Page(
+  credentials: SupplierCredentials | null | undefined,
+  productNameEn: string,
+  page: number,
+  pageSize = CJ_LIST_V1_PAGE_SIZE,
+): Promise<Record<string, unknown>[]> {
+  const json = await cjFetch("/product/list", {
+    credentials,
+    query: {
+      productNameEn: productNameEn || undefined,
+      pageNum: page,
+      pageSize,
+    },
+  });
+  return extractCjProductRows(json);
+}
+
+/**
+ * Pull one or more listV2 pages for a keyword until the target is met or
+ * pages are exhausted.
+ */
+async function collectCjRowsForKeyword(
+  credentials: SupplierCredentials | null | undefined,
+  keyWord: string,
+  startPage: number,
+  target: number,
+): Promise<Record<string, unknown>[]> {
+  const collected: Record<string, unknown>[] = [];
+  let page = Math.max(1, startPage);
+  let pagesFetched = 0;
+  let totalPages: number | null = null;
+
+  while (collected.length < target && pagesFetched <= CJ_SEARCH_MAX_EXTRA_PAGES) {
+    if (totalPages != null && page > totalPages) break;
+    const result = await fetchCjListV2Page(credentials, keyWord, page);
+    totalPages = result.totalPages ?? totalPages;
+    if (result.rows.length === 0) break;
+    collected.push(...result.rows);
+    pagesFetched += 1;
+    page += 1;
+    if (result.rows.length < CJ_LIST_V2_PAGE_SIZE) break;
+  }
+
+  return collected;
+}
+
 export async function searchCjProducts(
   query: string,
   credentials?: SupplierCredentials | null,
@@ -484,33 +657,73 @@ export async function searchCjProducts(
   }
 
   try {
-    const q = query.trim();
+    const keywords = expandCjSearchKeywords(query);
+    const startPage = Math.max(1, page);
+    const allRows: Record<string, unknown>[] = [];
 
-    // Primary: Product List V2 (Elasticsearch keyword search).
-    let json = await cjFetch("/product/listV2", {
-      credentials,
-      query: {
-        keyWord: q || undefined,
-        page,
-        size: 20,
-      },
-    });
-    let rows = extractCjProductRows(json);
-
-    // Fallback: classic /product/list when V2 returns no usable rows.
-    if (rows.length === 0) {
-      json = await cjFetch("/product/list", {
+    // Primary keyword: multi-page listV2 for a dense first screen.
+    const primary = keywords[0] ?? "";
+    allRows.push(
+      ...(await collectCjRowsForKeyword(
         credentials,
-        query: {
-          productNameEn: q || undefined,
-          pageNum: page,
-          pageSize: 20,
-        },
-      });
-      rows = extractCjProductRows(json);
+        primary,
+        startPage,
+        CJ_SEARCH_TARGET_RESULTS,
+      )),
+    );
+
+    // Secondary keywords fill gaps when the exact term is sparse.
+    if (dedupeCjRows(allRows).length < CJ_SEARCH_TARGET_RESULTS) {
+      const extras = keywords.slice(1);
+      await Promise.all(
+        extras.map(async (keyword) => {
+          if (!keyword || keyword === primary) return;
+          try {
+            const result = await fetchCjListV2Page(
+              credentials,
+              keyword,
+              startPage,
+              CJ_LIST_V2_PAGE_SIZE,
+            );
+            allRows.push(...result.rows);
+          } catch {
+            // Ignore secondary keyword failures; primary results still usable.
+          }
+        }),
+      );
     }
 
-    return rows
+    // Classic list (productNameEn) as an additional fuzzy channel.
+    if (dedupeCjRows(allRows).length < CJ_SEARCH_TARGET_RESULTS) {
+      try {
+        const classic = await fetchCjListV1Page(
+          credentials,
+          primary,
+          startPage,
+          CJ_LIST_V1_PAGE_SIZE,
+        );
+        allRows.push(...classic);
+      } catch {
+        // Optional channel.
+      }
+    }
+
+    // Absolute fallback when every keyword returned nothing.
+    if (dedupeCjRows(allRows).length === 0 && primary) {
+      try {
+        const classic = await fetchCjListV1Page(
+          credentials,
+          primary,
+          startPage,
+          CJ_LIST_V1_PAGE_SIZE,
+        );
+        allRows.push(...classic);
+      } catch {
+        // Handled by outer catch / empty return.
+      }
+    }
+
+    return dedupeCjRows(allRows)
       .map((row) => mapCjProduct(row))
       .filter((p) => Boolean(p.externalProductId));
   } catch (error) {

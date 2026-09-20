@@ -38,19 +38,19 @@ declare
   r record;
 begin
   for r in
-    select c.conname
+    select c.conname::text as conname
     from pg_constraint c
     join pg_class t on t.oid = c.conrelid
     join pg_namespace n on n.oid = t.relnamespace
-    where n.nspname = 'public'
-      and t.relname = 'vendors'
+    where n.nspname::text = 'public'
+      and t.relname::text = 'vendors'
       and c.contype = 'f'
       and (
-        c.conname = 'vendors_id_key'
-        or c.conname = 'vendors_id_fkey'
+        c.conname::text = 'vendors_id_key'
+        or c.conname::text = 'vendors_id_fkey'
         or (
           -- FK whose only local column is "id"
-          (select array_agg(a.attname order by u.ord)
+          (select coalesce(array_agg(a.attname::text order by u.ord), '{}'::text[])
            from unnest(c.conkey) with ordinality as u(attnum, ord)
            join pg_attribute a
              on a.attrelid = c.conrelid and a.attnum = u.attnum
@@ -91,7 +91,7 @@ do $$
 begin
   if not exists (
     select 1 from pg_constraint
-    where conname = 'vendors_owner_id_fkey'
+    where conname::text = 'vendors_owner_id_fkey'
       and conrelid = 'public.vendors'::regclass
   ) then
     begin

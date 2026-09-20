@@ -1,5 +1,5 @@
 -- =============================================================================
--- ensure_products_table_complete.sql (paste-ready)
+-- 055_ensure_products_table_complete.sql
 --
 -- Single comprehensive ensure for public.products.
 --

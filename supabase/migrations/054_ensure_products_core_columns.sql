@@ -10,6 +10,10 @@
 -- Idempotently ensure every column used by product create / supplier import,
 -- then reload the PostgREST schema cache.
 -- =============================================================================
+-- NOTE: Prefer 055_ensure_products_table_complete.sql (or the paste script
+-- ensure_products_table_complete.sql) for a single all-columns ensure +
+-- one schema-cache reload. This file remains for already-applied DBs.
+--
 
 -- ---------------------------------------------------------------------------
 -- 0) Enums used by product columns (no-op when already present)

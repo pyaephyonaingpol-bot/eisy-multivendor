@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { canAccessVendor, getSessionProfile } from "@/lib/auth/session";
-import { createClient } from "@/lib/supabase/server";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 import { getExternalProduct, parseSupplierKind } from "@/lib/suppliers";
 import {
-  SUPPLIER_PROVIDER_SLUGS,
+  hasLiveSupplierCredentials,
+  loadPlatformSupplierContext,
+} from "@/lib/suppliers/auth";
+import {
   supplierIntegrationsMode,
   supplierPlatformLabel,
 } from "@/lib/suppliers/types";
@@ -13,8 +15,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/suppliers/catalog/product?provider=cj_dropshipping|dsers|spocket|printful|printify&id=...
+ * GET /api/suppliers/catalog/product?provider=…&id=…
  * Full product detail for the preview modal (images, variants, description).
+ * Uses platform-owned supplier API keys — vendors do not connect their own.
  */
 export async function GET(request: Request) {
   const session = await getSessionProfile();
@@ -47,45 +50,19 @@ export async function GET(request: Request) {
     );
   }
 
-  const supabase = await createClient();
-  const slug = SUPPLIER_PROVIDER_SLUGS[provider];
-  const { data: providerRow } = await supabase
-    .from("supplier_providers")
-    .select("id")
-    .eq("slug", slug)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  let credentials = null;
-  let hasCredentials = false;
-  if (providerRow?.id) {
-    const { data: creds } = await supabase
-      .from("vendor_supplier_credentials")
-      .select(
-        "api_key, api_secret, access_token, refresh_token, account_email, metadata",
-      )
-      .eq("vendor_id", vendor.id)
-      .eq("provider_id", providerRow.id)
-      .eq("is_active", true)
-      .maybeSingle();
-    if (creds) {
-      hasCredentials = true;
-      credentials = {
-        apiKey: creds.api_key,
-        apiSecret: creds.api_secret,
-        accessToken: creds.access_token,
-        refreshToken: creds.refresh_token,
-        accountEmail: creds.account_email,
-        metadata: (creds.metadata ?? {}) as Record<string, unknown>,
-      };
-    }
-  }
+  const linked = await loadPlatformSupplierContext(provider);
+  const credentials = linked?.credentials ?? null;
+  const platformConnected = hasLiveSupplierCredentials(
+    provider,
+    null,
+    credentials,
+  );
 
   const mode = supplierIntegrationsMode();
-  if (mode === "live" && !hasCredentials) {
+  if (mode === "live" && !platformConnected) {
     return NextResponse.json(
       {
-        error: `Connect ${supplierPlatformLabel(provider)} credentials before previewing products in live mode.`,
+        error: `${supplierPlatformLabel(provider)} is not configured on the platform yet. Ask an admin to add API keys under Admin → Supplier APIs (or set env keys).`,
       },
       { status: 400 },
     );
@@ -100,10 +77,12 @@ export async function GET(request: Request) {
       ok: true,
       product,
       mode,
-      hasCredentials,
+      hasCredentials: platformConnected,
+      platformManaged: true,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to load product";
+    const message =
+      err instanceof Error ? err.message : "Failed to load product";
     return NextResponse.json({ error: message }, { status: 502 });
   }
 }

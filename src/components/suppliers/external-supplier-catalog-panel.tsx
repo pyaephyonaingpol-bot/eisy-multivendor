@@ -157,9 +157,10 @@ export function ExternalSupplierCatalogPanel({
 
       {products.length === 0 ? (
         <p className="text-sm text-zinc-500">
-          Run a search to load {providerLabel} products
+          Run a search to load {providerLabel} products from the platform
+          catalog
           {process.env.NODE_ENV === "development"
-            ? " (mock catalog when credentials are unset)."
+            ? " (mock data when platform API keys are unset)."
             : "."}
         </p>
       ) : (

@@ -70,12 +70,15 @@ export default async function VendorSourcingIndexPage() {
       />
 
       <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 text-sm text-zinc-800 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-        <p>{t.sourcing.catalogSubtitle}</p>
+        <p>
+          Browse per-supplier panels or sync imported listings from the catalog
+          hub.
+        </p>
         <Link
           href="/vendor/integrations"
           className="inline-flex min-h-11 items-center justify-center rounded-lg bg-zinc-950 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 sm:min-h-0"
         >
-          {t.sourcing.manageCredentials}
+          Open supplier catalog
         </Link>
       </div>
 

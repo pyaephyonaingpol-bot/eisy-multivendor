@@ -84,6 +84,22 @@ export type VendorSupplierCredential = {
   updated_at: string;
 };
 
+/** Platform-owned supplier API keys (admin-configured). */
+export type PlatformSupplierCredential = {
+  id: string;
+  provider_id: string;
+  api_key: string | null;
+  api_secret: string | null;
+  access_token: string | null;
+  refresh_token: string | null;
+  account_email: string | null;
+  metadata: Record<string, unknown>;
+  is_active: boolean;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ExternalProductImport = {
   id: string;
   vendor_id: string;
@@ -802,6 +818,13 @@ export type Database = {
         Insert: Partial<VendorSupplierCredential> &
           Pick<VendorSupplierCredential, "vendor_id" | "provider_id">;
         Update: Partial<VendorSupplierCredential>;
+        Relationships: [];
+      };
+      platform_supplier_credentials: {
+        Row: PlatformSupplierCredential;
+        Insert: Partial<PlatformSupplierCredential> &
+          Pick<PlatformSupplierCredential, "provider_id">;
+        Update: Partial<PlatformSupplierCredential>;
         Relationships: [];
       };
       external_product_imports: {

@@ -12,6 +12,7 @@ const links = [
   { href: "/admin/wallets", label: "Wallets" },
   { href: "/admin/withdrawals", label: "Withdrawals" },
   { href: "/admin/fees", label: "Fees" },
+  { href: "/admin/integrations", label: "Supplier APIs" },
 ];
 
 export default function AdminLayout({

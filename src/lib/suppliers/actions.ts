@@ -9,12 +9,11 @@ import {
   syncExternalInventory,
   type ExternalCatalogProduct,
   type ExternalSupplierKind,
-  type SupplierCredentials,
 } from "@/lib/suppliers";
+import { loadPlatformSupplierContext } from "@/lib/suppliers/auth";
 import {
   MIN_IMPORT_STOCK_QUANTITY,
   ONE_CLICK_IMPORT_MARKUP,
-  SUPPLIER_PROVIDER_SLUGS,
   meetsMinImportStock,
   productMatchesSourcingRegion,
   slugifyExternalName,
@@ -212,42 +211,9 @@ export async function saveSupplierCredentialsAction(
   return { success: "Supplier credentials saved." };
 }
 
-async function loadVendorCredentials(
-  vendorId: string,
-  kind: ExternalSupplierKind,
-): Promise<{ providerId: string; credentials: SupplierCredentials } | null> {
-  const supabase = await createClient();
-  const slug = SUPPLIER_PROVIDER_SLUGS[kind];
-  const { data: provider } = await supabase
-    .from("supplier_providers")
-    .select("id, kind, slug, supports_regions")
-    .eq("slug", slug)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (!provider) return null;
-
-  const { data: creds } = await supabase
-    .from("vendor_supplier_credentials")
-    .select(
-      "api_key, api_secret, access_token, refresh_token, account_email, metadata",
-    )
-    .eq("vendor_id", vendorId)
-    .eq("provider_id", provider.id)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  return {
-    providerId: provider.id,
-    credentials: {
-      apiKey: creds?.api_key,
-      apiSecret: creds?.api_secret,
-      accessToken: creds?.access_token,
-      refreshToken: creds?.refresh_token,
-      accountEmail: creds?.account_email,
-      metadata: (creds?.metadata ?? {}) as Record<string, unknown>,
-    },
-  };
+/** Platform-owned supplier context (provider id + resolved API credentials). */
+async function loadSupplierContext(kind: ExternalSupplierKind) {
+  return loadPlatformSupplierContext(kind);
 }
 
 export async function searchSupplierCatalogAction(
@@ -260,7 +226,7 @@ export async function searchSupplierCatalogAction(
   const gate = await requireApprovedVendor();
   if ("error" in gate) return { products: [], error: gate.error };
 
-  const linked = await loadVendorCredentials(gate.vendor.id, kind);
+  const linked = await loadSupplierContext(kind);
   const products = await searchExternalProducts(
     kind,
     query,
@@ -287,9 +253,9 @@ export async function importExternalSupplierProductAction(
     return { error: "Select a supplier product to import." };
   }
 
-  // Credentials are optional in mock mode; provider rows may be absent until
-  // supplier migrations are applied to the project.
-  const linked = await loadVendorCredentials(gate.vendor.id, kind);
+  // Platform-owned API keys (env / platform_supplier_credentials). Vendors
+  // do not need their own CJ/DSers/POD credentials for catalog import.
+  const linked = await loadSupplierContext(kind);
   const remote =
     (await getExternalProduct(
       kind,
@@ -638,7 +604,7 @@ export async function syncExternalProductInventoryAction(
   const kind = parseSupplierKind(provider?.kind);
   if (!kind) return { error: "Unknown supplier kind." };
 
-  const linked = await loadVendorCredentials(gate.vendor.id, kind);
+  const linked = await loadSupplierContext(kind);
   const snapshot = await syncExternalInventory(
     kind,
     imported.external_product_id,

@@ -1,5 +1,9 @@
 import { createServiceClient } from "@/lib/supabase/admin";
-import { resolveAdapterKindFromProvider } from "@/lib/suppliers/auth";
+import {
+  loadPlatformCredentialsFromDb,
+  resolveAdapterKindFromProvider,
+  resolveSupplierCredentials,
+} from "@/lib/suppliers/auth";
 import {
   createExternalFulfillmentOrder,
   type ExternalSupplierKind,
@@ -29,31 +33,44 @@ function asShipTo(address: Record<string, unknown> | null | undefined) {
   };
 }
 
+/** Resolve platform-owned credentials (DB → env). Vendor keys are not required. */
 async function loadCredentials(
-  vendorId: string | null,
+  _vendorId: string | null,
   providerId: string | null,
+  adapterKind: ExternalSupplierKind | null,
 ): Promise<SupplierCredentials | null> {
-  if (!vendorId || !providerId) return null;
-  const supabase = createServiceClient();
-  const { data } = await supabase
-    .from("vendor_supplier_credentials")
-    .select(
-      "api_key, api_secret, access_token, refresh_token, account_email, metadata",
-    )
-    .eq("vendor_id", vendorId)
-    .eq("provider_id", providerId)
-    .eq("is_active", true)
-    .maybeSingle();
+  if (!adapterKind) return null;
 
-  if (!data) return null;
-  return {
-    apiKey: data.api_key,
-    apiSecret: data.api_secret,
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token,
-    accountEmail: data.account_email,
-    metadata: (data.metadata ?? {}) as Record<string, unknown>,
-  };
+  let platformFromDb: SupplierCredentials | null = null;
+  if (providerId) {
+    try {
+      const supabase = createServiceClient();
+      const { data } = await supabase
+        .from("platform_supplier_credentials")
+        .select(
+          "api_key, api_secret, access_token, refresh_token, account_email, metadata",
+        )
+        .eq("provider_id", providerId)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (data) {
+        platformFromDb = {
+          apiKey: data.api_key,
+          apiSecret: data.api_secret,
+          accessToken: data.access_token,
+          refreshToken: data.refresh_token,
+          accountEmail: data.account_email,
+          metadata: (data.metadata ?? {}) as Record<string, unknown>,
+        };
+      }
+    } catch {
+      platformFromDb = await loadPlatformCredentialsFromDb(adapterKind);
+    }
+  } else {
+    platformFromDb = await loadPlatformCredentialsFromDb(adapterKind);
+  }
+
+  return resolveSupplierCredentials(adapterKind, null, platformFromDb);
 }
 
 async function resolveJobAdapterKind(
@@ -248,6 +265,7 @@ export async function processSupplierFulfillmentJobs(limit = 20): Promise<{
       const credentials = await loadCredentials(
         order?.seller_vendor_id ?? order?.vendor_id ?? null,
         job.provider_id,
+        kind,
       );
 
       const request = await buildFulfillmentRequest(job.order_id, kind);

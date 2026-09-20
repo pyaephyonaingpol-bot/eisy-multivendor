@@ -13,13 +13,11 @@ import {
   searchExternalProductsForTab,
 } from "@/lib/suppliers";
 import { importExternalSupplierProductAction } from "@/lib/suppliers/actions";
-import {
-  SUPPLIER_PROVIDER_SLUGS,
-  type ExternalCatalogProduct,
-  type ExternalSupplierKind,
-  type SupplierCredentials,
+import type {
+  ExternalCatalogProduct,
+  ExternalSupplierKind,
+  SupplierCredentials,
 } from "@/lib/suppliers/types";
-import { createClient } from "@/lib/supabase/server";
 import { getVendorForOwner, isVendorKycApproved } from "@/lib/vendors/queries";
 
 export type SourcingControllerResult<T> =
@@ -45,40 +43,11 @@ async function requireApprovedVendorGate(): Promise<
 }
 
 async function loadCredentialsForKind(
-  vendorId: string,
   kind: ExternalSupplierKind,
 ): Promise<SupplierCredentials | null> {
-  const supabase = await createClient();
-  const slug = SUPPLIER_PROVIDER_SLUGS[kind];
-  const { data: provider } = await supabase
-    .from("supplier_providers")
-    .select("id")
-    .eq("slug", slug)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (!provider) return null;
-
-  const { data: creds } = await supabase
-    .from("vendor_supplier_credentials")
-    .select(
-      "api_key, api_secret, access_token, refresh_token, account_email, metadata",
-    )
-    .eq("vendor_id", vendorId)
-    .eq("provider_id", provider.id)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (!creds) return null;
-
-  return {
-    apiKey: creds.api_key,
-    apiSecret: creds.api_secret,
-    accessToken: creds.access_token,
-    refreshToken: creds.refresh_token,
-    accountEmail: creds.account_email,
-    metadata: (creds.metadata ?? {}) as Record<string, unknown>,
-  };
+  const { loadPlatformSupplierContext } = await import("@/lib/suppliers/auth");
+  const linked = await loadPlatformSupplierContext(kind);
+  return linked?.credentials ?? null;
 }
 
 function withSpeedMeta(product: ExternalCatalogProduct) {
@@ -127,7 +96,7 @@ export async function searchSourcingCatalog(input: {
       sourceRaw &&
       !["all", "pod"].includes(String(sourceRaw).toLowerCase())
     ) {
-      const credentials = await loadCredentialsForKind(gate.vendor.id, singleKind);
+      const credentials = await loadCredentialsForKind(singleKind);
       products = await searchExternalProducts(
         singleKind,
         query,
@@ -149,10 +118,7 @@ export async function searchSourcingCatalog(input: {
       > = {};
       await Promise.all(
         kinds.map(async (kind) => {
-          credentialsByKind[kind] = await loadCredentialsForKind(
-            gate.vendor.id,
-            kind,
-          );
+          credentialsByKind[kind] = await loadCredentialsForKind(kind);
         }),
       );
       products = await searchExternalProductsForTab(sourceTab, query, {

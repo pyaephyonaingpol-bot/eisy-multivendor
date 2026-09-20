@@ -36,6 +36,37 @@ export type ExternalImportState = {
   oneClick?: boolean;
 } | null;
 
+function isCompareAtPriceSchemaError(message: string | undefined) {
+  if (!message) return false;
+  const m = message.toLowerCase();
+  return m.includes("compare_at_price") && (
+    m.includes("schema cache") ||
+    m.includes("does not exist") ||
+    m.includes("could not find")
+  );
+}
+
+/** Product write payload; omits null compare_at_price so partial DBs don't choke. */
+function productPriceFields(
+  sellPrice: number,
+  compareAtPriceUsdt: number | null | undefined,
+) {
+  const fields: {
+    price: number;
+    compare_at_price?: number | null;
+  } = { price: sellPrice };
+  if (compareAtPriceUsdt != null && Number.isFinite(compareAtPriceUsdt)) {
+    fields.compare_at_price = compareAtPriceUsdt;
+  }
+  return fields;
+}
+
+function stripCompareAtPrice<T extends Record<string, unknown>>(payload: T) {
+  const { compare_at_price: _ignored, ...rest } = payload;
+  void _ignored;
+  return rest as Omit<T, "compare_at_price">;
+}
+
 function resolveImportSellPrice(
   formData: FormData,
   supplierCostUsdt: number,
@@ -332,20 +363,28 @@ export async function importExternalSupplierProductAction(
     }
 
     if (existingImport?.product_id) {
-      const { error: updateError } = await supabase
+      const updatePayload = {
+        name: listing.name,
+        description: listing.description,
+        ...productPriceFields(sellPrice, remote.compareAtPriceUsdt),
+        sku: variant.externalSku,
+        stock_quantity: variant.stockQuantity ?? 0,
+        images: productImages,
+        updated_at: new Date().toISOString(),
+      };
+      let { error: updateError } = await supabase
         .from("products")
-        .update({
-          name: listing.name,
-          description: listing.description,
-          price: sellPrice,
-          compare_at_price: remote.compareAtPriceUsdt,
-          sku: variant.externalSku,
-          stock_quantity: variant.stockQuantity ?? 0,
-          images: productImages,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq("id", existingImport.product_id)
         .eq("vendor_id", gate.vendor.id);
+
+      if (updateError && isCompareAtPriceSchemaError(updateError.message)) {
+        ({ error: updateError } = await supabase
+          .from("products")
+          .update(stripCompareAtPrice(updatePayload))
+          .eq("id", existingImport.product_id)
+          .eq("vendor_id", gate.vendor.id));
+      }
 
       if (updateError) {
         return { error: updateError.message };
@@ -384,19 +423,27 @@ export async function importExternalSupplierProductAction(
       .maybeSingle();
 
     if (existingBySku?.id) {
-      const { error: updateError } = await supabase
+      const updatePayload = {
+        name: listing.name,
+        description: listing.description,
+        ...productPriceFields(sellPrice, remote.compareAtPriceUsdt),
+        stock_quantity: variant.stockQuantity ?? 0,
+        images: productImages,
+        updated_at: new Date().toISOString(),
+      };
+      let { error: updateError } = await supabase
         .from("products")
-        .update({
-          name: listing.name,
-          description: listing.description,
-          price: sellPrice,
-          compare_at_price: remote.compareAtPriceUsdt,
-          stock_quantity: variant.stockQuantity ?? 0,
-          images: productImages,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq("id", existingBySku.id)
         .eq("vendor_id", gate.vendor.id);
+
+      if (updateError && isCompareAtPriceSchemaError(updateError.message)) {
+        ({ error: updateError } = await supabase
+          .from("products")
+          .update(stripCompareAtPrice(updatePayload))
+          .eq("id", existingBySku.id)
+          .eq("vendor_id", gate.vendor.id));
+      }
 
       if (updateError) {
         return { error: updateError.message };
@@ -468,24 +515,34 @@ export async function importExternalSupplierProductAction(
   );
   const slug = `${slugBase}-${Date.now().toString(36).slice(-5)}`;
 
-  const { data: product, error: productError } = await supabase
+  const insertPayload = {
+    vendor_id: gate.vendor.id,
+    name: listing.name,
+    slug,
+    description: listing.description,
+    ...productPriceFields(sellPrice, remote.compareAtPriceUsdt),
+    currency: "USDT",
+    sku: variant.externalSku,
+    stock_quantity: variant.stockQuantity ?? 0,
+    status: "active" as const,
+    images: productImages,
+    product_type: "physical" as const,
+  };
+
+  let { data: product, error: productError } = await supabase
     .from("products")
-    .insert({
-      vendor_id: gate.vendor.id,
-      name: listing.name,
-      slug,
-      description: listing.description,
-      price: sellPrice,
-      compare_at_price: remote.compareAtPriceUsdt,
-      currency: "USDT",
-      sku: variant.externalSku,
-      stock_quantity: variant.stockQuantity ?? 0,
-      status: "active",
-      images: productImages,
-      product_type: "physical",
-    })
+    .insert(insertPayload)
     .select("id")
     .single();
+
+  if (productError && isCompareAtPriceSchemaError(productError.message)) {
+    ({ data: product, error: productError } = await supabase
+      .from("products")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .insert(stripCompareAtPrice(insertPayload) as any)
+      .select("id")
+      .single());
+  }
 
   if (productError || !product) {
     return { error: productError?.message ?? "Failed to create product." };

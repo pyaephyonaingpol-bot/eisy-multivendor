@@ -15,6 +15,23 @@ export type ProductActionState = {
   success?: string;
 } | null;
 
+function isCompareAtPriceSchemaError(message: string | undefined) {
+  if (!message) return false;
+  const m = message.toLowerCase();
+  return (
+    m.includes("compare_at_price") &&
+    (m.includes("schema cache") ||
+      m.includes("does not exist") ||
+      m.includes("could not find"))
+  );
+}
+
+function stripCompareAtPrice<T extends Record<string, unknown>>(payload: T) {
+  const { compare_at_price: _ignored, ...rest } = payload;
+  void _ignored;
+  return rest as Omit<T, "compare_at_price">;
+}
+
 function parseMoney(value: FormDataEntryValue | null): number | null {
   if (value == null || String(value).trim() === "") {
     return null;
@@ -219,7 +236,7 @@ export async function createProduct(
     return { error: imageResult.error };
   }
 
-  const { error } = await supabase.from("products").insert({
+  const insertPayload = {
     vendor_id: vendor.id,
     category_id: parsed.categoryId,
     name: parsed.name,
@@ -240,7 +257,15 @@ export async function createProduct(
     origin_country_code: parsed.originCountryCode,
     origin_region_id: parsed.originRegionId,
     ships_to_region_ids: parsed.shipsToRegionIds,
-  });
+  };
+
+  let { error } = await supabase.from("products").insert(insertPayload);
+
+  if (error && isCompareAtPriceSchemaError(error.message)) {
+    ({ error } = await supabase
+      .from("products")
+      .insert(stripCompareAtPrice(insertPayload)));
+  }
 
   if (error) {
     if (error.code === "23505") {
@@ -309,31 +334,41 @@ export async function updateProduct(
     return { error: imageResult.error };
   }
 
-  const { error } = await supabase
+  const updatePayload = {
+    category_id: parsed.categoryId,
+    name: parsed.name,
+    slug: parsed.slug,
+    description: parsed.description || null,
+    price: parsed.price,
+    compare_at_price: parsed.compareAtPrice,
+    currency: parsed.currency,
+    sku: parsed.sku || null,
+    stock_quantity: parsed.stockQuantity,
+    status: parsed.status,
+    images: imageResult.images,
+    specifications: parsed.specifications,
+    product_type: parsed.productType,
+    download_url: parsed.productType === "digital" ? parsed.downloadUrl : null,
+    download_label:
+      parsed.productType === "digital" ? parsed.downloadLabel || null : null,
+    origin_country_code: parsed.originCountryCode,
+    origin_region_id: parsed.originRegionId,
+    ships_to_region_ids: parsed.shipsToRegionIds,
+  };
+
+  let { error } = await supabase
     .from("products")
-    .update({
-      category_id: parsed.categoryId,
-      name: parsed.name,
-      slug: parsed.slug,
-      description: parsed.description || null,
-      price: parsed.price,
-      compare_at_price: parsed.compareAtPrice,
-      currency: parsed.currency,
-      sku: parsed.sku || null,
-      stock_quantity: parsed.stockQuantity,
-      status: parsed.status,
-      images: imageResult.images,
-      specifications: parsed.specifications,
-      product_type: parsed.productType,
-      download_url: parsed.productType === "digital" ? parsed.downloadUrl : null,
-      download_label:
-        parsed.productType === "digital" ? parsed.downloadLabel || null : null,
-      origin_country_code: parsed.originCountryCode,
-      origin_region_id: parsed.originRegionId,
-      ships_to_region_ids: parsed.shipsToRegionIds,
-    })
+    .update(updatePayload)
     .eq("id", productId)
     .eq("vendor_id", vendor.id);
+
+  if (error && isCompareAtPriceSchemaError(error.message)) {
+    ({ error } = await supabase
+      .from("products")
+      .update(stripCompareAtPrice(updatePayload))
+      .eq("id", productId)
+      .eq("vendor_id", vendor.id));
+  }
 
   if (error) {
     if (error.code === "23505") {

@@ -17,9 +17,13 @@ alter table public.products
   add column if not exists download_url text,
   add column if not exists download_label text;
 
--- Physical inventory column from initial schema; add only if a partial DB is missing it.
+-- Physical inventory + compare-at columns from initial schema; add only if a
+-- partial DB is missing them (create table if not exists will not backfill).
 alter table public.products
   add column if not exists stock_quantity integer not null default 0;
+
+alter table public.products
+  add column if not exists compare_at_price numeric(12, 2);
 
 comment on column public.products.product_type is
   'physical = shippable good with stock; digital = downloadable file/link';

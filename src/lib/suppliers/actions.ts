@@ -50,12 +50,57 @@ function isSchemaCacheColumnError(
   );
 }
 
-function isCompareAtPriceSchemaError(message: string | undefined) {
-  return isSchemaCacheColumnError(message, "compare_at_price");
+/** Columns that may be missing on partial DBs; omit and retry when PostgREST rejects them. */
+const PRODUCT_SCHEMA_FALLBACK_COLUMNS = [
+  "compare_at_price",
+  "currency",
+  "images",
+  "specifications",
+  "product_type",
+  "download_url",
+  "download_label",
+  "category_id",
+  "origin_country_code",
+  "origin_region_id",
+  "ships_to_region_ids",
+  "is_dropship",
+  "source_product_id",
+] as const;
+
+function stripProductSchemaColumn(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload: any,
+  column: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
+  if (!payload || typeof payload !== "object" || !(column in payload)) {
+    return payload;
+  }
+  const { [column]: _ignored, ...rest } = payload;
+  void _ignored;
+  return rest;
 }
 
-function isCurrencySchemaError(message: string | undefined) {
-  return isSchemaCacheColumnError(message, "currency");
+function applyProductSchemaCacheFallback(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload: any,
+  message: string | undefined,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): { payload: any; stripped: boolean } {
+  for (const column of PRODUCT_SCHEMA_FALLBACK_COLUMNS) {
+    if (
+      isSchemaCacheColumnError(message, column) &&
+      payload &&
+      typeof payload === "object" &&
+      column in payload
+    ) {
+      return {
+        payload: stripProductSchemaColumn(payload, column),
+        stripped: true,
+      };
+    }
+  }
+  return { payload, stripped: false };
 }
 
 /** Product write payload; omits null compare_at_price so partial DBs don't choke. */
@@ -71,18 +116,6 @@ function productPriceFields(
     fields.compare_at_price = compareAtPriceUsdt;
   }
   return fields;
-}
-
-function stripCompareAtPrice<T extends Record<string, unknown>>(payload: T) {
-  const { compare_at_price: _ignored, ...rest } = payload;
-  void _ignored;
-  return rest as Omit<T, "compare_at_price">;
-}
-
-function stripCurrency<T extends Record<string, unknown>>(payload: T) {
-  const { currency: _ignored, ...rest } = payload;
-  void _ignored;
-  return rest as Omit<T, "currency">;
 }
 
 function resolveImportSellPrice(
@@ -395,11 +428,24 @@ export async function importExternalSupplierProductAction(
         .update(updatePayload)
         .eq("id", existingImport.product_id)
         .eq("vendor_id", gate.vendor.id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let fallbackPayload: any = updatePayload;
 
-      if (updateError && isCompareAtPriceSchemaError(updateError.message)) {
+      for (
+        let attempt = 0;
+        attempt < PRODUCT_SCHEMA_FALLBACK_COLUMNS.length;
+        attempt += 1
+      ) {
+        if (!updateError) break;
+        const next = applyProductSchemaCacheFallback(
+          fallbackPayload,
+          updateError.message,
+        );
+        if (!next.stripped) break;
+        fallbackPayload = next.payload;
         ({ error: updateError } = await supabase
           .from("products")
-          .update(stripCompareAtPrice(updatePayload))
+          .update(fallbackPayload)
           .eq("id", existingImport.product_id)
           .eq("vendor_id", gate.vendor.id));
       }
@@ -454,11 +500,24 @@ export async function importExternalSupplierProductAction(
         .update(updatePayload)
         .eq("id", existingBySku.id)
         .eq("vendor_id", gate.vendor.id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let fallbackPayload: any = updatePayload;
 
-      if (updateError && isCompareAtPriceSchemaError(updateError.message)) {
+      for (
+        let attempt = 0;
+        attempt < PRODUCT_SCHEMA_FALLBACK_COLUMNS.length;
+        attempt += 1
+      ) {
+        if (!updateError) break;
+        const next = applyProductSchemaCacheFallback(
+          fallbackPayload,
+          updateError.message,
+        );
+        if (!next.stripped) break;
+        fallbackPayload = next.payload;
         ({ error: updateError } = await supabase
           .from("products")
-          .update(stripCompareAtPrice(updatePayload))
+          .update(fallbackPayload)
           .eq("id", existingBySku.id)
           .eq("vendor_id", gate.vendor.id));
       }
@@ -555,17 +614,18 @@ export async function importExternalSupplierProductAction(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let fallbackPayload: any = insertPayload;
 
-  if (productError && isCompareAtPriceSchemaError(productError.message)) {
-    fallbackPayload = stripCompareAtPrice(fallbackPayload);
-    ({ data: product, error: productError } = await supabase
-      .from("products")
-      .insert(fallbackPayload)
-      .select("id")
-      .single());
-  }
-
-  if (productError && isCurrencySchemaError(productError.message)) {
-    fallbackPayload = stripCurrency(fallbackPayload);
+  for (
+    let attempt = 0;
+    attempt < PRODUCT_SCHEMA_FALLBACK_COLUMNS.length;
+    attempt += 1
+  ) {
+    if (!productError) break;
+    const next = applyProductSchemaCacheFallback(
+      fallbackPayload,
+      productError.message,
+    );
+    if (!next.stripped) break;
+    fallbackPayload = next.payload;
     ({ data: product, error: productError } = await supabase
       .from("products")
       .insert(fallbackPayload)

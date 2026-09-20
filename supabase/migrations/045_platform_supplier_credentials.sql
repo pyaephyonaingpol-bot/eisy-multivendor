@@ -1,3 +1,4 @@
+-- NOTE: If supplier_providers is missing, run 046_bootstrap_supplier_providers_and_platform_credentials.sql first (or the paste script bootstrap_supplier_providers.sql).
 -- =============================================================================
 -- 045_platform_supplier_credentials.sql
 --

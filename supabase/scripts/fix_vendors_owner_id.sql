@@ -215,7 +215,27 @@ revoke all on function public.apply_for_vendor(text, text, text) from public;
 grant execute on function public.apply_for_vendor(text, text, text) to authenticated;
 
 -- Minimal RLS so owners/admins can read their stores
+-- (skip policy bits that need is_admin() if that helper is missing)
 alter table public.vendors enable row level security;
+
+do $$
+begin
+  if to_regprocedure('public.is_admin()') is null then
+    create or replace function public.is_admin()
+    returns boolean
+    language sql
+    stable
+    security definer
+    set search_path = public
+    as $fn$
+      select exists (
+        select 1 from public.profiles p
+        where p.id = auth.uid() and p.role = 'admin'
+      );
+    $fn$;
+  end if;
+end;
+$$;
 
 drop policy if exists "vendors_select_approved_owner_or_admin" on public.vendors;
 create policy "vendors_select_approved_owner_or_admin"

@@ -19,9 +19,9 @@
   },
   "vendorNav": {
     "title": "Portail vendeur",
-    "subtitle": "Boutique & dropshipping",
-    "storeSection": "Ma boutique",
-    "dropshipSection": "Dropshipping",
+    "subtitle": "Vendeur et dropshipper",
+    "storeSection": "Vendeur",
+    "dropshipSection": "Dropshipper",
     "dropshipHub": "Espace",
     "overview": "Aperçu",
     "profile": "Profil",
@@ -35,7 +35,19 @@
     "fees": "Frais dropship",
     "wallet": "Portefeuille",
     "orders": "Commandes",
-    "backToStorefront": "← Vitrine"
+    "backToStorefront": "← Vitrine",
+    "vendorSection": "Vendeur",
+    "profileSection": "Profil et réglages",
+    "kycShort": "KYC",
+    "email": "E-mail",
+    "phone": "Téléphone",
+    "address": "Adresse",
+    "product": "Produit",
+    "store": "Boutique",
+    "tracking": "Suivi",
+    "catalog": "Catalogue",
+    "importedProducts": "Produits importés",
+    "dropshipOrders": "Commandes"
   },
   "sourcing": {
     "title": "Sourcing produits",

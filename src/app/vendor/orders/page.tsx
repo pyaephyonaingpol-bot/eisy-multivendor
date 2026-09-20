@@ -47,14 +47,13 @@ export default async function VendorOrdersPage() {
     <div className="space-y-6">
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-          My Store
+          Vendor
         </p>
-        <h1 className="text-2xl font-semibold tracking-tight">Vendor orders</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
         <p className="text-zinc-600">
-          Fulfillment orders route to the supplier. Dropship sales you made appear
-          here as seller orders; supplier stock and fulfillment stay with the
-          original vendor. USDT earnings stay in escrow until the order is
-          delivered (carrier sync or buyer confirmation).
+          Fulfillment and store sales for your vendor account. Dropship-routed
+          sales also appear under Dropshipper → Orders. USDT earnings stay in
+          escrow until the order is delivered.
         </p>
       </div>
 

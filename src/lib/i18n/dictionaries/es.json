@@ -19,9 +19,9 @@
   },
   "vendorNav": {
     "title": "Portal de vendedor",
-    "subtitle": "Tienda y dropshipping",
-    "storeSection": "Mi tienda",
-    "dropshipSection": "Dropshipping",
+    "subtitle": "Vendedor y dropshipper",
+    "storeSection": "Vendedor",
+    "dropshipSection": "Dropshipper",
     "dropshipHub": "Espacio",
     "overview": "Resumen",
     "profile": "Perfil",
@@ -35,7 +35,19 @@
     "fees": "Tarifas dropship",
     "wallet": "Billetera",
     "orders": "Pedidos",
-    "backToStorefront": "← Tienda"
+    "backToStorefront": "← Tienda",
+    "vendorSection": "Vendedor",
+    "profileSection": "Perfil y ajustes",
+    "kycShort": "KYC",
+    "email": "Correo",
+    "phone": "Teléfono",
+    "address": "Dirección",
+    "product": "Producto",
+    "store": "Tienda",
+    "tracking": "Seguimiento",
+    "catalog": "Catálogo",
+    "importedProducts": "Productos importados",
+    "dropshipOrders": "Pedidos"
   },
   "sourcing": {
     "title": "Abastecimiento de productos",

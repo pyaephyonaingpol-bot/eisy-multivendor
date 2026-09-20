@@ -19,9 +19,9 @@
   },
   "vendorNav": {
     "title": "Портал продавца",
-    "subtitle": "Магазин и дропшиппинг",
-    "storeSection": "Мой магазин",
-    "dropshipSection": "Дропшиппинг",
+    "subtitle": "Продавец и дропшиппер",
+    "storeSection": "Продавец",
+    "dropshipSection": "Дропшиппер",
     "dropshipHub": "Рабочая область",
     "overview": "Обзор",
     "profile": "Профиль",
@@ -35,7 +35,19 @@
     "fees": "Комиссии дропшиппинга",
     "wallet": "Кошелёк",
     "orders": "Заказы",
-    "backToStorefront": "← Витрина"
+    "backToStorefront": "← Витрина",
+    "vendorSection": "Продавец",
+    "profileSection": "Профиль и настройки",
+    "kycShort": "KYC",
+    "email": "Email",
+    "phone": "Телефон",
+    "address": "Адрес",
+    "product": "Товар",
+    "store": "Магазин",
+    "tracking": "Отслеживание",
+    "catalog": "Каталог",
+    "importedProducts": "Импортированные товары",
+    "dropshipOrders": "Заказы"
   },
   "sourcing": {
     "title": "Подбор товаров",

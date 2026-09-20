@@ -6,8 +6,7 @@ import { getVendorForOwner } from "@/lib/vendors/queries";
 export const dynamic = "force-dynamic";
 
 /**
- * Dropshipping workspace hub — supplier catalog sourcing is kept separate
- * from day-to-day store operations (products, orders, wallet).
+ * Dropshipper workspace hub — Orders, Catalog, and Imported products.
  */
 export default async function VendorDropshipHubPage() {
   const session = await getSessionProfile();
@@ -22,12 +21,10 @@ export default async function VendorDropshipHubPage() {
   if (!vendor) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Dropshipping workspace
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Dropshipper</h1>
         <p className="text-zinc-600">
-          Apply as a vendor first, then use this workspace to source and import
-          products from the platform supplier catalog.
+          Apply as a vendor first, then use this section to source catalog items
+          and track dropship orders.
         </p>
         <Link
           href="/vendor/apply"
@@ -41,24 +38,19 @@ export default async function VendorDropshipHubPage() {
 
   const cards = [
     {
+      href: "/vendor/dropship/orders",
+      title: "Orders",
+      body: "Sales from your store that route fulfillment to a supplier.",
+    },
+    {
       href: "/vendor/sourcing",
-      title: "Product sourcing",
-      body: "Search the CJ Dropshipping catalog, preview items, and one-click import into your store.",
+      title: "Catalog",
+      body: "Browse the platform supplier catalog and import listings.",
     },
     {
-      href: "/vendor/import",
-      title: "Import tools",
-      body: "Review import quotas, extension helpers, and bulk dropship listing workflows.",
-    },
-    {
-      href: "/vendor/integrations",
-      title: "Supplier catalog",
-      body: "Browse platform-managed supplier panels and import with preview.",
-    },
-    {
-      href: "/vendor/fees",
-      title: "Dropship fees",
-      body: "Track inventory fees and dropship commissions for sourced listings.",
+      href: "/vendor/dropship/imported",
+      title: "Imported products",
+      body: "Review and price every dropship listing you have imported.",
     },
   ] as const;
 
@@ -66,22 +58,19 @@ export default async function VendorDropshipHubPage() {
     <div className="space-y-8">
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wider text-sky-800">
-          Dropshipping workspace
+          Dropshipper
         </p>
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">
-          Source & import products
+          Dropshipper workspace
         </h1>
         <p className="max-w-2xl text-sm text-zinc-600">
-          This area is for platform supplier catalogs and dropship imports. Store
-          branding, orders, wallet, and profile stay under{" "}
-          <Link href="/vendor/dashboard" className="font-medium underline">
-            My Store
-          </Link>
-          .
+          Dedicated sourcing and import tools. Day-to-day store ops (Product,
+          Store, Orders, Tracking) live under Vendor. Profile details sit under
+          Profile & settings.
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         {cards.map((card) => (
           <Link
             key={card.href}
@@ -99,11 +88,18 @@ export default async function VendorDropshipHubPage() {
       </div>
 
       <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-        Imported listings appear in{" "}
-        <Link href="/vendor/products" className="font-medium underline">
-          My Store → Products
-        </Link>{" "}
-        for pricing, inventory, and storefront publishing.
+        Need fees or integrations?{" "}
+        <Link href="/vendor/fees" className="font-medium underline">
+          Dropship fees
+        </Link>
+        {" · "}
+        <Link href="/vendor/integrations" className="font-medium underline">
+          Supplier panels
+        </Link>
+        {" · "}
+        <Link href="/vendor/import" className="font-medium underline">
+          Import tools
+        </Link>
       </div>
     </div>
   );

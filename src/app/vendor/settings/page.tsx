@@ -44,21 +44,17 @@ export default async function VendorSettingsPage() {
     <div className="space-y-10">
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-          My Store
+          Vendor
         </p>
-        <h1 className="text-2xl font-semibold tracking-tight">Store settings</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Store</h1>
         <p className="max-w-2xl text-sm text-zinc-600">
           Branding and shipping regions for your public store at{" "}
           <Link href={`/store/${vendor.slug}`} className="font-medium underline">
             /store/{vendor.slug}
           </Link>
-          . Manage contact, business registration, and payout wallet on{" "}
+          . Contact and KYC details live under{" "}
           <Link href="/vendor/profile" className="font-medium underline">
-            Vendor profile
-          </Link>
-          , and identity documents on{" "}
-          <Link href="/vendor/kyc" className="font-medium underline">
-            KYC verification
+            Profile & settings
           </Link>
           .
         </p>

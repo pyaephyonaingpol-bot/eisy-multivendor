@@ -19,9 +19,9 @@
   },
   "vendorNav": {
     "title": "Verkopersportaal",
-    "subtitle": "Winkel & dropshipping",
-    "storeSection": "Mijn winkel",
-    "dropshipSection": "Dropshipping",
+    "subtitle": "Verkoper & dropshipper",
+    "storeSection": "Verkoper",
+    "dropshipSection": "Dropshipper",
     "dropshipHub": "Werkruimte",
     "overview": "Overzicht",
     "profile": "Profiel",
@@ -35,7 +35,19 @@
     "fees": "Dropship-kosten",
     "wallet": "Wallet",
     "orders": "Bestellingen",
-    "backToStorefront": "← Storefront"
+    "backToStorefront": "← Storefront",
+    "vendorSection": "Verkoper",
+    "profileSection": "Profiel & instellingen",
+    "kycShort": "KYC",
+    "email": "E-mail",
+    "phone": "Telefoon",
+    "address": "Adres",
+    "product": "Product",
+    "store": "Winkel",
+    "tracking": "Tracking",
+    "catalog": "Catalogus",
+    "importedProducts": "Geïmporteerde producten",
+    "dropshipOrders": "Bestellingen"
   },
   "sourcing": {
     "title": "Product sourcing",

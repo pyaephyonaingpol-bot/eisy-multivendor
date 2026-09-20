@@ -700,6 +700,9 @@ export async function updateVendorProfile(
   }
 
   revalidatePath("/vendor/profile");
+  revalidatePath("/vendor/profile/email");
+  revalidatePath("/vendor/profile/phone");
+  revalidatePath("/vendor/profile/address");
   revalidatePath("/vendor/kyc");
   revalidatePath("/vendor/settings");
   revalidatePath("/admin/orders");

@@ -19,9 +19,9 @@
   },
   "vendorNav": {
     "title": "بوابة البائع",
-    "subtitle": "المتجر والإسقاط",
-    "storeSection": "متجري",
-    "dropshipSection": "الدروبشيبينغ",
+    "subtitle": "بائع ودروبشيبر",
+    "storeSection": "البائع",
+    "dropshipSection": "الدروبشيبر",
     "dropshipHub": "مساحة العمل",
     "overview": "نظرة عامة",
     "profile": "الملف",
@@ -35,7 +35,19 @@
     "fees": "رسوم الإسقاط",
     "wallet": "المحفظة",
     "orders": "الطلبات",
-    "backToStorefront": "← الواجهة"
+    "backToStorefront": "← الواجهة",
+    "vendorSection": "البائع",
+    "profileSection": "الملف والإعدادات",
+    "kycShort": "KYC",
+    "email": "البريد",
+    "phone": "الهاتف",
+    "address": "العنوان",
+    "product": "المنتج",
+    "store": "المتجر",
+    "tracking": "التتبع",
+    "catalog": "الكتالوج",
+    "importedProducts": "المنتجات المستوردة",
+    "dropshipOrders": "الطلبات"
   },
   "sourcing": {
     "title": "توريد المنتجات",

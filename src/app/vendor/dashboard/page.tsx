@@ -17,7 +17,7 @@ export default async function VendorDashboardPage() {
   if (!vendor) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold tracking-tight">My Store</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Seller portal</h1>
         <p className="text-zinc-600">
           You do not have a store application yet. Submit one to start selling
           after admin approval.
@@ -43,7 +43,7 @@ export default async function VendorDashboardPage() {
     <div className="space-y-8">
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-          My Store
+          Vendor
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">{vendor.name}</h1>
@@ -59,7 +59,7 @@ export default async function VendorDashboardPage() {
 
       {vendor.status === "pending" ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Your application is pending admin review. You can explore the store
+          Your application is pending admin review. You can explore the vendor
           area, but products will not appear on the storefront until you are
           approved.
         </div>
@@ -80,8 +80,8 @@ export default async function VendorDashboardPage() {
 
       {vendor.status === "approved" ? (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-          Your store is approved. Manage products, orders, and wallet from My
-          Store. Use the Dropshipping workspace to source supplier catalog items.
+          Your store is approved. Use Vendor for Product, Store, Orders, and
+          Tracking. Use Dropshipper for catalog sourcing and imported listings.
         </div>
       ) : null}
 
@@ -91,44 +91,52 @@ export default async function VendorDashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5">
-          <h2 className="text-base font-semibold text-zinc-950">My Store</h2>
+          <h2 className="text-base font-semibold text-zinc-950">Vendor</h2>
           <p className="mt-2 text-sm text-zinc-600">
-            Profile, KYC, branding, products, orders, and wallet for your
-            storefront.
+            Product, Store, Orders, and Tracking for your storefront.
           </p>
           <div className="mt-4 flex flex-wrap gap-3 text-sm font-medium">
             <Link href="/vendor/products" className="underline">
-              Products
+              Product
+            </Link>
+            <Link href="/vendor/settings" className="underline">
+              Store
             </Link>
             <Link href="/vendor/orders" className="underline">
               Orders
             </Link>
+            <Link href="/vendor/tracking" className="underline">
+              Tracking
+            </Link>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-3 text-sm text-zinc-600">
+            <Link href="/vendor/profile" className="underline">
+              Profile & settings
+            </Link>
+            <Link href="/vendor/kyc" className="underline">
+              KYC
+            </Link>
             <Link href="/vendor/wallet" className="underline">
               Wallet
-            </Link>
-            <Link href="/vendor/profile" className="underline">
-              Profile
             </Link>
           </div>
         </div>
 
         <div className="rounded-2xl border border-sky-200 bg-sky-50/60 p-5">
-          <h2 className="text-base font-semibold text-sky-950">
-            Dropshipping workspace
-          </h2>
+          <h2 className="text-base font-semibold text-sky-950">Dropshipper</h2>
           <p className="mt-2 text-sm text-sky-950/80">
-            Source from the platform supplier catalog, import listings, and
-            review dropship fees — separate from day-to-day store ops.
+            Orders, Catalog, and Imported product list — separate from vendor
+            store ops.
           </p>
           <div className="mt-4 flex flex-wrap gap-3 text-sm font-medium text-sky-950">
-            <Link href="/vendor/dropship" className="underline">
-              Open workspace
+            <Link href="/vendor/dropship/orders" className="underline">
+              Orders
             </Link>
             <Link href="/vendor/sourcing" className="underline">
-              Sourcing
-            </Link>
-            <Link href="/vendor/integrations" className="underline">
               Catalog
+            </Link>
+            <Link href="/vendor/dropship/imported" className="underline">
+              Imported products
             </Link>
           </div>
         </div>

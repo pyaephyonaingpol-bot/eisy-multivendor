@@ -12,23 +12,30 @@ export default async function VendorLayout({
   const locale = await getRequestLocale();
   const t = getDictionary(locale);
 
-  const storeLinks = [
-    { href: "/vendor/dashboard", label: t.vendorNav.overview },
-    { href: "/vendor/profile", label: t.vendorNav.profile },
-    { href: "/vendor/kyc", label: t.vendorNav.kyc },
-    { href: "/vendor/settings", label: t.vendorNav.storeBranding },
-    { href: "/vendor/products", label: t.vendorNav.products },
+  // Main Vendor menu: Product, Store, Orders, Tracking only.
+  const vendorLinks = [
+    { href: "/vendor/products", label: t.vendorNav.product },
+    { href: "/vendor/settings", label: t.vendorNav.store },
     { href: "/vendor/orders", label: t.vendorNav.orders },
-    { href: "/vendor/wallet", label: t.vendorNav.wallet },
-    { href: "/vendor/apply", label: t.vendorNav.application },
+    { href: "/vendor/tracking", label: t.vendorNav.tracking },
   ];
 
+  // Profile / settings area: KYC, email, phone, address.
+  const profileLinks = [
+    { href: "/vendor/kyc", label: t.vendorNav.kycShort },
+    { href: "/vendor/profile/email", label: t.vendorNav.email },
+    { href: "/vendor/profile/phone", label: t.vendorNav.phone },
+    { href: "/vendor/profile/address", label: t.vendorNav.address },
+  ];
+
+  // Dropshipper section: Orders, Catalog, Imported Product List.
   const dropshipLinks = [
-    { href: "/vendor/dropship", label: t.vendorNav.dropshipHub },
-    { href: "/vendor/sourcing", label: t.vendorNav.sourcing },
-    { href: "/vendor/import", label: t.vendorNav.import },
-    { href: "/vendor/integrations", label: t.vendorNav.integrations },
-    { href: "/vendor/fees", label: t.vendorNav.fees },
+    { href: "/vendor/dropship/orders", label: t.vendorNav.dropshipOrders },
+    { href: "/vendor/sourcing", label: t.vendorNav.catalog },
+    {
+      href: "/vendor/dropship/imported",
+      label: t.vendorNav.importedProducts,
+    },
   ];
 
   return (
@@ -44,9 +51,11 @@ export default async function VendorLayout({
           <LanguageSwitcher compact />
         </div>
         <VendorPortalNav
-          storeTitle={t.vendorNav.storeSection}
+          vendorTitle={t.vendorNav.vendorSection}
+          profileTitle={t.vendorNav.profileSection}
           dropshipTitle={t.vendorNav.dropshipSection}
-          storeLinks={storeLinks}
+          vendorLinks={vendorLinks}
+          profileLinks={profileLinks}
           dropshipLinks={dropshipLinks}
           backLabel={t.vendorNav.backToStorefront}
         />
@@ -54,10 +63,16 @@ export default async function VendorLayout({
       <section className="min-w-0 flex-1 space-y-4">
         <div className="flex flex-wrap gap-2 text-xs md:hidden">
           <Link
-            href="/vendor/dashboard"
+            href="/vendor/products"
             className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-zinc-700"
           >
-            {t.vendorNav.storeSection}
+            {t.vendorNav.vendorSection}
+          </Link>
+          <Link
+            href="/vendor/profile"
+            className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-zinc-600"
+          >
+            {t.vendorNav.profileSection}
           </Link>
           <Link
             href="/vendor/dropship"

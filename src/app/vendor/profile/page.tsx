@@ -6,6 +6,29 @@ import { getVendorForOwner } from "@/lib/vendors/queries";
 
 export const dynamic = "force-dynamic";
 
+const profileLinks = [
+  {
+    href: "/vendor/kyc",
+    title: "KYC",
+    body: "Submit identity documents for verification.",
+  },
+  {
+    href: "/vendor/profile/email",
+    title: "Email",
+    body: "Update your store contact email.",
+  },
+  {
+    href: "/vendor/profile/phone",
+    title: "Phone",
+    body: "Keep your ops phone number current.",
+  },
+  {
+    href: "/vendor/profile/address",
+    title: "Address",
+    body: "Registered business address for KYC and payouts.",
+  },
+] as const;
+
 export default async function VendorProfilePage() {
   const session = await getSessionProfile();
   if (!session) {
@@ -19,10 +42,11 @@ export default async function VendorProfilePage() {
   if (!vendor) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Vendor profile</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Profile & settings
+        </h1>
         <p className="text-zinc-600">
-          Apply as a vendor first, then update store details, contact info,
-          business registration, and your USDT payout wallet.
+          Apply as a vendor first, then update KYC, email, phone, and address.
         </p>
         <Link
           href="/vendor/apply"
@@ -38,22 +62,28 @@ export default async function VendorProfilePage() {
     <div className="space-y-8">
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-          My Store
+          Profile & settings
         </p>
-        <h1 className="text-2xl font-semibold tracking-tight">Vendor profile</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Profile & settings
+        </h1>
         <p className="max-w-2xl text-sm text-zinc-600">
-          Keep your store details, contact information, business registration,
-          and USDT TRC-20 payout address up to date. Identity documents are
-          submitted separately on{" "}
-          <Link href="/vendor/kyc" className="font-medium underline">
-            KYC verification
-          </Link>
-          . Branding and shipping regions live under{" "}
-          <Link href="/vendor/settings" className="font-medium underline">
-            Store settings
-          </Link>
-          .
+          Identity and contact details for your vendor account. Store branding
+          lives under Vendor → Store.
         </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {profileLinks.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="rounded-xl border border-zinc-200 bg-white p-4 transition hover:border-zinc-300 hover:bg-zinc-50"
+          >
+            <h2 className="text-sm font-semibold text-zinc-950">{item.title}</h2>
+            <p className="mt-1 text-sm text-zinc-600">{item.body}</p>
+          </Link>
+        ))}
       </div>
 
       <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">
@@ -62,14 +92,25 @@ export default async function VendorProfilePage() {
           {" · "}
           KYC: <strong>{vendor.kyc_status ?? "unsubmitted"}</strong>
           {" · "}
-          Public URL:{" "}
-          <Link href={`/store/${vendor.slug}`} className="font-medium underline">
-            /store/{vendor.slug}
+          <Link href="/vendor/wallet" className="font-medium underline">
+            Wallet
+          </Link>
+          {" · "}
+          <Link href="/vendor/apply" className="font-medium underline">
+            Application
           </Link>
         </p>
       </div>
 
-      <VendorProfileForm vendor={vendor} />
+      <section className="space-y-4 border-t border-zinc-200 pt-8">
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold tracking-tight">Full profile</h2>
+          <p className="text-sm text-zinc-600">
+            Edit all store and contact fields in one place.
+          </p>
+        </div>
+        <VendorProfileForm vendor={vendor} />
+      </section>
     </div>
   );
 }

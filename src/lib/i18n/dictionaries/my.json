@@ -19,9 +19,9 @@
   },
   "vendorNav": {
     "title": "ရောင်းသူ ပေါ်တယ်",
-    "subtitle": "ဆိုင်နှင့် ဒရော့ပ်ရှစ်",
-    "storeSection": "ကျွန်ုပ်၏ဆိုင်",
-    "dropshipSection": "ဒရော့ပ်ရှစ်ပင်း",
+    "subtitle": "ရောင်းသူနှင့် ဒရော့ပ်ရှစ်ပါ",
+    "storeSection": "ရောင်းသူ",
+    "dropshipSection": "ဒရော့ပ်ရှစ်ပါ",
     "dropshipHub": "အလုပ်ခန်း",
     "overview": "ခြုံငုံ",
     "profile": "ပရိုဖိုင်",
@@ -35,7 +35,19 @@
     "fees": "ဒရော့ပ်ရှစ် ကြေးများ",
     "wallet": "ပိုက်ဆံအိတ်",
     "orders": "အော်ဒါများ",
-    "backToStorefront": "← စတိုးရှေ့သို့"
+    "backToStorefront": "← စတိုးရှေ့သို့",
+    "vendorSection": "ရောင်းသူ",
+    "profileSection": "ပရိုဖိုင်နှင့် ဆက်တင်",
+    "kycShort": "KYC",
+    "email": "အီးမေးလ်",
+    "phone": "ဖုန်း",
+    "address": "လိပ်စာ",
+    "product": "ကုန်ပစ္စည်း",
+    "store": "ဆိုင်",
+    "tracking": "ခြေရာခံ",
+    "catalog": "ကတ်တလောက်",
+    "importedProducts": "တင်သွင်းထားသော ကုန်များ",
+    "dropshipOrders": "အော်ဒါများ"
   },
   "sourcing": {
     "title": "ကုန်ပစ္စည်း အရင်းအမြစ်",

@@ -1109,6 +1109,185 @@ export async function syncCjInventory(
   };
 }
 
+export type CjLineStockCheck = {
+  productName: string;
+  requested: number;
+  available: number | null;
+  sufficient: boolean;
+  externalVariantId: string | null;
+  externalSku: string | null;
+  externalProductId: string | null;
+  error?: string;
+};
+
+/** Sum totalInventoryNum across CJ stock/queryByVid or queryBySku warehouse rows. */
+function sumCjStockQueryPayload(json: CjJson): number | null {
+  const data = json.data ?? json.result ?? json;
+  const rows = Array.isArray(data)
+    ? data
+    : Array.isArray(asRecord(data)?.list)
+      ? (asRecord(data)!.list as unknown[])
+      : Array.isArray(asRecord(data)?.inventories)
+        ? (asRecord(data)!.inventories as unknown[])
+        : null;
+
+  if (!rows || rows.length === 0) {
+    // Single object with totals
+    const rec = asRecord(data);
+    if (!rec) return null;
+    return (
+      parseCjStockNumber(rec.totalInventoryNum) ??
+      parseCjStockNumber(rec.totalInventory) ??
+      parseCjStockNumber(rec.storageNum) ??
+      sumCjInventoriesList(rec.inventories) ??
+      sumCjInventoriesList(rec.stock)
+    );
+  }
+
+  return sumCjInventoriesList(rows);
+}
+
+/**
+ * Live CJ stock check for one fulfillment line (vid preferred, then SKU).
+ * Returns available=null when the API cannot resolve stock (treat as unknown /
+ * fail-closed for fulfillment).
+ */
+export async function queryCjVariantAvailableStock(
+  line: {
+    externalVariantId: string | null;
+    externalSku: string | null;
+    externalProductId: string | null;
+  },
+  credentials?: SupplierCredentials | null,
+): Promise<{ available: number | null; raw: Record<string, unknown> }> {
+  const vid = line.externalVariantId?.trim() || null;
+  const sku = line.externalSku?.trim() || null;
+
+  if (vid) {
+    try {
+      const json = await cjFetch("/product/stock/queryByVid", {
+        credentials,
+        query: { vid },
+      });
+      const available = sumCjStockQueryPayload(json);
+      if (available != null) {
+        return { available, raw: json };
+      }
+    } catch (error) {
+      // Fall through to SKU / product query.
+      void error;
+    }
+  }
+
+  if (sku) {
+    try {
+      const json = await cjFetch("/product/stock/queryBySku", {
+        credentials,
+        query: { sku },
+      });
+      const available = sumCjStockQueryPayload(json);
+      if (available != null) {
+        return { available, raw: json };
+      }
+    } catch (error) {
+      void error;
+    }
+  }
+
+  // Last resort: product detail inventories for the PID.
+  if (line.externalProductId?.trim()) {
+    try {
+      const product = await getCjProduct(line.externalProductId.trim(), credentials);
+      if (!product) {
+        return { available: null, raw: { reason: "product_not_found" } };
+      }
+      if (vid && product.variants?.length) {
+        const match = product.variants.find((v) => v.externalVariantId === vid);
+        if (match?.stockQuantity != null) {
+          return {
+            available: match.stockQuantity,
+            raw: { source: "product_query_variant", product: product.raw },
+          };
+        }
+      }
+      return {
+        available: product.stockQuantity,
+        raw: { source: "product_query", product: product.raw },
+      };
+    } catch (error) {
+      return {
+        available: null,
+        raw: {
+          reason: "stock_query_failed",
+          error: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
+  }
+
+  return { available: null, raw: { reason: "no_vid_or_sku" } };
+}
+
+/**
+ * Real-time stock check for every CJ fulfillment line before createOrder.
+ */
+export async function checkCjFulfillmentStock(
+  request: SupplierFulfillmentRequest,
+  credentials?: SupplierCredentials | null,
+): Promise<{
+  ok: boolean;
+  lines: CjLineStockCheck[];
+  raw: unknown[];
+}> {
+  if (!useLiveSupplierApi("cj_dropshipping", credentials)) {
+    // Mock catalog always has stock for the requested qty.
+    return {
+      ok: true,
+      lines: request.lines.map((line) => ({
+        productName: line.productName,
+        requested: line.quantity,
+        available: Math.max(line.quantity, 50),
+        sufficient: true,
+        externalVariantId: line.externalVariantId,
+        externalSku: line.externalSku,
+        externalProductId: line.externalProductId,
+      })),
+      raw: [{ mock: true }],
+    };
+  }
+
+  const lines: CjLineStockCheck[] = [];
+  const raw: unknown[] = [];
+
+  for (const line of request.lines) {
+    const result = await queryCjVariantAvailableStock(line, credentials);
+    raw.push(result.raw);
+    const available = result.available;
+    const sufficient =
+      available != null && available >= Math.max(1, line.quantity);
+    lines.push({
+      productName: line.productName,
+      requested: line.quantity,
+      available,
+      sufficient,
+      externalVariantId: line.externalVariantId,
+      externalSku: line.externalSku,
+      externalProductId: line.externalProductId,
+      error: sufficient
+        ? undefined
+        : available == null
+          ? "Could not verify CJ stock for this variant."
+          : `CJ stock ${available} < requested ${line.quantity}.`,
+    });
+  }
+
+  return {
+    ok: lines.every((line) => line.sufficient),
+    lines,
+    raw,
+  };
+}
+
 export async function createCjOrder(
   request: SupplierFulfillmentRequest,
   credentials?: SupplierCredentials | null,
@@ -1135,9 +1314,30 @@ export async function createCjOrder(
     return {
       ok: false,
       supplierOrderRef: null,
-      status: "failed",
+      status: "fulfillment_failed",
       raw: {},
       error: "Missing CJ variant id (vid) on one or more lines.",
+    };
+  }
+
+  // Real-time stock check immediately before forwarding the order to CJ.
+  const stockCheck = await checkCjFulfillmentStock(request, credentials);
+  if (!stockCheck.ok) {
+    const shortfall = stockCheck.lines.filter((line) => !line.sufficient);
+    const detail = shortfall
+      .map(
+        (line) =>
+          `${line.productName}: need ${line.requested}, have ${
+            line.available == null ? "unknown" : line.available
+          }`,
+      )
+      .join("; ");
+    return {
+      ok: false,
+      supplierOrderRef: null,
+      status: "out_of_stock",
+      raw: { stockCheck },
+      error: `CJ out of stock at fulfillment time — ${detail}`,
     };
   }
 
@@ -1168,20 +1368,45 @@ export async function createCjOrder(
     const ref = String(
       data.orderId ?? data.orderNum ?? data.cjOrderId ?? data.id ?? "",
     );
+
+    // CJ sometimes accepts the call but returns stock-related business errors.
+    const message = String(json.message ?? json.errorMsg ?? "").toLowerCase();
+    if (
+      !ref &&
+      (message.includes("stock") ||
+        message.includes("inventory") ||
+        message.includes("out of"))
+    ) {
+      return {
+        ok: false,
+        supplierOrderRef: null,
+        status: "out_of_stock",
+        raw: { createOrder: json, stockCheck },
+        error: `CJ rejected order for stock: ${String(json.message ?? json.errorMsg ?? "out of stock")}`,
+      };
+    }
+
     return {
       ok: Boolean(ref),
       supplierOrderRef: ref || null,
-      status: ref ? "submitted" : "failed",
-      raw: json,
+      status: ref ? "submitted" : "fulfillment_failed",
+      raw: { createOrder: json, stockCheck },
       error: ref ? undefined : "CJ create order returned no order id.",
     };
   } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "CJ create order failed.";
+    const lower = message.toLowerCase();
+    const outOfStock =
+      lower.includes("stock") ||
+      lower.includes("inventory") ||
+      lower.includes("out of");
     return {
       ok: false,
       supplierOrderRef: null,
-      status: "failed",
-      raw: {},
-      error: error instanceof Error ? error.message : "CJ create order failed.",
+      status: outOfStock ? "out_of_stock" : "fulfillment_failed",
+      raw: { stockCheck },
+      error: message,
     };
   }
 }

@@ -18,7 +18,9 @@ export type OrderStatus =
   | "shipped"
   | "delivered"
   | "cancelled"
-  | "refunded";
+  | "refunded"
+  | "out_of_stock"
+  | "fulfillment_failed";
 export type OrderPayoutStatus =
   | "held"
   | "released"
@@ -1277,6 +1279,23 @@ export type Database = {
           p_error?: string | null;
         };
         Returns: SupplierFulfillmentJob;
+      };
+      mark_order_supplier_stock_issue: {
+        Args: {
+          p_order_id: string;
+          p_job_id?: string | null;
+          p_issue?: string | null;
+          p_error?: string | null;
+          p_payload?: Record<string, unknown> | null;
+        };
+        Returns: Order;
+      };
+      refund_order_supplier_unavailable: {
+        Args: {
+          p_order_id: string;
+          p_note?: string | null;
+        };
+        Returns: Order;
       };
       request_wallet_deposit: {
         Args: {

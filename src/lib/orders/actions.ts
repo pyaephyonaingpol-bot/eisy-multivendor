@@ -116,3 +116,41 @@ export async function confirmOrderDeliveredByBuyer(
       "Delivery confirmed. Seller payouts will move from escrow to available balance.",
   };
 }
+
+/** Vendor or admin cancels + refunds when supplier stock check failed. */
+export async function refundSupplierUnavailableOrder(
+  _prev: FulfillmentActionState,
+  formData: FormData,
+): Promise<FulfillmentActionState> {
+  const session = await getSessionProfile();
+  if (!session) {
+    return { error: "Sign in required." };
+  }
+
+  const orderId = String(formData.get("order_id") ?? "").trim();
+  const note = String(formData.get("note") ?? "").trim();
+  if (!orderId) {
+    return { error: "Order id is required." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("refund_order_supplier_unavailable", {
+    p_order_id: orderId,
+    p_note: note || "Supplier unavailable — cancelled and refunded",
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/vendor/orders");
+  revalidatePath("/admin/orders");
+  revalidatePath("/orders");
+  revalidatePath(`/orders/${orderId}`);
+  revalidatePath("/vendor/wallet");
+  revalidatePath("/account/wallet");
+
+  return {
+    success: "Order cancelled and buyer refunded from escrow.",
+  };
+}

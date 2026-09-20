@@ -21,6 +21,8 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   delivered: "Delivered",
   cancelled: "Cancelled",
   refunded: "Refunded",
+  out_of_stock: "Out of stock",
+  fulfillment_failed: "Fulfillment failed",
 };
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
@@ -42,6 +44,10 @@ export function isTerminalOrderStatus(status: OrderStatus) {
   return status === "cancelled" || status === "refunded";
 }
 
+export function isSupplierUnavailableStatus(status: OrderStatus) {
+  return status === "out_of_stock" || status === "fulfillment_failed";
+}
+
 export function orderStatusStepIndex(status: OrderStatus) {
   if (isTerminalOrderStatus(status)) return -1;
   return ORDER_STATUS_STEPS.indexOf(status);
@@ -58,6 +64,9 @@ export function orderStatusBadgeClass(status: OrderStatus) {
       return "bg-indigo-50 text-indigo-900 ring-indigo-200";
     case "delivered":
       return "bg-emerald-50 text-emerald-900 ring-emerald-200";
+    case "out_of_stock":
+    case "fulfillment_failed":
+      return "bg-rose-50 text-rose-900 ring-rose-200";
     case "cancelled":
     case "refunded":
       return "bg-zinc-100 text-zinc-700 ring-zinc-200";

@@ -1,6 +1,7 @@
 import type { OrderStatus } from "@/lib/types/database";
 import {
   ORDER_STATUS_STEPS,
+  isSupplierUnavailableStatus,
   isTerminalOrderStatus,
   orderStatusLabel,
   orderStatusStepIndex,
@@ -17,6 +18,19 @@ export function OrderStatusTimeline({
   shippedAt,
   deliveredAt,
 }: OrderStatusTimelineProps) {
+  if (isSupplierUnavailableStatus(status)) {
+    return (
+      <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-950">
+        <p className="font-medium">{orderStatusLabel(status)}</p>
+        <p className="mt-1 text-rose-900/80">
+          The supplier could not fulfill this order
+          {status === "out_of_stock" ? " because stock ran out" : ""}. An admin
+          or vendor can cancel and refund escrow from the orders dashboard.
+        </p>
+      </div>
+    );
+  }
+
   if (isTerminalOrderStatus(status)) {
     return (
       <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">

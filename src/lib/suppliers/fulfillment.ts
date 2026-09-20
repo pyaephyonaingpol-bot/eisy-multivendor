@@ -313,17 +313,51 @@ export async function processSupplierFulfillmentJobs(limit = 20): Promise<{
           supplier_order_ref: outcome.supplierOrderRef,
         });
       } else {
-        await supabase.rpc("complete_supplier_fulfillment_job", {
-          p_job_id: job.id,
-          p_status: "failed",
-          p_supplier_order_ref: null,
-          p_response: { ...outcome.raw, adapter_kind: kind },
-          p_error: outcome.error ?? "Supplier create order failed",
-        });
+        const issue =
+          outcome.status === "out_of_stock" ||
+          (outcome.error ?? "").toLowerCase().includes("out of stock") ||
+          (outcome.error ?? "").toLowerCase().includes("stock ")
+            ? "out_of_stock"
+            : "fulfillment_failed";
+
+        // Flag the order, write vendor/admin alerts, and mark the job failed.
+        const { error: markError } = await supabase.rpc(
+          "mark_order_supplier_stock_issue",
+          {
+            p_order_id: job.order_id,
+            p_job_id: job.id,
+            p_issue: issue,
+            p_error: outcome.error ?? "Supplier create order failed",
+            p_payload: { ...outcome.raw, adapter_kind: kind, issue },
+          },
+        );
+
+        if (markError) {
+          // Fallback: still complete the job so it does not retry forever.
+          await supabase.rpc("complete_supplier_fulfillment_job", {
+            p_job_id: job.id,
+            p_status: "failed",
+            p_supplier_order_ref: null,
+            p_response: { ...outcome.raw, adapter_kind: kind, issue },
+            p_error: outcome.error ?? markError.message,
+          });
+          await supabase
+            .from("orders")
+            .update({
+              status: issue,
+              fulfillment_sync_status: "error",
+              fulfillment_sync_error: (
+                outcome.error ?? "Supplier fulfillment failed"
+              ).slice(0, 500),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", job.order_id);
+        }
+
         failed += 1;
         results.push({
           job_id: job.id,
-          status: "failed",
+          status: issue,
           adapter_kind: kind,
           error: outcome.error,
         });

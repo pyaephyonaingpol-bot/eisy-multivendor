@@ -8,8 +8,8 @@ type AdminDashboardLinkProps = {
 };
 
 /**
- * Hard-navigates to the admin dashboard. Next.js &lt;Link&gt; soft routing can
- * appear to do nothing when middleware redirects (e.g. non-admin → `/`).
+ * Hard-navigates to the admin dashboard. Next.js Link soft routing can appear
+ * to do nothing when middleware redirects (e.g. non-admin → home).
  */
 export function AdminDashboardLink({
   className,

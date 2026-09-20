@@ -6,14 +6,13 @@ import type {
   VendorStatus,
 } from "@/lib/types/database";
 
-function normalizeVendor(row: Vendor & { user_id?: string | null }): Vendor {
-  const ownerId = row.owner_id || row.user_id;
-  if (!ownerId) {
-    throw new Error("Vendor row is missing owner_id/user_id");
+function normalizeVendor(row: Vendor): Vendor {
+  if (!row.owner_id) {
+    throw new Error("Vendor row is missing owner_id");
   }
   return {
     ...row,
-    owner_id: ownerId,
+    owner_id: row.owner_id,
     kyc_status: (row.kyc_status ?? "unsubmitted") as VendorKycStatus,
     kyc_document_type: row.kyc_document_type ?? null,
     kyc_document_url: row.kyc_document_url ?? null,
@@ -37,27 +36,18 @@ export async function getVendorForOwner(ownerId: string): Promise<Vendor | null>
 
   const supabase = await createClient();
 
-  // Prefer owner_id (canonical). Fall back to user_id for older schemas.
-  const primary = await supabase
+  // Canonical column is owner_id (public.vendors has no user_id).
+  const { data, error } = await supabase
     .from("vendors")
     .select("*")
     .eq("owner_id", ownerId)
     .maybeSingle();
 
-  if (!primary.error && primary.data) {
-    return normalizeVendor(primary.data as Vendor);
+  if (error || !data) {
+    return null;
   }
 
-  // Legacy column name on some Supabase projects.
-  const fallback = await supabase
-    .from("vendors")
-    .select("*")
-    .eq("user_id" as "owner_id", ownerId)
-    .maybeSingle();
-
-  return fallback.data
-    ? normalizeVendor(fallback.data as Vendor & { user_id?: string })
-    : null;
+  return normalizeVendor(data as Vendor);
 }
 
 export async function listVendorsForAdmin(status?: VendorStatus): Promise<Vendor[]> {

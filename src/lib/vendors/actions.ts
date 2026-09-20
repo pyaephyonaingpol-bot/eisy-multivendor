@@ -15,34 +15,19 @@ export type VendorActionState = {
   success?: string;
 } | null;
 
-/** Update a vendor row owned by the user; supports owner_id or legacy user_id. */
+/** Update a vendor row owned by the authenticated user (canonical owner_id). */
 async function updateOwnedVendor(
-  // Supabase query builder — keep loosely typed for dual-column fallback.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   vendorId: string,
   userId: string,
   values: Record<string, unknown>,
 ) {
-  const primary = await supabase
-    .from("vendors")
-    .update(values)
-    .eq("id", vendorId)
-    .eq("owner_id", userId);
-
-  if (!primary.error) {
-    return primary;
-  }
-
-  if (!/owner_id/i.test(String(primary.error.message ?? ""))) {
-    return primary;
-  }
-
   return supabase
     .from("vendors")
     .update(values)
     .eq("id", vendorId)
-    .eq("user_id", userId);
+    .eq("owner_id", userId);
 }
 
 function normalizeSlug(value: string) {
@@ -76,6 +61,7 @@ async function insertVendorApplication(options: {
   }
 
   const clients = [serviceClient, userClient].filter(Boolean);
+  // public.vendors uses owner_id (not user_id). Try with/without optional store_name.
   const rowVariants: Record<string, unknown>[] = [
     {
       id: vendorId,
@@ -89,14 +75,6 @@ async function insertVendorApplication(options: {
     {
       id: vendorId,
       owner_id: userId,
-      name,
-      slug,
-      description,
-      status: "pending",
-    },
-    {
-      id: vendorId,
-      user_id: userId,
       name,
       slug,
       description,
@@ -123,7 +101,7 @@ async function insertVendorApplication(options: {
         }
       }
 
-      // Column missing / wrong name — try next variant.
+      // Optional column missing — try next variant.
       if (
         /column .* does not exist|could not find|schema cache/i.test(message)
       ) {

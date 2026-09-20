@@ -280,8 +280,10 @@ export function SupplierProductPreviewModal({
                           >
                             <span className="block font-medium text-zinc-950">{v.label}</span>
                             <span className="text-zinc-500">
-                              {formatMoney(v.priceUsdt, MARKETPLACE_CURRENCY)} ·{" "}
-                              {v.stockQuantity ?? 0} in stock
+                              {formatMoney(v.priceUsdt, MARKETPLACE_CURRENCY)}
+                              {v.stockQuantity != null
+                                ? ` · ${v.stockQuantity} in stock`
+                                : " · stock unknown"}
                             </span>
                           </button>
                         );
@@ -303,7 +305,11 @@ export function SupplierProductPreviewModal({
                   <p className="mt-1">
                     Ships from {product.warehouseCountry} · {product.shippingDaysMin ?? "—"}–
                     {product.shippingDaysMax ?? "—"} days · Stock{" "}
-                    {selectedVariant?.stockQuantity ?? product.stockQuantity ?? "—"}
+                    {selectedVariant?.stockQuantity != null
+                      ? selectedVariant.stockQuantity
+                      : product.stockQuantity != null
+                        ? product.stockQuantity
+                        : "unknown"}
                   </p>
                   <p className="mt-1 font-mono text-[10px] text-zinc-400">
                     {product.externalProductId}

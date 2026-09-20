@@ -1,6 +1,7 @@
 import type {
   ExternalCatalogProduct,
   ExternalInventorySnapshot,
+  ExternalProductVariant,
   SupplierCredentials,
   SupplierFulfillmentRequest,
   SupplierFulfillmentResult,
@@ -353,6 +354,237 @@ function collectImages(row: Record<string, unknown>): string[] {
   return [...new Set(out)];
 }
 
+/**
+ * Parse a CJ inventory number. Missing / blank / non-numeric → null (never
+ * coerce to 0 — callers must treat null as "unknown").
+ */
+function parseCjStockNumber(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  if (typeof value === "string" && !value.trim()) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.floor(n);
+}
+
+/** Parse JSON strings CJ sometimes returns for inventory blobs. */
+function parseMaybeJson(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) return value;
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    return value;
+  }
+}
+
+/**
+ * Sum stock from a CJ inventories[] list (variant or product).
+ * Prefer totalInventory / totalInventoryNum; if missing, sum CJ + factory
+ * warehouse counts. Never treat a missing field as 0.
+ */
+function sumCjInventoriesList(inventories: unknown): number | null {
+  const list = parseMaybeJson(inventories);
+  if (!Array.isArray(list) || list.length === 0) return null;
+
+  let sum = 0;
+  let found = false;
+  for (const entry of list) {
+    const rec = asRecord(entry);
+    if (!rec) continue;
+
+    const total =
+      parseCjStockNumber(rec.totalInventory) ??
+      parseCjStockNumber(rec.totalInventoryNum);
+    if (total != null) {
+      sum += total;
+      found = true;
+      continue;
+    }
+
+    const cj =
+      parseCjStockNumber(rec.cjInventory) ??
+      parseCjStockNumber(rec.cjInventoryNum);
+    const factory =
+      parseCjStockNumber(rec.factoryInventory) ??
+      parseCjStockNumber(rec.factoryInventoryNum);
+    if (cj != null || factory != null) {
+      sum += (cj ?? 0) + (factory ?? 0);
+      found = true;
+      continue;
+    }
+
+    const storage = parseCjStockNumber(rec.storageNum);
+    if (storage != null) {
+      sum += storage;
+      found = true;
+      continue;
+    }
+
+    // Nested stock[] warehouse rows when totals are absent.
+    const nested = parseMaybeJson(rec.stock);
+    if (Array.isArray(nested)) {
+      for (const stockRow of nested) {
+        const stockRec = asRecord(stockRow);
+        if (!stockRec) continue;
+        const nestedCj = parseCjStockNumber(stockRec.inventory);
+        const nestedFactory = parseCjStockNumber(stockRec.factoryInventory);
+        const nestedTotal = parseCjStockNumber(stockRec.totalInventory);
+        if (nestedTotal != null) {
+          sum += nestedTotal;
+          found = true;
+        } else if (nestedCj != null || nestedFactory != null) {
+          sum += (nestedCj ?? 0) + (nestedFactory ?? 0);
+          found = true;
+        }
+      }
+    }
+  }
+  return found ? sum : null;
+}
+
+/** Read variant-level stock from a CJ variant object. */
+function stockFromCjVariantRow(row: Record<string, unknown>): number | null {
+  const direct =
+    parseCjStockNumber(row.totalInventory) ??
+    parseCjStockNumber(row.warehouseInventoryNum) ??
+    parseCjStockNumber(row.totalVerifiedInventory) ??
+    parseCjStockNumber(row.inventoryNum) ??
+    parseCjStockNumber(row.stockQuantity) ??
+    parseCjStockNumber(row.stock);
+  if (direct != null) return direct;
+
+  const fromInventories = sumCjInventoriesList(row.inventories);
+  if (fromInventories != null) return fromInventories;
+
+  // variantInventories entries use `inventory` as an array of warehouse rows.
+  const inventoryField = parseMaybeJson(row.inventory);
+  if (Array.isArray(inventoryField)) {
+    return sumCjInventoriesList(inventoryField);
+  }
+
+  return parseCjStockNumber(inventoryField);
+}
+
+/**
+ * Build vid → stock map from product.variantInventories (array or JSON string).
+ * Shape: [{ vid, inventory: [{ totalInventory, ... }] }, ...]
+ */
+function variantStockMapFromProduct(
+  row: Record<string, unknown>,
+): Map<string, number> {
+  const map = new Map<string, number>();
+  const raw = parseMaybeJson(row.variantInventories);
+  if (!Array.isArray(raw)) return map;
+
+  for (const item of raw) {
+    const rec = asRecord(item);
+    if (!rec) continue;
+    const vid = String(rec.vid ?? rec.variantId ?? "").trim();
+    if (!vid) continue;
+    const qty = stockFromCjVariantRow(rec);
+    if (qty != null) map.set(vid, qty);
+  }
+  return map;
+}
+
+function mapCjVariant(
+  row: Record<string, unknown>,
+  stockOverride?: number | null,
+): ExternalProductVariant | null {
+  const externalVariantId = String(
+    row.vid ?? row.variantId ?? row.id ?? "",
+  ).trim();
+  if (!externalVariantId) return null;
+
+  const price = Number(
+    row.variantSellPrice ?? row.sellPrice ?? row.nowPrice ?? row.price ?? 0,
+  );
+  const label =
+    String(
+      row.variantNameEn ??
+        row.variantKey ??
+        row.variantName ??
+        row.variantSku ??
+        externalVariantId,
+    ).trim() || externalVariantId;
+
+  const stockQuantity =
+    stockOverride != null
+      ? stockOverride
+      : stockFromCjVariantRow(row);
+
+  return {
+    externalVariantId,
+    externalSku:
+      String(row.variantSku ?? row.sku ?? "").trim() || null,
+    label,
+    priceUsdt: Number.isFinite(price) && price > 0 ? price : 1,
+    stockQuantity,
+    imageUrl:
+      String(row.variantImage ?? row.bigImage ?? row.image ?? "").trim() || null,
+  };
+}
+
+function mapCjVariants(
+  row: Record<string, unknown>,
+): ExternalProductVariant[] {
+  const stockByVid = variantStockMapFromProduct(row);
+  const variantsRaw = Array.isArray(row.variants) ? row.variants : [];
+  const variants: ExternalProductVariant[] = [];
+
+  for (const item of variantsRaw) {
+    const variantRow = asRecord(item);
+    if (!variantRow) continue;
+    const vid = String(
+      variantRow.vid ?? variantRow.variantId ?? variantRow.id ?? "",
+    ).trim();
+    const override = vid ? stockByVid.get(vid) : undefined;
+    const mapped = mapCjVariant(variantRow, override);
+    if (mapped) variants.push(mapped);
+  }
+
+  // listV2 may only expose variantInventories without a full variants[].
+  if (variants.length === 0 && stockByVid.size > 0) {
+    for (const [vid, qty] of stockByVid) {
+      variants.push({
+        externalVariantId: vid,
+        externalSku: null,
+        label: vid,
+        priceUsdt: 1,
+        stockQuantity: qty,
+        imageUrl: null,
+      });
+    }
+  }
+
+  return variants;
+}
+
+function productLevelStock(row: Record<string, unknown>): number | null {
+  const direct =
+    parseCjStockNumber(row.warehouseInventoryNum) ??
+    parseCjStockNumber(row.totalVerifiedInventory) ??
+    parseCjStockNumber(row.totalUnVerifiedInventory) ??
+    parseCjStockNumber(row.totalInventory) ??
+    parseCjStockNumber(row.totalInventoryNum) ??
+    parseCjStockNumber(row.inventoryNum);
+  if (direct != null) return direct;
+
+  const fromInventories =
+    sumCjInventoriesList(row.inventories) ??
+    sumCjInventoriesList(parseMaybeJson(row.inventoryInfo));
+  if (fromInventories != null) return fromInventories;
+
+  // Do not treat a bare `inventory` / `stock` object as a count.
+  const inventoryField = parseMaybeJson(row.inventory);
+  if (Array.isArray(inventoryField)) {
+    return sumCjInventoriesList(inventoryField);
+  }
+  return parseCjStockNumber(inventoryField) ?? parseCjStockNumber(row.stock);
+}
+
 function mapCjProduct(row: Record<string, unknown>): ExternalCatalogProduct {
   const images = collectImages(row);
   const price = Number(
@@ -363,23 +595,31 @@ function mapCjProduct(row: Record<string, unknown>): ExternalCatalogProduct {
       row.price ??
       0,
   );
-  const stockRaw =
-    row.warehouseInventoryNum ??
-    row.totalVerifiedInventory ??
-    row.inventory ??
-    row.stock;
   const externalProductId = String(
     row.pid ?? row.productId ?? row.id ?? "",
   ).trim();
+  const variants = mapCjVariants(row);
+
+  const variantStockSum = variants.reduce<number | null>((acc, variant) => {
+    if (variant.stockQuantity == null) return acc;
+    return (acc ?? 0) + variant.stockQuantity;
+  }, null);
+
+  const stockQuantity = productLevelStock(row) ?? variantStockSum;
+
+  const firstVariant = variants[0] ?? null;
 
   return {
     providerKind: "cj_dropshipping",
     externalProductId,
     externalVariantId:
-      String(row.vid ?? row.variantId ?? row.productSku ?? row.sku ?? "").trim() ||
+      firstVariant?.externalVariantId ||
+      String(row.vid ?? row.variantId ?? "").trim() ||
       null,
     externalSku:
-      String(row.productSku ?? row.sku ?? row.spu ?? "").trim() || null,
+      firstVariant?.externalSku ||
+      String(row.productSku ?? row.sku ?? row.spu ?? "").trim() ||
+      null,
     name: String(
       row.productNameEn ?? row.nameEn ?? row.productName ?? row.name ?? "CJ product",
     ),
@@ -390,12 +630,14 @@ function mapCjProduct(row: Record<string, unknown>): ExternalCatalogProduct {
       null,
     imageUrl: images[0] ?? null,
     images,
-    priceUsdt: Number.isFinite(price) && price > 0 ? price : 1,
+    priceUsdt:
+      firstVariant && firstVariant.priceUsdt > 0
+        ? firstVariant.priceUsdt
+        : Number.isFinite(price) && price > 0
+          ? price
+          : 1,
     compareAtPriceUsdt: null,
-    stockQuantity:
-      stockRaw != null && Number.isFinite(Number(stockRaw))
-        ? Number(stockRaw)
-        : null,
+    stockQuantity,
     warehouseCountry: String(
       row.warehouseCountryCode ??
         row.countryCode ??
@@ -404,7 +646,55 @@ function mapCjProduct(row: Record<string, unknown>): ExternalCatalogProduct {
     ),
     shippingDaysMin: 5,
     shippingDaysMax: 18,
+    variants: variants.length > 0 ? variants : undefined,
     raw: row,
+  };
+}
+
+/**
+ * Merge /product/stock/getInventoryByPid into a mapped product when variant
+ * stock was missing from the product query payload.
+ */
+function applyCjPidInventory(
+  product: ExternalCatalogProduct,
+  inventoryData: Record<string, unknown>,
+): ExternalCatalogProduct {
+  const stockByVid = variantStockMapFromProduct(inventoryData);
+  const productStock =
+    productLevelStock(inventoryData) ??
+    sumCjInventoriesList(inventoryData.inventories);
+
+  const variants = (product.variants ?? []).map((variant) => {
+    if (variant.stockQuantity != null) return variant;
+    const qty = stockByVid.get(variant.externalVariantId);
+    return qty != null ? { ...variant, stockQuantity: qty } : variant;
+  });
+
+  // Add any vids returned by inventory that were not on the product.
+  for (const [vid, qty] of stockByVid) {
+    if (variants.some((v) => v.externalVariantId === vid)) continue;
+    variants.push({
+      externalVariantId: vid,
+      externalSku: null,
+      label: vid,
+      priceUsdt: product.priceUsdt,
+      stockQuantity: qty,
+      imageUrl: null,
+    });
+  }
+
+  const variantStockSum = variants.reduce<number | null>((acc, variant) => {
+    if (variant.stockQuantity == null) return acc;
+    return (acc ?? 0) + variant.stockQuantity;
+  }, null);
+
+  return {
+    ...product,
+    stockQuantity: product.stockQuantity ?? productStock ?? variantStockSum,
+    variants: variants.length > 0 ? variants : product.variants,
+    externalVariantId:
+      product.externalVariantId ?? variants[0]?.externalVariantId ?? null,
+    externalSku: product.externalSku ?? variants[0]?.externalSku ?? null,
   };
 }
 
@@ -764,8 +1054,30 @@ export async function getCjProduct(
       asRecord(json) ??
       null;
     if (!data) return null;
-    const mapped = mapCjProduct(data);
-    return mapped.externalProductId ? mapped : null;
+    let mapped = mapCjProduct(data);
+    if (!mapped.externalProductId) return null;
+
+    const needsInventoryEnrich =
+      mapped.stockQuantity == null ||
+      (mapped.variants?.some((v) => v.stockQuantity == null) ?? false);
+
+    if (needsInventoryEnrich) {
+      try {
+        const stockJson = await cjFetch("/product/stock/getInventoryByPid", {
+          credentials,
+          query: { pid: mapped.externalProductId },
+        });
+        const stockData =
+          asRecord(stockJson.data) ?? asRecord(stockJson.result) ?? null;
+        if (stockData) {
+          mapped = applyCjPidInventory(mapped, stockData);
+        }
+      } catch {
+        // Detail still usable without the stock enrichment call.
+      }
+    }
+
+    return mapped;
   } catch (error) {
     return maybeMockFallback(credentials, error, () => {
       return (

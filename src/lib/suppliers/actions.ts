@@ -269,7 +269,9 @@ export async function importExternalSupplierProductAction(
   const variant = resolveImportVariant(formData, remote);
   if (!meetsMinImportStock(variant.stockQuantity)) {
     return {
-      error: `Supplier stock must be at least ${MIN_IMPORT_STOCK_QUANTITY} units before import (found ${variant.stockQuantity ?? 0}).`,
+      error: `Supplier stock must be at least ${MIN_IMPORT_STOCK_QUANTITY} units before import (found ${
+        variant.stockQuantity == null ? "unknown" : variant.stockQuantity
+      }).`,
     };
   }
 

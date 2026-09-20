@@ -305,6 +305,18 @@ set usdt_payout_address = usdt_deposit_address
 where (usdt_payout_address is null or trim(usdt_payout_address) = '')
   and nullif(trim(usdt_deposit_address), '') is not null;
 
+-- Ensure id auto-generates even when the table already existed without a default
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'vendors' and column_name = 'id'
+  ) then
+    alter table public.vendors alter column id set default gen_random_uuid();
+  end if;
+end;
+$$;
+
 -- Indexes
 create unique index if not exists vendors_owner_id_key on public.vendors (owner_id);
 create unique index if not exists vendors_slug_key on public.vendors (slug);
@@ -374,7 +386,7 @@ set search_path = public
 as $$
 declare
   v_user_id uuid := auth.uid();
-  v_vendor_id uuid;
+  v_vendor_id uuid := gen_random_uuid();
   v_slug text;
 begin
   if v_user_id is null then
@@ -406,9 +418,8 @@ begin
     raise exception 'That store URL is already taken';
   end if;
 
-  insert into public.vendors (owner_id, name, slug, description, status, store_name)
-  values (v_user_id, p_name, v_slug, p_description, 'pending', p_name)
-  returning id into v_vendor_id;
+  insert into public.vendors (id, owner_id, name, slug, description, status, store_name)
+  values (v_vendor_id, v_user_id, p_name, v_slug, p_description, 'pending', p_name);
 
   begin
     perform set_config('app.bypass_role_protect', 'true', true);
@@ -559,19 +570,11 @@ create policy "vendors_update_owner_or_admin"
 -- ---------------------------------------------------------------------------
 select
   c.column_name,
-  c.data_type,
-  c.udt_name,
+  c.column_default,
   c.is_nullable
 from information_schema.columns c
 where c.table_schema = 'public'
   and c.table_name = 'vendors'
-order by c.ordinal_position;
+  and c.column_name = 'id';
 
-select 'apply_for_vendor' as rpc, to_regprocedure('public.apply_for_vendor(text,text,text)') is not null as ok
-union all
-select 'owns_vendor', to_regprocedure('public.owns_vendor(uuid)') is not null
-union all
-select 'review_vendor', to_regprocedure('public.review_vendor(uuid,public.vendor_status)') is not null
-union all
-select 'update_vendor_contact_profile',
-  to_regprocedure('public.update_vendor_contact_profile(uuid,text,text,text,text)') is not null;
+select 'apply_for_vendor' as rpc, to_regprocedure('public.apply_for_vendor(text,text,text)') is not null as ok;

@@ -6,8 +6,11 @@ import type {
   VendorStatus,
 } from "@/lib/types/database";
 
-function normalizeVendor(row: Vendor & { user_id?: string }): Vendor {
+function normalizeVendor(row: Vendor & { user_id?: string | null }): Vendor {
   const ownerId = row.owner_id || row.user_id;
+  if (!ownerId) {
+    throw new Error("Vendor row is missing owner_id/user_id");
+  }
   return {
     ...row,
     owner_id: ownerId,
@@ -45,10 +48,11 @@ export async function getVendorForOwner(ownerId: string): Promise<Vendor | null>
     return normalizeVendor(primary.data as Vendor);
   }
 
+  // Legacy column name on some Supabase projects.
   const fallback = await supabase
     .from("vendors")
     .select("*")
-    .eq("user_id", ownerId)
+    .eq("user_id" as "owner_id", ownerId)
     .maybeSingle();
 
   return fallback.data

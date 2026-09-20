@@ -46,7 +46,7 @@ export default async function AdminFeesPage() {
   }
 
   if (!canAccessAdmin(session.role)) {
-    redirect("/");
+    redirect("/unauthorized?from=admin");
   }
 
   const [settings, invoices, commissions, chargeRuns, planLimits] =

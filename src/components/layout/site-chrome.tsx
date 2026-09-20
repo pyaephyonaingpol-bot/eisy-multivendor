@@ -40,6 +40,9 @@ export async function Header() {
               {item.label}
             </Link>
           ))}
+          <AdminDashboardLink className="hover:text-zinc-950">
+            {t.nav.adminDashboard}
+          </AdminDashboardLink>
           <LanguageSwitcher compact />
           {session ? (
             <div className="flex items-center gap-3">
@@ -81,6 +84,9 @@ export async function Header() {
             {item.label}
           </Link>
         ))}
+        <AdminDashboardLink className="whitespace-nowrap rounded-full bg-zinc-50 px-3 py-1 hover:bg-zinc-100 hover:text-zinc-950">
+          {t.nav.adminDashboard}
+        </AdminDashboardLink>
       </nav>
     </header>
   );

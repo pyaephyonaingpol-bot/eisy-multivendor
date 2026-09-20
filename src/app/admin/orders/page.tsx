@@ -28,7 +28,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
     redirect("/login?next=/admin/orders");
   }
   if (!canAccessAdmin(session.role)) {
-    redirect("/");
+    redirect("/unauthorized?from=admin");
   }
 
   const params = await searchParams;

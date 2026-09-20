@@ -1,5 +1,3 @@
--- NOTE: Full vendors schema repair (all columns + RPCs). Same as ensure_complete_vendors_schema.sql.
-
 -- =============================================================================
 -- 037_ensure_complete_vendors_schema.sql
 --
@@ -555,25 +553,3 @@ create policy "vendors_update_owner_or_admin"
   on public.vendors for update
   using (owner_id = auth.uid() or public.is_admin())
   with check (owner_id = auth.uid() or public.is_admin());
-
--- ---------------------------------------------------------------------------
--- Verification (paste-script only)
--- ---------------------------------------------------------------------------
-select
-  c.column_name,
-  c.data_type,
-  c.udt_name,
-  c.is_nullable
-from information_schema.columns c
-where c.table_schema = 'public'
-  and c.table_name = 'vendors'
-order by c.ordinal_position;
-
-select 'apply_for_vendor' as rpc, to_regprocedure('public.apply_for_vendor(text,text,text)') is not null as ok
-union all
-select 'owns_vendor', to_regprocedure('public.owns_vendor(uuid)') is not null
-union all
-select 'review_vendor', to_regprocedure('public.review_vendor(uuid,public.vendor_status)') is not null
-union all
-select 'update_vendor_contact_profile',
-  to_regprocedure('public.update_vendor_contact_profile(uuid,text,text,text,text)') is not null;

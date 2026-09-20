@@ -1,5 +1,3 @@
--- NOTE: Full vendors schema repair (all columns + RPCs). Same as ensure_complete_vendors_schema.sql.
-
 -- =============================================================================
 -- 037_ensure_complete_vendors_schema.sql
 --

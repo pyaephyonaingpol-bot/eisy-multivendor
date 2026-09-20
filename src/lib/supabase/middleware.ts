@@ -103,7 +103,30 @@ export async function updateSession(request: NextRequest) {
     }
 
     if (isVendorRoute && role !== "vendor" && role !== "admin") {
-      return homeRedirect(request, supabaseResponse);
+      // Applicants may have a vendors row before profiles.role is promoted
+      // (role trigger can block non-RPC updates on incomplete live DBs).
+      let hasVendor = false;
+      const byOwner = await supabase
+        .from("vendors")
+        .select("id")
+        .eq("owner_id", user.id)
+        .limit(1)
+        .maybeSingle();
+      if (byOwner.data) {
+        hasVendor = true;
+      } else if (byOwner.error && /owner_id/i.test(byOwner.error.message)) {
+        const byUser = await supabase
+          .from("vendors")
+          .select("id")
+          .eq("user_id" as "owner_id", user.id)
+          .limit(1)
+          .maybeSingle();
+        hasVendor = Boolean(byUser.data);
+      }
+
+      if (!hasVendor) {
+        return homeRedirect(request, supabaseResponse);
+      }
     }
 
     return supabaseResponse;

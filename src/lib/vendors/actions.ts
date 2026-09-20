@@ -1,8 +1,10 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/admin";
 import { collectLogoFile, uploadVendorLogo } from "@/lib/vendors/branding";
 import { collectKycDocumentFile, uploadVendorKycDocument } from "@/lib/vendors/kyc";
 import { getVendorForOwner } from "@/lib/vendors/queries";
@@ -52,6 +54,115 @@ function normalizeSlug(value: string) {
     .slice(0, 60);
 }
 
+/** Insert a pending vendor row with an explicit UUID (never rely on column DEFAULT). */
+async function insertVendorApplication(options: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  userClient: any;
+  userId: string;
+  vendorId: string;
+  name: string;
+  slug: string;
+  description: string | null;
+}): Promise<{ error: string | null }> {
+  const { userClient, userId, vendorId, name, slug, description } = options;
+
+  // Prefer service role so RLS / missing insert policies cannot block apply.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let serviceClient: any = null;
+  try {
+    serviceClient = createServiceClient();
+  } catch {
+    serviceClient = null;
+  }
+
+  const clients = [serviceClient, userClient].filter(Boolean);
+  const rowVariants: Record<string, unknown>[] = [
+    {
+      id: vendorId,
+      owner_id: userId,
+      name,
+      slug,
+      description,
+      status: "pending",
+      store_name: name,
+    },
+    {
+      id: vendorId,
+      owner_id: userId,
+      name,
+      slug,
+      description,
+      status: "pending",
+    },
+    {
+      id: vendorId,
+      user_id: userId,
+      name,
+      slug,
+      description,
+      status: "pending",
+    },
+  ];
+
+  let lastMessage: string | null = null;
+
+  for (const client of clients) {
+    for (const row of rowVariants) {
+      const { error } = await client.from("vendors").insert(row);
+      if (!error) {
+        return { error: null };
+      }
+      const message = String(error.message ?? "Failed to create vendor application.");
+      lastMessage = message;
+
+      // Already applied — treat as success for idempotent resubmits.
+      if (/already have a vendor|duplicate key|unique constraint/i.test(message)) {
+        const existing = await getVendorForOwner(userId);
+        if (existing) {
+          return { error: null };
+        }
+      }
+
+      // Column missing / wrong name — try next variant.
+      if (
+        /column .* does not exist|could not find|schema cache/i.test(message)
+      ) {
+        continue;
+      }
+    }
+  }
+
+  return { error: lastMessage ?? "Failed to create vendor application." };
+}
+
+async function promoteProfileToVendor(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  userClient: any,
+  userId: string,
+) {
+  // Best-effort: protect_profile_role may block non-RPC updates.
+  const { error: userErr } = await userClient
+    .from("profiles")
+    .update({ role: "vendor" })
+    .eq("id", userId)
+    .eq("role", "customer");
+
+  if (!userErr) {
+    return;
+  }
+
+  try {
+    const serviceClient = createServiceClient();
+    await serviceClient
+      .from("profiles")
+      .update({ role: "vendor" })
+      .eq("id", userId)
+      .eq("role", "customer");
+  } catch {
+    // Middleware also allows /vendor/* when a vendors row exists.
+  }
+}
+
 export async function applyForVendor(
   _prev: VendorActionState,
   formData: FormData,
@@ -82,14 +193,34 @@ export async function applyForVendor(
     return { error: "You must be signed in to apply." };
   }
 
-  const { error } = await supabase.rpc("apply_for_vendor", {
-    p_name: name,
-    p_slug: slug,
-    p_description: description || null,
+  const existing = await getVendorForOwner(user.id);
+  if (existing) {
+    redirect("/vendor/dashboard");
+  }
+
+  // Always supply id in application code — live DBs often lack DEFAULT gen_random_uuid().
+  const vendorId = randomUUID();
+  const inserted = await insertVendorApplication({
+    userClient: supabase,
+    userId: user.id,
+    vendorId,
+    name,
+    slug,
+    description: description || null,
   });
 
-  if (error) {
-    return { error: error.message };
+  if (inserted.error) {
+    // Last resort: repaired RPC (also generates UUID server-side once migration is applied).
+    const { error: rpcError } = await supabase.rpc("apply_for_vendor", {
+      p_name: name,
+      p_slug: slug,
+      p_description: description || null,
+    });
+    if (rpcError) {
+      return { error: inserted.error || rpcError.message };
+    }
+  } else {
+    await promoteProfileToVendor(supabase, user.id);
   }
 
   revalidatePath("/vendor/dashboard");

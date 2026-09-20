@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AdminDashboardLink } from "@/components/layout/admin-dashboard-link";
 
 export function StorefrontFooter() {
   return (
@@ -35,12 +36,9 @@ export function StorefrontFooter() {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4 text-xs text-zinc-500">
           <p>© 2026 EISY Marketplace · Checkout in USDT</p>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <Link
-              href="/admin/dashboard"
-              className="text-zinc-400 transition hover:text-zinc-600"
-            >
+            <AdminDashboardLink className="text-zinc-400 transition hover:text-zinc-600">
               Admin Dashboard
-            </Link>
+            </AdminDashboardLink>
             <Link
               href="/vendor/dashboard"
               className="text-zinc-400 transition hover:text-zinc-600"

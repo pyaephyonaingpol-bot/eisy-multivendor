@@ -424,6 +424,9 @@ create index if not exists products_ships_to_region_ids_gin
 
 alter table public.products enable row level security;
 
+-- RLS policies for insert/update live in 056_ensure_products_rls_policies.sql
+-- (required after enabling RLS on partial DBs that never got 001/026 policies).
+
 -- ---------------------------------------------------------------------------
 -- 6) Reload PostgREST schema cache once so every new column is visible
 -- ---------------------------------------------------------------------------

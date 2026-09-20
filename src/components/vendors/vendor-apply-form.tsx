@@ -79,6 +79,26 @@ function VendorApplyFormFields({ defaultName = "" }: VendorApplyFormProps) {
         />
       </div>
 
+      <div className="space-y-2">
+        <label
+          htmlFor="usdt_payout_address"
+          className="text-sm font-medium text-zinc-700"
+        >
+          USDT payout address <span className="font-normal text-zinc-500">(optional)</span>
+        </label>
+        <input
+          id="usdt_payout_address"
+          name="usdt_payout_address"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="T… (TRC-20)"
+          className="w-full rounded-lg border border-zinc-200 px-3 py-2 font-mono text-sm"
+        />
+        <p className="text-xs text-zinc-500">
+          You can add or change this later from your vendor dashboard.
+        </p>
+      </div>
+
       {state?.error ? (
         <p className="text-sm text-red-600" role="alert">
           {state.error}

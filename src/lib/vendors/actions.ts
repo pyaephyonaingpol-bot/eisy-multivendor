@@ -49,9 +49,18 @@ async function insertVendorApplication(options: {
   storeName: string;
   slug: string;
   description: string | null;
+  usdtPayoutAddress: string;
 }): Promise<{ error: string | null }> {
-  const { userClient, userId, vendorId, name, storeName, slug, description } =
-    options;
+  const {
+    userClient,
+    userId,
+    vendorId,
+    name,
+    storeName,
+    slug,
+    description,
+    usdtPayoutAddress,
+  } = options;
 
   // Prefer service role so RLS / missing insert policies cannot block apply.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -64,7 +73,8 @@ async function insertVendorApplication(options: {
 
   const clients = [serviceClient, userClient].filter(Boolean);
 
-  // Always include store_name — live DB treats it as NOT NULL.
+  // Include optional profile columns as '' so live NOT NULL columns without
+  // defaults (store_name, usdt_payout_address, …) do not reject the apply.
   const row = {
     id: vendorId,
     owner_id: userId,
@@ -73,6 +83,9 @@ async function insertVendorApplication(options: {
     slug,
     description,
     status: "pending" as const,
+    usdt_payout_address: usdtPayoutAddress,
+    contact_email: "",
+    telegram_handle: "",
   };
 
   let lastMessage: string | null = null;
@@ -91,6 +104,28 @@ async function insertVendorApplication(options: {
       if (existing) {
         return { error: null };
       }
+    }
+
+    // If an unexpected column is missing from schema cache, retry without
+    // the optional profile fields (keep required apply fields).
+    if (/could not find the '(contact_email|telegram_handle)' column/i.test(message)) {
+      const minimal = {
+        id: vendorId,
+        owner_id: userId,
+        name,
+        store_name: storeName,
+        slug,
+        description,
+        status: "pending" as const,
+        usdt_payout_address: usdtPayoutAddress,
+      };
+      const retry = await client.from("vendors").insert(minimal);
+      if (!retry.error) {
+        return { error: null };
+      }
+      lastMessage = String(
+        retry.error.message ?? "Failed to create vendor application.",
+      );
     }
   }
 
@@ -136,6 +171,9 @@ export async function applyForVendor(
   ).trim();
   const slugInput = String(formData.get("slug") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
+  const usdtPayoutAddress = String(
+    formData.get("usdt_payout_address") ?? "",
+  ).trim();
   const slug = normalizeSlug(slugInput || storeName || name);
 
   if (!name && !storeName) {
@@ -153,6 +191,16 @@ export async function applyForVendor(
     return { error: "Slug must use lowercase letters, numbers, and hyphens." };
   }
 
+  if (
+    usdtPayoutAddress &&
+    !/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(usdtPayoutAddress)
+  ) {
+    return {
+      error:
+        "USDT payout address must be a valid TRC-20 address (starts with T).",
+    };
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -167,7 +215,8 @@ export async function applyForVendor(
     redirect("/vendor/dashboard");
   }
 
-  // Always supply id + store_name — live DBs often lack defaults / treat them NOT NULL.
+  // Always supply id + store_name + usdt_payout_address — live DBs often lack
+  // defaults / treat optional profile columns as NOT NULL.
   const vendorId = randomUUID();
   const inserted = await insertVendorApplication({
     userClient: supabase,
@@ -177,6 +226,7 @@ export async function applyForVendor(
     storeName: resolvedStoreName,
     slug,
     description: description || null,
+    usdtPayoutAddress,
   });
 
   if (inserted.error) {

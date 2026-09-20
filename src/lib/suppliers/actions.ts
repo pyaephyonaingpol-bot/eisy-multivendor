@@ -547,29 +547,28 @@ export async function importExternalSupplierProductAction(
     product_type: "physical" as const,
   };
 
-  let writePayload: Record<string, unknown> = { ...insertPayload };
   let { data: product, error: productError } = await supabase
     .from("products")
-    .insert(writePayload)
+    .insert(insertPayload)
     .select("id")
     .single();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let fallbackPayload: any = insertPayload;
 
   if (productError && isCompareAtPriceSchemaError(productError.message)) {
-    writePayload = stripCompareAtPrice(writePayload);
+    fallbackPayload = stripCompareAtPrice(fallbackPayload);
     ({ data: product, error: productError } = await supabase
       .from("products")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .insert(writePayload as any)
+      .insert(fallbackPayload)
       .select("id")
       .single());
   }
 
   if (productError && isCurrencySchemaError(productError.message)) {
-    writePayload = stripCurrency(writePayload);
+    fallbackPayload = stripCurrency(fallbackPayload);
     ({ data: product, error: productError } = await supabase
       .from("products")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .insert(writePayload as any)
+      .insert(fallbackPayload)
       .select("id")
       .single());
   }

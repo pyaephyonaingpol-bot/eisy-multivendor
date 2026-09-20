@@ -276,17 +276,18 @@ export async function createProduct(
     ships_to_region_ids: parsed.shipsToRegionIds,
   };
 
-  let writePayload: Record<string, unknown> = { ...insertPayload };
-  let { error } = await supabase.from("products").insert(writePayload);
+  let { error } = await supabase.from("products").insert(insertPayload);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let fallbackPayload: any = insertPayload;
 
   if (error && isCompareAtPriceSchemaError(error.message)) {
-    writePayload = stripCompareAtPrice(writePayload);
-    ({ error } = await supabase.from("products").insert(writePayload));
+    fallbackPayload = stripCompareAtPrice(fallbackPayload);
+    ({ error } = await supabase.from("products").insert(fallbackPayload));
   }
 
   if (error && isCurrencySchemaError(error.message)) {
-    writePayload = stripCurrency(writePayload);
-    ({ error } = await supabase.from("products").insert(writePayload));
+    fallbackPayload = stripCurrency(fallbackPayload);
+    ({ error } = await supabase.from("products").insert(fallbackPayload));
   }
 
   if (error) {
@@ -378,27 +379,28 @@ export async function updateProduct(
     ships_to_region_ids: parsed.shipsToRegionIds,
   };
 
-  let writePayload: Record<string, unknown> = { ...updatePayload };
   let { error } = await supabase
     .from("products")
-    .update(writePayload)
+    .update(updatePayload)
     .eq("id", productId)
     .eq("vendor_id", vendor.id);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let fallbackPayload: any = updatePayload;
 
   if (error && isCompareAtPriceSchemaError(error.message)) {
-    writePayload = stripCompareAtPrice(writePayload);
+    fallbackPayload = stripCompareAtPrice(fallbackPayload);
     ({ error } = await supabase
       .from("products")
-      .update(writePayload)
+      .update(fallbackPayload)
       .eq("id", productId)
       .eq("vendor_id", vendor.id));
   }
 
   if (error && isCurrencySchemaError(error.message)) {
-    writePayload = stripCurrency(writePayload);
+    fallbackPayload = stripCurrency(fallbackPayload);
     ({ error } = await supabase
       .from("products")
-      .update(writePayload)
+      .update(fallbackPayload)
       .eq("id", productId)
       .eq("vendor_id", vendor.id));
   }

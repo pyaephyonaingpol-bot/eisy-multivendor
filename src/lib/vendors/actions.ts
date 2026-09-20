@@ -13,6 +13,36 @@ export type VendorActionState = {
   success?: string;
 } | null;
 
+/** Update a vendor row owned by the user; supports owner_id or legacy user_id. */
+async function updateOwnedVendor(
+  // Supabase query builder — keep loosely typed for dual-column fallback.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  vendorId: string,
+  userId: string,
+  values: Record<string, unknown>,
+) {
+  const primary = await supabase
+    .from("vendors")
+    .update(values)
+    .eq("id", vendorId)
+    .eq("owner_id", userId);
+
+  if (!primary.error) {
+    return primary;
+  }
+
+  if (!/owner_id/i.test(String(primary.error.message ?? ""))) {
+    return primary;
+  }
+
+  return supabase
+    .from("vendors")
+    .update(values)
+    .eq("id", vendorId)
+    .eq("user_id", userId);
+}
+
 function normalizeSlug(value: string) {
   return value
     .toLowerCase()
@@ -162,17 +192,13 @@ export async function updateVendorStoreBranding(
     }
   }
 
-  const { error } = await supabase
-    .from("vendors")
-    .update({
-      name,
-      slug,
-      description: description || null,
-      logo_url: logoUrl,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", vendor.id)
-    .eq("owner_id", user.id);
+  const { error } = await updateOwnedVendor(supabase, vendor.id, user.id, {
+    name,
+    slug,
+    description: description || null,
+    logo_url: logoUrl,
+    updated_at: new Date().toISOString(),
+  });
 
   if (error) {
     return { error: error.message };
@@ -337,14 +363,10 @@ export async function updateVendorShippingRegions(
     shipsToRegionIds = regionIds.filter((id) => valid.has(id));
   }
 
-  const { error } = await supabase
-    .from("vendors")
-    .update({
-      ships_to_region_ids: shipsToRegionIds,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", vendor.id)
-    .eq("owner_id", user.id);
+  const { error } = await updateOwnedVendor(supabase, vendor.id, user.id, {
+    ships_to_region_ids: shipsToRegionIds,
+    updated_at: new Date().toISOString(),
+  });
 
   if (error) {
     return { error: error.message };

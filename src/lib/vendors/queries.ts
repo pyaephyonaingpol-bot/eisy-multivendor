@@ -6,9 +6,11 @@ import type {
   VendorStatus,
 } from "@/lib/types/database";
 
-function normalizeVendor(row: Vendor): Vendor {
+function normalizeVendor(row: Vendor & { user_id?: string }): Vendor {
+  const ownerId = row.owner_id || row.user_id;
   return {
     ...row,
+    owner_id: ownerId,
     kyc_status: (row.kyc_status ?? "unsubmitted") as VendorKycStatus,
     kyc_document_type: row.kyc_document_type ?? null,
     kyc_document_url: row.kyc_document_url ?? null,
@@ -31,13 +33,27 @@ export async function getVendorForOwner(ownerId: string): Promise<Vendor | null>
   }
 
   const supabase = await createClient();
-  const { data } = await supabase
+
+  // Prefer owner_id (canonical). Fall back to user_id for older schemas.
+  const primary = await supabase
     .from("vendors")
     .select("*")
     .eq("owner_id", ownerId)
     .maybeSingle();
 
-  return data ? normalizeVendor(data as Vendor) : null;
+  if (!primary.error && primary.data) {
+    return normalizeVendor(primary.data as Vendor);
+  }
+
+  const fallback = await supabase
+    .from("vendors")
+    .select("*")
+    .eq("user_id", ownerId)
+    .maybeSingle();
+
+  return fallback.data
+    ? normalizeVendor(fallback.data as Vendor & { user_id?: string })
+    : null;
 }
 
 export async function listVendorsForAdmin(status?: VendorStatus): Promise<Vendor[]> {

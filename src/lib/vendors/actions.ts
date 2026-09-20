@@ -46,10 +46,12 @@ async function insertVendorApplication(options: {
   userId: string;
   vendorId: string;
   name: string;
+  storeName: string;
   slug: string;
   description: string | null;
 }): Promise<{ error: string | null }> {
-  const { userClient, userId, vendorId, name, slug, description } = options;
+  const { userClient, userId, vendorId, name, storeName, slug, description } =
+    options;
 
   // Prefer service role so RLS / missing insert policies cannot block apply.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -61,51 +63,33 @@ async function insertVendorApplication(options: {
   }
 
   const clients = [serviceClient, userClient].filter(Boolean);
-  // public.vendors uses owner_id (not user_id). Try with/without optional store_name.
-  const rowVariants: Record<string, unknown>[] = [
-    {
-      id: vendorId,
-      owner_id: userId,
-      name,
-      slug,
-      description,
-      status: "pending",
-      store_name: name,
-    },
-    {
-      id: vendorId,
-      owner_id: userId,
-      name,
-      slug,
-      description,
-      status: "pending",
-    },
-  ];
+
+  // Always include store_name — live DB treats it as NOT NULL.
+  const row = {
+    id: vendorId,
+    owner_id: userId,
+    name,
+    store_name: storeName,
+    slug,
+    description,
+    status: "pending" as const,
+  };
 
   let lastMessage: string | null = null;
 
   for (const client of clients) {
-    for (const row of rowVariants) {
-      const { error } = await client.from("vendors").insert(row);
-      if (!error) {
+    const { error } = await client.from("vendors").insert(row);
+    if (!error) {
+      return { error: null };
+    }
+    const message = String(error.message ?? "Failed to create vendor application.");
+    lastMessage = message;
+
+    // Already applied — treat as success for idempotent resubmits.
+    if (/already have a vendor|duplicate key|unique constraint/i.test(message)) {
+      const existing = await getVendorForOwner(userId);
+      if (existing) {
         return { error: null };
-      }
-      const message = String(error.message ?? "Failed to create vendor application.");
-      lastMessage = message;
-
-      // Already applied — treat as success for idempotent resubmits.
-      if (/already have a vendor|duplicate key|unique constraint/i.test(message)) {
-        const existing = await getVendorForOwner(userId);
-        if (existing) {
-          return { error: null };
-        }
-      }
-
-      // Optional column missing — try next variant.
-      if (
-        /column .* does not exist|could not find|schema cache/i.test(message)
-      ) {
-        continue;
       }
     }
   }
@@ -146,13 +130,20 @@ export async function applyForVendor(
   formData: FormData,
 ): Promise<VendorActionState> {
   const name = String(formData.get("name") ?? "").trim();
+  // Form uses "name" as the store display name; accept store_name if present.
+  const storeName = String(
+    formData.get("store_name") ?? formData.get("name") ?? "",
+  ).trim();
   const slugInput = String(formData.get("slug") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
-  const slug = normalizeSlug(slugInput || name);
+  const slug = normalizeSlug(slugInput || storeName || name);
 
-  if (!name) {
+  if (!name && !storeName) {
     return { error: "Store name is required." };
   }
+
+  const resolvedName = name || storeName;
+  const resolvedStoreName = storeName || name;
 
   if (!slug) {
     return { error: "Store URL slug is required." };
@@ -176,30 +167,23 @@ export async function applyForVendor(
     redirect("/vendor/dashboard");
   }
 
-  // Always supply id in application code — live DBs often lack DEFAULT gen_random_uuid().
+  // Always supply id + store_name — live DBs often lack defaults / treat them NOT NULL.
   const vendorId = randomUUID();
   const inserted = await insertVendorApplication({
     userClient: supabase,
     userId: user.id,
     vendorId,
-    name,
+    name: resolvedName,
+    storeName: resolvedStoreName,
     slug,
     description: description || null,
   });
 
   if (inserted.error) {
-    // Last resort: repaired RPC (also generates UUID server-side once migration is applied).
-    const { error: rpcError } = await supabase.rpc("apply_for_vendor", {
-      p_name: name,
-      p_slug: slug,
-      p_description: description || null,
-    });
-    if (rpcError) {
-      return { error: inserted.error || rpcError.message };
-    }
-  } else {
-    await promoteProfileToVendor(supabase, user.id);
+    return { error: inserted.error };
   }
+
+  await promoteProfileToVendor(supabase, user.id);
 
   revalidatePath("/vendor/dashboard");
   revalidatePath("/vendor/apply");

@@ -41,6 +41,8 @@ function VendorApplyFormFields({ defaultName = "" }: VendorApplyFormProps) {
           placeholder="Acme Goods"
           className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
         />
+        {/* store_name is the DB column; mirror the display name for the server action */}
+        <input type="hidden" name="store_name" value={name} />
       </div>
 
       <div className="space-y-2">

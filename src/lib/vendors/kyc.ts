@@ -12,6 +12,13 @@ const ALLOWED_MIME_TYPES = new Set([
   "application/pdf",
 ]);
 
+const ALLOWED_MIME_TYPE_LIST = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+] as const;
+
 const EXT_BY_MIME: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -27,6 +34,53 @@ export function collectKycDocumentFile(formData: FormData): File | null {
   const value = formData.get("document");
   if (value == null) return null;
   return isFile(value) ? value : null;
+}
+
+function isBucketMissingError(message: string | undefined): boolean {
+  if (!message) return false;
+  const m = message.toLowerCase();
+  return (
+    m.includes("bucket not found") ||
+    (m.includes("not found") && m.includes("bucket")) ||
+    m.includes("the resource was not found")
+  );
+}
+
+/**
+ * Ensure the private `kyc-documents` bucket exists (service role).
+ * Prefer applying migration 048 / scripts/ensure_kyc_documents_storage_bucket.sql
+ * for RLS policies; this only creates the bucket when missing.
+ */
+async function ensureKycDocumentsBucket(
+  storage: SupabaseClient<Database>["storage"],
+): Promise<{ error?: string }> {
+  const { data: existing, error: getError } = await storage.getBucket(
+    KYC_DOCUMENTS_BUCKET,
+  );
+
+  if (existing && !getError) {
+    return {};
+  }
+
+  const { error: createError } = await storage.createBucket(KYC_DOCUMENTS_BUCKET, {
+    public: false,
+    fileSizeLimit: MAX_KYC_DOCUMENT_BYTES,
+    allowedMimeTypes: [...ALLOWED_MIME_TYPE_LIST],
+  });
+
+  if (
+    createError &&
+    !createError.message.toLowerCase().includes("already exists") &&
+    !createError.message.toLowerCase().includes("duplicate")
+  ) {
+    return {
+      error:
+        createError.message ||
+        "Could not create kyc-documents storage bucket. Run supabase/scripts/ensure_kyc_documents_storage_bucket.sql in the SQL Editor.",
+    };
+  }
+
+  return {};
 }
 
 /** Upload a KYC document into the private kyc-documents bucket. */
@@ -54,21 +108,43 @@ export async function uploadVendorKycDocument(
     };
   }
 
+  const ensured = await ensureKycDocumentsBucket(storage);
+  if (ensured.error) {
+    return { error: ensured.error };
+  }
+
   const ext = EXT_BY_MIME[file.type] ?? "bin";
   const path = `${vendorId}/kyc/${crypto.randomUUID()}.${ext}`;
 
-  const { error } = await storage.from(KYC_DOCUMENTS_BUCKET).upload(path, file, {
+  let { error } = await storage.from(KYC_DOCUMENTS_BUCKET).upload(path, file, {
     contentType: file.type,
     upsert: false,
     cacheControl: "3600",
   });
 
-  if (error) {
-    return { error: error.message || "Could not upload KYC document." };
+  // Race: bucket missing between getBucket and upload — create and retry once.
+  if (error && isBucketMissingError(error.message)) {
+    const retryEnsure = await ensureKycDocumentsBucket(storage);
+    if (retryEnsure.error) {
+      return { error: retryEnsure.error };
+    }
+    ({ error } = await storage.from(KYC_DOCUMENTS_BUCKET).upload(path, file, {
+      contentType: file.type,
+      upsert: false,
+      cacheControl: "3600",
+    }));
   }
 
-  // Bucket is private; store a stable path and a public-style URL for reference.
-  // Admins/owners should open documents via signed URLs.
+  if (error) {
+    const hint = isBucketMissingError(error.message)
+      ? " Run supabase/scripts/ensure_kyc_documents_storage_bucket.sql in the Supabase SQL Editor."
+      : "";
+    return {
+      error: `${error.message || "Could not upload KYC document."}${hint}`,
+    };
+  }
+
+  // Bucket is private; store a stable path. Admins/owners open via signed URLs.
   const { data } = storage.from(KYC_DOCUMENTS_BUCKET).getPublicUrl(path);
   return { path, url: data.publicUrl };
 }
@@ -91,6 +167,11 @@ export async function createKycDocumentSignedUrl(
           ? error.message
           : "Storage is not configured for signed URLs.",
     };
+  }
+
+  const ensured = await ensureKycDocumentsBucket(storage);
+  if (ensured.error) {
+    return { error: ensured.error };
   }
 
   const { data, error } = await storage

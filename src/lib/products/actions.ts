@@ -29,24 +29,57 @@ function isSchemaCacheColumnError(
   );
 }
 
-function isCompareAtPriceSchemaError(message: string | undefined) {
-  return isSchemaCacheColumnError(message, "compare_at_price");
-}
+/** Columns that may be missing on partial DBs; omit and retry when PostgREST rejects them. */
+const PRODUCT_SCHEMA_FALLBACK_COLUMNS = [
+  "compare_at_price",
+  "currency",
+  "images",
+  "specifications",
+  "product_type",
+  "download_url",
+  "download_label",
+  "category_id",
+  "origin_country_code",
+  "origin_region_id",
+  "ships_to_region_ids",
+  "is_dropship",
+  "source_product_id",
+] as const;
 
-function isCurrencySchemaError(message: string | undefined) {
-  return isSchemaCacheColumnError(message, "currency");
-}
-
-function stripCompareAtPrice<T extends Record<string, unknown>>(payload: T) {
-  const { compare_at_price: _ignored, ...rest } = payload;
+function stripProductSchemaColumn(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload: any,
+  column: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
+  if (!payload || typeof payload !== "object" || !(column in payload)) {
+    return payload;
+  }
+  const { [column]: _ignored, ...rest } = payload;
   void _ignored;
-  return rest as Omit<T, "compare_at_price">;
+  return rest;
 }
 
-function stripCurrency<T extends Record<string, unknown>>(payload: T) {
-  const { currency: _ignored, ...rest } = payload;
-  void _ignored;
-  return rest as Omit<T, "currency">;
+function applyProductSchemaCacheFallback(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload: any,
+  message: string | undefined,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): { payload: any; stripped: boolean } {
+  for (const column of PRODUCT_SCHEMA_FALLBACK_COLUMNS) {
+    if (
+      isSchemaCacheColumnError(message, column) &&
+      payload &&
+      typeof payload === "object" &&
+      column in payload
+    ) {
+      return {
+        payload: stripProductSchemaColumn(payload, column),
+        stripped: true,
+      };
+    }
+  }
+  return { payload, stripped: false };
 }
 
 function parseMoney(value: FormDataEntryValue | null): number | null {
@@ -280,13 +313,11 @@ export async function createProduct(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let fallbackPayload: any = insertPayload;
 
-  if (error && isCompareAtPriceSchemaError(error.message)) {
-    fallbackPayload = stripCompareAtPrice(fallbackPayload);
-    ({ error } = await supabase.from("products").insert(fallbackPayload));
-  }
-
-  if (error && isCurrencySchemaError(error.message)) {
-    fallbackPayload = stripCurrency(fallbackPayload);
+  for (let attempt = 0; attempt < PRODUCT_SCHEMA_FALLBACK_COLUMNS.length; attempt += 1) {
+    if (!error) break;
+    const next = applyProductSchemaCacheFallback(fallbackPayload, error.message);
+    if (!next.stripped) break;
+    fallbackPayload = next.payload;
     ({ error } = await supabase.from("products").insert(fallbackPayload));
   }
 
@@ -387,17 +418,11 @@ export async function updateProduct(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let fallbackPayload: any = updatePayload;
 
-  if (error && isCompareAtPriceSchemaError(error.message)) {
-    fallbackPayload = stripCompareAtPrice(fallbackPayload);
-    ({ error } = await supabase
-      .from("products")
-      .update(fallbackPayload)
-      .eq("id", productId)
-      .eq("vendor_id", vendor.id));
-  }
-
-  if (error && isCurrencySchemaError(error.message)) {
-    fallbackPayload = stripCurrency(fallbackPayload);
+  for (let attempt = 0; attempt < PRODUCT_SCHEMA_FALLBACK_COLUMNS.length; attempt += 1) {
+    if (!error) break;
+    const next = applyProductSchemaCacheFallback(fallbackPayload, error.message);
+    if (!next.stripped) break;
+    fallbackPayload = next.payload;
     ({ error } = await supabase
       .from("products")
       .update(fallbackPayload)

@@ -232,7 +232,13 @@ export type Vendor = {
   /** Public store / brand name (falls back to `name`). */
   store_name?: string | null;
   contact_email?: string | null;
+  contact_phone?: string | null;
   telegram_handle?: string | null;
+  /** Registered business / company legal name. */
+  business_legal_name?: string | null;
+  business_registration_number?: string | null;
+  business_address?: string | null;
+  business_country?: string | null;
   /** USDT TRC-20 payout wallet for seller withdrawals. */
   usdt_payout_address?: string | null;
   /** Optional unique HD-derived TRC-20 deposit address for this vendor. */
@@ -890,6 +896,22 @@ export type Database = {
           p_store_name?: string | null;
           p_contact_email?: string | null;
           p_telegram_handle?: string | null;
+          p_usdt_payout_address?: string | null;
+        };
+        Returns: Vendor;
+      };
+      update_vendor_profile: {
+        Args: {
+          p_vendor_id: string;
+          p_store_name?: string | null;
+          p_description?: string | null;
+          p_contact_email?: string | null;
+          p_contact_phone?: string | null;
+          p_telegram_handle?: string | null;
+          p_business_legal_name?: string | null;
+          p_business_registration_number?: string | null;
+          p_business_address?: string | null;
+          p_business_country?: string | null;
           p_usdt_payout_address?: string | null;
         };
         Returns: Vendor;

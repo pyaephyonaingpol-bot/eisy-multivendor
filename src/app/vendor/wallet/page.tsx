@@ -37,8 +37,8 @@ export default async function VendorWalletPage() {
       {!kycApproved ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           Wallet withdrawals stay locked until KYC is approved.{" "}
-          <Link href="/vendor/settings" className="font-medium underline">
-            Submit or check KYC in Store settings
+          <Link href="/vendor/kyc" className="font-medium underline">
+            Submit or check KYC verification
           </Link>
           {vendor?.kyc_status ? ` (current: ${vendor.kyc_status})` : null}.
         </div>

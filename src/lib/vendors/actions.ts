@@ -408,6 +408,9 @@ export async function submitVendorKyc(
   const documentType = String(formData.get("document_type") ?? "").trim().toLowerCase();
   const legalName = String(formData.get("legal_name") ?? "").trim();
   const documentNumber = String(formData.get("document_number") ?? "").trim();
+  const usdtPayoutAddress = String(
+    formData.get("usdt_payout_address") ?? "",
+  ).trim();
 
   if (!["passport", "national_id", "trade_license"].includes(documentType)) {
     return { error: "Choose passport, national ID, or trade license." };
@@ -415,6 +418,16 @@ export async function submitVendorKyc(
 
   if (!legalName) {
     return { error: "Legal name is required." };
+  }
+
+  if (
+    usdtPayoutAddress &&
+    !/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(usdtPayoutAddress)
+  ) {
+    return {
+      error:
+        "USDT payout address must be a valid TRC-20 address (34 chars, starts with T).",
+    };
   }
 
   const supabase = await createClient();
@@ -444,6 +457,22 @@ export async function submitVendorKyc(
     return { error: "Upload a passport, ID card, or trade license document." };
   }
 
+  if (usdtPayoutAddress) {
+    const { error: payoutError } = await supabase.rpc(
+      "update_vendor_contact_profile",
+      {
+        p_vendor_id: vendor.id,
+        p_store_name: null,
+        p_contact_email: null,
+        p_telegram_handle: null,
+        p_usdt_payout_address: usdtPayoutAddress,
+      },
+    );
+    if (payoutError) {
+      return { error: payoutError.message };
+    }
+  }
+
   const uploaded = await uploadVendorKycDocument(vendor.id, file);
   if (uploaded.error || !uploaded.path) {
     return { error: uploaded.error ?? "Could not upload KYC document." };
@@ -462,6 +491,8 @@ export async function submitVendorKyc(
   }
 
   revalidatePath("/vendor/settings");
+  revalidatePath("/vendor/profile");
+  revalidatePath("/vendor/kyc");
   revalidatePath("/vendor/dashboard");
   revalidatePath("/vendor/products");
   revalidatePath("/vendor/wallet");
@@ -498,6 +529,8 @@ export async function reviewVendorKyc(
   revalidatePath("/admin/vendors");
   revalidatePath("/admin/dashboard");
   revalidatePath("/vendor/settings");
+  revalidatePath("/vendor/profile");
+  revalidatePath("/vendor/kyc");
   revalidatePath("/vendor/dashboard");
   revalidatePath("/vendor/products");
   revalidatePath("/vendor/wallet");
@@ -574,15 +607,46 @@ export async function updateVendorContactProfile(
   _prev: VendorActionState,
   formData: FormData,
 ): Promise<VendorActionState> {
+  return updateVendorProfile(_prev, formData);
+}
+
+export async function updateVendorProfile(
+  _prev: VendorActionState,
+  formData: FormData,
+): Promise<VendorActionState> {
   const storeName = String(formData.get("store_name") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
   const contactEmail = String(formData.get("contact_email") ?? "").trim();
+  const contactPhone = String(formData.get("contact_phone") ?? "").trim();
   const telegramHandle = String(formData.get("telegram_handle") ?? "").trim();
+  const businessLegalName = String(
+    formData.get("business_legal_name") ?? "",
+  ).trim();
+  const businessRegistrationNumber = String(
+    formData.get("business_registration_number") ?? "",
+  ).trim();
+  const businessAddress = String(
+    formData.get("business_address") ?? "",
+  ).trim();
+  const businessCountry = String(
+    formData.get("business_country") ?? "",
+  ).trim();
   const usdtPayoutAddress = String(
     formData.get("usdt_payout_address") ?? "",
   ).trim();
 
   if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
     return { error: "Enter a valid contact email." };
+  }
+
+  if (
+    usdtPayoutAddress &&
+    !/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(usdtPayoutAddress)
+  ) {
+    return {
+      error:
+        "USDT payout address must be a valid TRC-20 address (34 chars, starts with T).",
+    };
   }
 
   const supabase = await createClient();
@@ -596,24 +660,50 @@ export async function updateVendorContactProfile(
 
   const vendor = await getVendorForOwner(user.id);
   if (!vendor) {
-    return { error: "Create a store before editing contact details." };
+    return { error: "Create a store before editing your profile." };
   }
 
-  const { error } = await supabase.rpc("update_vendor_contact_profile", {
+  const { error } = await supabase.rpc("update_vendor_profile", {
     p_vendor_id: vendor.id,
     p_store_name: storeName || null,
-    p_contact_email: contactEmail || null,
+    p_description: description,
+    p_contact_email: contactEmail,
+    p_contact_phone: contactPhone,
     p_telegram_handle: telegramHandle,
+    p_business_legal_name: businessLegalName,
+    p_business_registration_number: businessRegistrationNumber,
+    p_business_address: businessAddress,
+    p_business_country: businessCountry,
     p_usdt_payout_address: usdtPayoutAddress,
   });
 
   if (error) {
-    return { error: error.message };
+    // Fallback when migration 047 is not applied yet.
+    if (
+      error.message.toLowerCase().includes("function") ||
+      error.message.toLowerCase().includes("could not find")
+    ) {
+      const { error: legacyError } = await supabase.rpc(
+        "update_vendor_contact_profile",
+        {
+          p_vendor_id: vendor.id,
+          p_store_name: storeName || null,
+          p_contact_email: contactEmail || null,
+          p_telegram_handle: telegramHandle,
+          p_usdt_payout_address: usdtPayoutAddress,
+        },
+      );
+      if (legacyError) return { error: legacyError.message };
+    } else {
+      return { error: error.message };
+    }
   }
 
+  revalidatePath("/vendor/profile");
+  revalidatePath("/vendor/kyc");
   revalidatePath("/vendor/settings");
   revalidatePath("/admin/orders");
   revalidatePath("/admin/transactions");
 
-  return { success: "Contact and payout details saved." };
+  return { success: "Vendor profile saved." };
 }

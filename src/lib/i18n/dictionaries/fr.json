@@ -20,6 +20,8 @@
   "vendorNav": {
     "title": "Vendeur",
     "overview": "Aperçu",
+    "profile": "Profil",
+    "kyc": "Vérification KYC",
     "storeBranding": "Marque boutique",
     "application": "Candidature",
     "products": "Produits",

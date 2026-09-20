@@ -23,6 +23,11 @@ function normalizeVendor(row: Vendor): Vendor {
     kyc_reviewed_at: row.kyc_reviewed_at ?? null,
     kyc_reviewed_by: row.kyc_reviewed_by ?? null,
     kyc_rejection_reason: row.kyc_rejection_reason ?? null,
+    contact_phone: row.contact_phone ?? null,
+    business_legal_name: row.business_legal_name ?? null,
+    business_registration_number: row.business_registration_number ?? null,
+    business_address: row.business_address ?? null,
+    business_country: row.business_country ?? null,
     ships_to_region_ids: Array.isArray(row.ships_to_region_ids)
       ? row.ships_to_region_ids
       : [],

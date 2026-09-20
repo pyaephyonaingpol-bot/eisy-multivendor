@@ -20,6 +20,8 @@
   "vendorNav": {
     "title": "Продавец",
     "overview": "Обзор",
+    "profile": "Профиль",
+    "kyc": "KYC-проверка",
     "storeBranding": "Брендинг магазина",
     "application": "Заявка",
     "products": "Товары",

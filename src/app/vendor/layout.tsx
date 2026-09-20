@@ -12,6 +12,8 @@ export default async function VendorLayout({
   const t = getDictionary(locale);
   const links = [
     { href: "/vendor/dashboard", label: t.vendorNav.overview },
+    { href: "/vendor/profile", label: t.vendorNav.profile },
+    { href: "/vendor/kyc", label: t.vendorNav.kyc },
     { href: "/vendor/settings", label: t.vendorNav.storeBranding },
     { href: "/vendor/apply", label: t.vendorNav.application },
     { href: "/vendor/products", label: t.vendorNav.products },

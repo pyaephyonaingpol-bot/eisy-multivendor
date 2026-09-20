@@ -52,6 +52,14 @@ export default async function VendorDashboardPage() {
             /store/{vendor.slug}
           </Link>
           {" · "}
+          <Link href="/vendor/profile" className="font-medium underline">
+            Vendor profile
+          </Link>
+          {" · "}
+          <Link href="/vendor/kyc" className="font-medium underline">
+            KYC
+          </Link>
+          {" · "}
           <Link href="/vendor/settings" className="font-medium underline">
             Store settings
           </Link>

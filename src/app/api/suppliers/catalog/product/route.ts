@@ -2,10 +2,8 @@ import { NextResponse } from "next/server";
 import { canAccessVendor, getSessionProfile } from "@/lib/auth/session";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 import { getExternalProduct, parseSupplierKind } from "@/lib/suppliers";
-import {
-  hasLiveSupplierCredentials,
-  loadPlatformSupplierContext,
-} from "@/lib/suppliers/auth";
+import { hasLiveSupplierCredentials } from "@/lib/suppliers/auth";
+import { loadPlatformSupplierContext } from "@/lib/suppliers/platform-credentials";
 import {
   supplierIntegrationsMode,
   supplierPlatformLabel,

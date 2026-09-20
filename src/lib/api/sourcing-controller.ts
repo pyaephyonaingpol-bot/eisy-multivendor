@@ -45,7 +45,9 @@ async function requireApprovedVendorGate(): Promise<
 async function loadCredentialsForKind(
   kind: ExternalSupplierKind,
 ): Promise<SupplierCredentials | null> {
-  const { loadPlatformSupplierContext } = await import("@/lib/suppliers/auth");
+  const { loadPlatformSupplierContext } = await import(
+    "@/lib/suppliers/platform-credentials"
+  );
   const linked = await loadPlatformSupplierContext(kind);
   return linked?.credentials ?? null;
 }

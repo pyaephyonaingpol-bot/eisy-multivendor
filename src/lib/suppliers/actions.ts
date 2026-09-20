@@ -10,7 +10,7 @@ import {
   type ExternalCatalogProduct,
   type ExternalSupplierKind,
 } from "@/lib/suppliers";
-import { loadPlatformSupplierContext } from "@/lib/suppliers/auth";
+import { loadPlatformSupplierContext } from "@/lib/suppliers/platform-credentials";
 import {
   MIN_IMPORT_STOCK_QUANTITY,
   ONE_CLICK_IMPORT_MARKUP,

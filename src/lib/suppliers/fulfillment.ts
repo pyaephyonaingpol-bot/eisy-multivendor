@@ -1,9 +1,9 @@
 import { createServiceClient } from "@/lib/supabase/admin";
 import {
-  loadPlatformCredentialsFromDb,
   resolveAdapterKindFromProvider,
   resolveSupplierCredentials,
 } from "@/lib/suppliers/auth";
+import { loadPlatformCredentialsFromDb } from "@/lib/suppliers/platform-credentials";
 import {
   createExternalFulfillmentOrder,
   type ExternalSupplierKind,

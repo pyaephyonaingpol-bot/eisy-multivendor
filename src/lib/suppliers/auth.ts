@@ -2,7 +2,6 @@ import type {
   ExternalSupplierKind,
   SupplierCredentials,
 } from "@/lib/suppliers/types";
-import { SUPPLIER_PROVIDER_SLUGS } from "@/lib/suppliers/types";
 
 /** Env / metadata keys used by each live supplier client (platform-owned). */
 export const SUPPLIER_AUTH_ENV: Record<
@@ -160,79 +159,6 @@ export function getPrintifyShopId(
 }
 
 /**
- * Load platform-owned credentials from `platform_supplier_credentials`
- * (service role). Falls back silently when the table or key is missing.
- */
-export async function loadPlatformCredentialsFromDb(
-  kind: ExternalSupplierKind,
-): Promise<SupplierCredentials | null> {
-  try {
-    const { createServiceClient } = await import("@/lib/supabase/admin");
-    const supabase = createServiceClient();
-    const slug = SUPPLIER_PROVIDER_SLUGS[kind];
-    const { data: provider } = await supabase
-      .from("supplier_providers")
-      .select("id")
-      .eq("slug", slug)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (!provider?.id) return null;
-
-    const { data: creds } = await supabase
-      .from("platform_supplier_credentials")
-      .select(
-        "api_key, api_secret, access_token, refresh_token, account_email, metadata, is_active",
-      )
-      .eq("provider_id", provider.id)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (!creds) return null;
-
-    return {
-      apiKey: creds.api_key,
-      apiSecret: creds.api_secret,
-      accessToken: creds.access_token,
-      refreshToken: creds.refresh_token,
-      accountEmail: creds.account_email,
-      metadata: (creds.metadata ?? {}) as Record<string, unknown>,
-    };
-  } catch {
-    return null;
-  }
-}
-
-/** Provider row id + fully resolved platform credentials for a supplier kind. */
-export async function loadPlatformSupplierContext(
-  kind: ExternalSupplierKind,
-): Promise<{ providerId: string; credentials: SupplierCredentials } | null> {
-  try {
-    const { createClient } = await import("@/lib/supabase/server");
-    const supabase = await createClient();
-    const slug = SUPPLIER_PROVIDER_SLUGS[kind];
-    const { data: provider } = await supabase
-      .from("supplier_providers")
-      .select("id")
-      .eq("slug", slug)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (!provider?.id) return null;
-
-    const fromDb = await loadPlatformCredentialsFromDb(kind);
-    const credentials = resolveSupplierCredentials(kind, null, fromDb);
-    return { providerId: provider.id, credentials };
-  } catch {
-    const fromDb = await loadPlatformCredentialsFromDb(kind);
-    const credentials = resolveSupplierCredentials(kind, null, fromDb);
-    // Provider id unknown — callers that only need credentials can still work
-    // if they look up the provider separately.
-    return { providerId: "", credentials };
-  }
-}
-
-/**
  * Map DB `supplier_provider_kind` (+ optional slug) to an adapter kind.
  */
 export function resolveAdapterKindFromProvider(input: {
@@ -269,7 +195,7 @@ export function shouldFallbackToMock(): boolean {
   return process.env.SUPPLIER_INTEGRATIONS_FALLBACK_MOCK !== "0";
 }
 
-/** Which platform suppliers currently have live keys configured. */
+/** Which platform suppliers currently have live keys configured (env). */
 export function listConfiguredPlatformSuppliers(): ExternalSupplierKind[] {
   const kinds: ExternalSupplierKind[] = [
     "cj_dropshipping",

@@ -7,7 +7,7 @@ import {
   searchExternalProducts,
   searchExternalProductsForTab,
 } from "@/lib/suppliers";
-import { loadPlatformSupplierContext } from "@/lib/suppliers/auth";
+import { loadPlatformSupplierContext } from "@/lib/suppliers/platform-credentials";
 import type {
   ExternalSupplierKind,
   SupplierCredentials,

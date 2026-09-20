@@ -3,8 +3,20 @@
 --
 -- Paste-ready: out_of_stock / fulfillment_failed statuses, alerts, and
 -- refund_order_supplier_unavailable for CJ stock failures at fulfillment.
+--
+-- PREREQUISITE: public.wallets (USDT + MMK) must exist before this script.
+-- If you see "relation public.wallets does not exist", run
+-- ensure_wallets_for_supplier_refund.sql FIRST, then re-run this script.
 -- =============================================================================
 
+do $$
+begin
+  if to_regclass('public.wallets') is null then
+    raise exception
+      'public.wallets is missing. Run ensure_wallets_for_supplier_refund.sql first.';
+  end if;
+end;
+$$;
 
 do $$
 begin

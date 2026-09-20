@@ -89,7 +89,6 @@ async function main() {
 
   const fullName =
     user.user_metadata?.full_name ?? user.user_metadata?.name ?? null;
-  const avatarUrl = user.user_metadata?.avatar_url ?? null;
 
   const { data: existing } = await admin
     .from("profiles")
@@ -104,7 +103,6 @@ async function main() {
         id: user.id,
         email: user.email ?? email,
         full_name: fullName,
-        avatar_url: avatarUrl,
         role: "admin",
       })
       .select("id, email, role, full_name")
@@ -123,7 +121,6 @@ async function main() {
       role: "admin",
       email: existing.email || user.email || email,
       full_name: existing.full_name || fullName,
-      updated_at: new Date().toISOString(),
     })
     .eq("id", user.id)
     .select("id, email, role, full_name")
@@ -131,7 +128,7 @@ async function main() {
 
   if (error) {
     console.error(
-      "profiles update failed (apply migration 031 so role protection can be bypassed):",
+      "profiles update failed (apply migration 033 / upsert script so role protection can be bypassed):",
       error.message,
     );
     process.exit(1);

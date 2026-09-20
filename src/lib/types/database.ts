@@ -938,6 +938,10 @@ export type Database = {
         Args: { p_email?: string };
         Returns: Profile;
       };
+      get_my_role: {
+        Args: Record<string, never>;
+        Returns: string | null;
+      };
       release_order_escrow: {
         Args: {
           p_order_id: string;

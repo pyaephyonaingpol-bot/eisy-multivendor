@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import type { UserRole } from "@/lib/types/database";
+import { resolveUserRole } from "@/lib/auth/roles";
 import { getSupabasePublicEnv } from "@/lib/supabase/env";
 
 function copyCookies(from: NextResponse, to: NextResponse) {
@@ -21,6 +21,16 @@ function homeRedirect(request: NextRequest, sessionResponse: NextResponse) {
   const url = request.nextUrl.clone();
   url.pathname = "/";
   url.search = "";
+  return copyCookies(sessionResponse, NextResponse.redirect(url));
+}
+
+function unauthorizedAdminRedirect(
+  request: NextRequest,
+  sessionResponse: NextResponse,
+) {
+  const url = request.nextUrl.clone();
+  url.pathname = "/unauthorized";
+  url.search = "from=admin";
   return copyCookies(sessionResponse, NextResponse.redirect(url));
 }
 
@@ -82,20 +92,14 @@ export async function updateSession(request: NextRequest) {
       return supabaseResponse;
     }
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle<{ role: UserRole }>();
-
-    const role = profile?.role ?? null;
+    const role = await resolveUserRole({
+      supabase,
+      userId: user.id,
+      email: user.email,
+    });
 
     if (isAdminRoute && role !== "admin") {
-      // Visible destination (not silent `/`) so nav clicks always change the URL.
-      const url = request.nextUrl.clone();
-      url.pathname = "/unauthorized";
-      url.search = "from=admin";
-      return copyCookies(supabaseResponse, NextResponse.redirect(url));
+      return unauthorizedAdminRedirect(request, supabaseResponse);
     }
 
     if (isVendorRoute && role !== "vendor" && role !== "admin") {

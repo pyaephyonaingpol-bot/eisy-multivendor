@@ -29,13 +29,20 @@ export async function getSessionProfile(): Promise<SessionProfile | null> {
       return null;
     }
 
+    // Heal missing profiles rows so headers / role gates see real data.
+    try {
+      await supabase.rpc("ensure_own_profile");
+    } catch {
+      // RPC may be missing until migration 031 is applied.
+    }
+
     const { data } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", user.id)
       .maybeSingle();
 
-    const profile = data as Profile | null;
+    const profile = (data as Profile | null) ?? null;
 
     return {
       userId: user.id,

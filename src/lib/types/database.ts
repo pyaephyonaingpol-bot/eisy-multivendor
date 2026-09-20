@@ -930,6 +930,14 @@ export type Database = {
         };
         Returns: Profile;
       };
+      ensure_own_profile: {
+        Args: Record<string, never>;
+        Returns: Profile;
+      };
+      ensure_bootstrap_admin_profile: {
+        Args: { p_email?: string };
+        Returns: Profile;
+      };
       release_order_escrow: {
         Args: {
           p_order_id: string;

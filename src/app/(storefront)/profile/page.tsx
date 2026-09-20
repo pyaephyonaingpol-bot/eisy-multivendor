@@ -53,6 +53,9 @@ export default async function ProfilePage() {
         <p className="text-sm text-zinc-600">
           View and update your buyer profile. Catalog filtering uses your
           preferred shipping country.
+          {result.authEmail && result.authEmail !== profile.email ? (
+            <> Signed in as {result.authEmail}.</>
+          ) : null}
         </p>
       </div>
 

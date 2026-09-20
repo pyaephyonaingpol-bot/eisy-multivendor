@@ -1,6 +1,5 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -39,12 +38,51 @@ function normalizeSlug(value: string) {
     .slice(0, 60);
 }
 
-/** Insert a pending vendor row with an explicit UUID (never rely on column DEFAULT). */
+/** Ensure public.profiles row exists for the auth user (owner_id / id FK target). */
+async function ensureApplicantProfile(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  userClient: any,
+  user: { id: string; email?: string | null },
+): Promise<{ error: string | null }> {
+  const { error: rpcError } = await userClient.rpc("ensure_own_profile");
+  if (!rpcError) {
+    return { error: null };
+  }
+
+  // Fallback: upsert a minimal profile via service role when RPC is missing.
+  try {
+    const serviceClient = createServiceClient();
+    const email = user.email?.trim() || `${user.id}@users.local`;
+    const { error: upsertError } = await serviceClient.from("profiles").upsert(
+      {
+        id: user.id,
+        email,
+        role: "customer",
+      },
+      { onConflict: "id" },
+    );
+    if (upsertError) {
+      return {
+        error:
+          upsertError.message ||
+          "Could not create your profile. Try signing out and back in.",
+      };
+    }
+    return { error: null };
+  } catch {
+    return {
+      error:
+        rpcError.message ||
+        "Could not create your profile. Try signing out and back in.",
+    };
+  }
+}
+
+/** Insert a pending vendor row. id = owner_id = auth user (1:1 store). */
 async function insertVendorApplication(options: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   userClient: any;
   userId: string;
-  vendorId: string;
   name: string;
   storeName: string;
   slug: string;
@@ -54,7 +92,6 @@ async function insertVendorApplication(options: {
   const {
     userClient,
     userId,
-    vendorId,
     name,
     storeName,
     slug,
@@ -73,10 +110,10 @@ async function insertVendorApplication(options: {
 
   const clients = [serviceClient, userClient].filter(Boolean);
 
-  // Include optional profile columns as '' so live NOT NULL columns without
-  // defaults (store_name, usdt_payout_address, …) do not reject the apply.
+  // Live DBs often FK vendors.id → auth.users/profiles (constraint vendors_id_key).
+  // One store per owner: use the authenticated user id as vendors.id AND owner_id.
   const row = {
-    id: vendorId,
+    id: userId,
     owner_id: userId,
     name,
     store_name: storeName,
@@ -99,7 +136,7 @@ async function insertVendorApplication(options: {
     lastMessage = message;
 
     // Already applied — treat as success for idempotent resubmits.
-    if (/already have a vendor|duplicate key|unique constraint/i.test(message)) {
+    if (/already have a vendor|duplicate key|unique constraint|vendors_id_key/i.test(message)) {
       const existing = await getVendorForOwner(userId);
       if (existing) {
         return { error: null };
@@ -110,7 +147,7 @@ async function insertVendorApplication(options: {
     // the optional profile fields (keep required apply fields).
     if (/could not find the '(contact_email|telegram_handle)' column/i.test(message)) {
       const minimal = {
-        id: vendorId,
+        id: userId,
         owner_id: userId,
         name,
         store_name: storeName,
@@ -215,13 +252,17 @@ export async function applyForVendor(
     redirect("/vendor/dashboard");
   }
 
-  // Always supply id + store_name + usdt_payout_address — live DBs often lack
-  // defaults / treat optional profile columns as NOT NULL.
-  const vendorId = randomUUID();
+  // owner_id / id must reference public.profiles (and auth.users via profiles).
+  const profileReady = await ensureApplicantProfile(supabase, user);
+  if (profileReady.error) {
+    return { error: profileReady.error };
+  }
+
+  // One store per owner: vendors.id = auth user id so live FKs like
+  // vendors_id_key (id → auth.users/profiles) are satisfied.
   const inserted = await insertVendorApplication({
     userClient: supabase,
     userId: user.id,
-    vendorId,
     name: resolvedName,
     storeName: resolvedStoreName,
     slug,

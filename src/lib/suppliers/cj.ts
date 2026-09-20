@@ -114,6 +114,14 @@ function mockCatalog(query: string): ExternalCatalogProduct[] {
   });
 }
 
+function isCjSuccessCode(code: unknown): boolean {
+  if (code == null) return true;
+  const n = Number(code);
+  if (Number.isFinite(n) && (n === 200 || n === 0)) return true;
+  const s = String(code);
+  return s === "200" || s === "0" || s.toLowerCase() === "ok";
+}
+
 async function postCjAuth(
   path: string,
   body: Record<string, string>,
@@ -140,11 +148,9 @@ async function postCjAuth(
       `CJ auth ${response.status}: ${String(json.message ?? json.error ?? text).slice(0, 240)}`,
     );
   }
-  // CJ wraps payloads as { code, result: true, data: { accessToken, ... } }
-  const code = json.code;
-  if (code != null && Number(code) !== 200 && String(code) !== "0") {
+  if (!isCjSuccessCode(json.code)) {
     throw new Error(
-      `CJ auth error: ${String(json.message ?? json.errorMsg ?? code).slice(0, 240)}`,
+      `CJ auth error: ${String(json.message ?? json.errorMsg ?? json.code).slice(0, 240)}`,
     );
   }
   return json;
@@ -155,7 +161,10 @@ function readTokenPayload(json: CjJson): {
   refreshToken: string;
   expiresAtMs: number;
 } {
-  const data = (json.data ?? json.result ?? json) as Record<string, unknown>;
+  const data = (json.data ??
+    (typeof json.result === "object" && json.result !== null
+      ? json.result
+      : json)) as Record<string, unknown>;
   const accessToken = String(
     data.accessToken ?? data.access_token ?? "",
   ).trim();
@@ -169,7 +178,6 @@ function readTokenPayload(json: CjJson): {
     data.accessTokenExpiryDate ?? data.accessTokenExpiry ?? "",
   ).trim();
   const parsedExpiry = expiryRaw ? Date.parse(expiryRaw) : NaN;
-  // Default ~14 days with a 1h safety margin when expiry is missing.
   const expiresAtMs = Number.isFinite(parsedExpiry)
     ? parsedExpiry - 60 * 60 * 1000
     : Date.now() + 14 * 24 * 60 * 60 * 1000;
@@ -180,23 +188,35 @@ function readTokenPayload(json: CjJson): {
  * CJ product APIs require a `CJ-Access-Token`. When only an API key is stored
  * (Admin → Supplier APIs / CJ_API_KEY), exchange it for an access token via
  * `/authentication/getAccessToken`.
+ *
+ * If a stored access token later returns auth errors, callers should clear it
+ * and retry with the API key (see {@link cjFetch}).
  */
 async function ensureCjAccessToken(
   credentials?: SupplierCredentials | null,
+  options?: { forceRefresh?: boolean },
 ): Promise<string> {
   const { token, apiKey, refreshToken } = resolveCjAuth(credentials);
-  if (token) return token;
+  const cacheKey = apiKey || refreshToken || token || "env";
 
-  const cacheKey = apiKey || refreshToken || "env";
-  const cached = accessTokenCache.get(cacheKey);
-  if (cached && cached.expiresAtMs > Date.now() && cached.accessToken) {
-    return cached.accessToken;
+  if (!options?.forceRefresh && token) {
+    return token;
   }
 
-  if (refreshToken || cached?.refreshToken) {
+  if (!options?.forceRefresh) {
+    const cached = accessTokenCache.get(cacheKey);
+    if (cached && cached.expiresAtMs > Date.now() && cached.accessToken) {
+      return cached.accessToken;
+    }
+  } else {
+    accessTokenCache.delete(cacheKey);
+  }
+
+  const tryRefresh = refreshToken || accessTokenCache.get(cacheKey)?.refreshToken;
+  if (tryRefresh) {
     try {
       const json = await postCjAuth("/authentication/refreshAccessToken", {
-        refreshToken: refreshToken || cached!.refreshToken,
+        refreshToken: tryRefresh,
       });
       const payload = readTokenPayload(json);
       accessTokenCache.set(cacheKey, payload);
@@ -207,6 +227,7 @@ async function ensureCjAccessToken(
   }
 
   if (!apiKey) {
+    if (token && !options?.forceRefresh) return token;
     throw new Error(
       "CJ credentials missing. Save a platform CJ API key (Admin → Supplier APIs) or set CJ_ACCESS_TOKEN / CJ_API_KEY.",
     );
@@ -220,16 +241,35 @@ async function ensureCjAccessToken(
   return payload.accessToken;
 }
 
+function isAuthFailure(json: CjJson, status: number): boolean {
+  if (status === 401 || status === 403) return true;
+  const code = Number(json.code);
+  // CJ uses various auth-related business codes; message is the reliable signal.
+  const message = String(json.message ?? json.errorMsg ?? "").toLowerCase();
+  return (
+    message.includes("token") ||
+    message.includes("unauthorized") ||
+    message.includes("login") ||
+    message.includes("auth") ||
+    code === 1600001 ||
+    code === 1600002 ||
+    code === 1600003
+  );
+}
+
 async function cjFetch(
   path: string,
   options: {
     method?: string;
-    query?: Record<string, string | number | undefined>;
+    query?: Record<string, string | number | boolean | undefined>;
     body?: unknown;
     credentials?: SupplierCredentials | null;
+    _retriedAuth?: boolean;
   } = {},
 ): Promise<CjJson> {
-  const accessToken = await ensureCjAccessToken(options.credentials);
+  const accessToken = await ensureCjAccessToken(options.credentials, {
+    forceRefresh: Boolean(options._retriedAuth),
+  });
 
   const url = new URL(`${CJ_API_BASE.replace(/\/$/, "")}${path}`);
   for (const [key, value] of Object.entries(options.query ?? {})) {
@@ -257,53 +297,110 @@ async function cjFetch(
     throw new Error(`CJ API returned non-JSON (${response.status})`);
   }
 
+  // Expired/invalid stored token → re-exchange API key once and retry.
+  if (
+    !options._retriedAuth &&
+    credentialsHaveKey(options.credentials) &&
+    isAuthFailure(json, response.status)
+  ) {
+    const { apiKey } = resolveCjAuth(options.credentials);
+    if (apiKey) {
+      return cjFetch(path, { ...options, _retriedAuth: true });
+    }
+  }
+
   if (!response.ok) {
     throw new Error(
       `CJ API ${response.status}: ${String(json.message ?? json.error ?? text).slice(0, 240)}`,
     );
   }
 
-  const code = json.code;
-  if (code != null && Number(code) !== 200 && String(code) !== "0") {
+  if (!isCjSuccessCode(json.code)) {
     throw new Error(
-      `CJ API error: ${String(json.message ?? json.errorMsg ?? code).slice(0, 240)}`,
+      `CJ API error: ${String(json.message ?? json.errorMsg ?? json.code).slice(0, 240)}`,
     );
   }
 
   return json;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return null;
+}
+
+function collectImages(row: Record<string, unknown>): string[] {
+  const candidates = [
+    row.bigImage,
+    row.productImage,
+    row.productImageSet,
+    row.productImgList,
+    row.images,
+  ];
+  const out: string[] = [];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      for (const item of candidate) {
+        const url = String(item ?? "").trim();
+        if (url) out.push(url);
+      }
+    } else if (typeof candidate === "string" && candidate.trim()) {
+      out.push(candidate.trim());
+    }
+  }
+  return [...new Set(out)];
+}
+
 function mapCjProduct(row: Record<string, unknown>): ExternalCatalogProduct {
-  const imagesRaw = row.productImage || row.productImgList || row.images || [];
-  const images = Array.isArray(imagesRaw)
-    ? imagesRaw.map((x) => String(x)).filter(Boolean)
-    : typeof imagesRaw === "string" && imagesRaw
-      ? [imagesRaw]
-      : [];
+  const images = collectImages(row);
   const price = Number(
-    row.sellPrice ?? row.discountPrice ?? row.productPrice ?? row.price ?? 0,
+    row.nowPrice ??
+      row.discountPrice ??
+      row.sellPrice ??
+      row.productPrice ??
+      row.price ??
+      0,
   );
+  const stockRaw =
+    row.warehouseInventoryNum ??
+    row.totalVerifiedInventory ??
+    row.inventory ??
+    row.stock;
+  const externalProductId = String(
+    row.pid ?? row.productId ?? row.id ?? "",
+  ).trim();
+
   return {
     providerKind: "cj_dropshipping",
-    externalProductId: String(row.pid ?? row.productId ?? row.id ?? ""),
+    externalProductId,
     externalVariantId:
-      String(row.vid ?? row.variantId ?? row.productSku ?? "") || null,
-    externalSku: String(row.productSku ?? row.sku ?? "") || null,
-    name: String(row.productNameEn ?? row.productName ?? row.name ?? "CJ product"),
+      String(row.vid ?? row.variantId ?? row.productSku ?? row.sku ?? "").trim() ||
+      null,
+    externalSku:
+      String(row.productSku ?? row.sku ?? row.spu ?? "").trim() || null,
+    name: String(
+      row.productNameEn ?? row.nameEn ?? row.productName ?? row.name ?? "CJ product",
+    ),
     description:
       (row.description as string | null | undefined) ??
       (row.productNameEn as string | null | undefined) ??
+      (row.nameEn as string | null | undefined) ??
       null,
     imageUrl: images[0] ?? null,
     images,
     priceUsdt: Number.isFinite(price) && price > 0 ? price : 1,
     compareAtPriceUsdt: null,
     stockQuantity:
-      row.inventory != null && Number.isFinite(Number(row.inventory))
-        ? Number(row.inventory)
+      stockRaw != null && Number.isFinite(Number(stockRaw))
+        ? Number(stockRaw)
         : null,
     warehouseCountry: String(
-      row.warehouseCountryCode ?? row.countryCode ?? "CN",
+      row.warehouseCountryCode ??
+        row.countryCode ??
+        row.warehouseCountry ??
+        "CN",
     ),
     shippingDaysMin: 5,
     shippingDaysMax: 18,
@@ -311,12 +408,64 @@ function mapCjProduct(row: Record<string, unknown>): ExternalCatalogProduct {
   };
 }
 
+/**
+ * CJ listV2 returns:
+ *   data.content[] → { productList: Product[], ... }
+ * Classic list returns:
+ *   data.list: Product[]
+ */
+function extractCjProductRows(json: CjJson): Record<string, unknown>[] {
+  const data = asRecord(json.data) ?? asRecord(json.result) ?? {};
+  const rows: Record<string, unknown>[] = [];
+
+  const list = data.list;
+  if (Array.isArray(list)) {
+    for (const item of list) {
+      const row = asRecord(item);
+      if (row) rows.push(row);
+    }
+  }
+
+  const content = data.content;
+  if (Array.isArray(content)) {
+    for (const block of content) {
+      const blockRec = asRecord(block);
+      if (!blockRec) continue;
+      const productList = blockRec.productList;
+      if (Array.isArray(productList)) {
+        for (const item of productList) {
+          const row = asRecord(item);
+          if (row) rows.push(row);
+        }
+      } else if (
+        blockRec.id ||
+        blockRec.pid ||
+        blockRec.productId ||
+        blockRec.nameEn ||
+        blockRec.productNameEn
+      ) {
+        // Some payloads may flatten products directly into content[].
+        rows.push(blockRec);
+      }
+    }
+  }
+
+  // Rare: data itself is an array of products.
+  if (rows.length === 0 && Array.isArray(json.data)) {
+    for (const item of json.data) {
+      const row = asRecord(item);
+      if (row) rows.push(row);
+    }
+  }
+
+  return rows;
+}
+
 function maybeMockFallback<T>(
   credentials: SupplierCredentials | null | undefined,
   error: unknown,
   fallback: () => T,
 ): T {
-  // Never hide live failures behind mock when a key was configured.
   if (credentialsHaveKey(credentials) || !shouldFallbackToMock()) {
     throw error instanceof Error
       ? error
@@ -335,34 +484,35 @@ export async function searchCjProducts(
   }
 
   try {
-    // Prefer listV2 (keyWord) — falls back to classic /product/list.
-    let json: CjJson;
-    try {
-      json = await cjFetch("/product/listV2", {
-        credentials,
-        query: {
-          keyWord: query || undefined,
-          page,
-          size: 20,
-        },
-      });
-    } catch {
+    const q = query.trim();
+
+    // Primary: Product List V2 (Elasticsearch keyword search).
+    let json = await cjFetch("/product/listV2", {
+      credentials,
+      query: {
+        keyWord: q || undefined,
+        page,
+        size: 20,
+      },
+    });
+    let rows = extractCjProductRows(json);
+
+    // Fallback: classic /product/list when V2 returns no usable rows.
+    if (rows.length === 0) {
       json = await cjFetch("/product/list", {
         credentials,
         query: {
-          productNameEn: query || undefined,
-          keyWord: query || undefined,
+          productNameEn: q || undefined,
           pageNum: page,
           pageSize: 20,
         },
       });
+      rows = extractCjProductRows(json);
     }
-    const data = (json.data ?? json.result ?? {}) as Record<string, unknown>;
-    const list = (data.list ?? data.content ?? data) as unknown;
-    const rows = Array.isArray(list) ? list : [];
+
     return rows
-      .map((row) => mapCjProduct(row as Record<string, unknown>))
-      .filter((p) => p.externalProductId);
+      .map((row) => mapCjProduct(row))
+      .filter((p) => Boolean(p.externalProductId));
   } catch (error) {
     return maybeMockFallback(credentials, error, () => mockCatalog(query));
   }
@@ -395,8 +545,12 @@ export async function getCjProduct(
       credentials,
       query: { pid: externalProductId },
     });
-    const data = (json.data ?? json.result ?? json) as Record<string, unknown>;
-    if (!data || typeof data !== "object") return null;
+    const data =
+      asRecord(json.data) ??
+      asRecord(json.result) ??
+      asRecord(json) ??
+      null;
+    if (!data) return null;
     const mapped = mapCjProduct(data);
     return mapped.externalProductId ? mapped : null;
   } catch (error) {
@@ -484,7 +638,8 @@ export async function createCjOrder(
       },
     });
 
-    const data = (json.data ?? json.result ?? json) as Record<string, unknown>;
+    const data =
+      asRecord(json.data) ?? asRecord(json.result) ?? asRecord(json) ?? {};
     const ref = String(
       data.orderId ?? data.orderNum ?? data.cjOrderId ?? data.id ?? "",
     );

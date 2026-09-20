@@ -349,10 +349,33 @@ export async function importExternalSupplierProductAction(
   }
 
   const variant = resolveImportVariant(formData, remote);
-  if (!meetsMinImportStock(variant.stockQuantity)) {
+
+  let liveImportStock: number | null = null;
+  if (kind === "cj_dropshipping") {
+    const { assertCjImportVariantInStock } = await import(
+      "@/lib/suppliers/cj-live-stock"
+    );
+    const liveGate = await assertCjImportVariantInStock({
+      externalProductId: remote.externalProductId,
+      externalVariantId: variant.externalVariantId,
+      externalSku: variant.externalSku,
+      productName: remote.name,
+      credentials: linked?.credentials ?? null,
+    });
+    if (!liveGate.ok) {
+      return { error: liveGate.error };
+    }
+    if (liveGate.usedLive) {
+      liveImportStock = liveGate.liveStock;
+    }
+  }
+
+  const effectiveStock =
+    liveImportStock != null ? liveImportStock : variant.stockQuantity;
+  if (!meetsMinImportStock(effectiveStock)) {
     return {
       error: `Supplier stock must be at least ${MIN_IMPORT_STOCK_QUANTITY} units before import (found ${
-        variant.stockQuantity == null ? "unknown" : variant.stockQuantity
+        effectiveStock == null ? "unknown" : effectiveStock
       }).`,
     };
   }
@@ -419,7 +442,7 @@ export async function importExternalSupplierProductAction(
         description: listing.description,
         ...productPriceFields(sellPrice, remote.compareAtPriceUsdt),
         sku: variant.externalSku,
-        stock_quantity: variant.stockQuantity ?? 0,
+        stock_quantity: effectiveStock ?? 0,
         images: productImages,
         updated_at: new Date().toISOString(),
       };
@@ -491,7 +514,7 @@ export async function importExternalSupplierProductAction(
         name: listing.name,
         description: listing.description,
         ...productPriceFields(sellPrice, remote.compareAtPriceUsdt),
-        stock_quantity: variant.stockQuantity ?? 0,
+        stock_quantity: effectiveStock ?? 0,
         images: productImages,
         updated_at: new Date().toISOString(),
       };
@@ -600,7 +623,7 @@ export async function importExternalSupplierProductAction(
     ...productPriceFields(sellPrice, remote.compareAtPriceUsdt),
     currency: "USDT",
     sku: variant.externalSku,
-    stock_quantity: variant.stockQuantity ?? 0,
+    stock_quantity: effectiveStock ?? 0,
     status: "active" as const,
     images: productImages,
     product_type: "physical" as const,

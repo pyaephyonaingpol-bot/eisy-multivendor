@@ -135,6 +135,14 @@ export async function createCheckout(
     return { ok: false, error: deliverabilityError.message, status: 400 };
   }
 
+  const { assertCjLiveStockForCartItems } = await import(
+    "@/lib/suppliers/cj-live-stock"
+  );
+  const cjStock = await assertCjLiveStockForCartItems(parsedItems);
+  if (!cjStock.ok) {
+    return { ok: false, error: cjStock.error, status: 409 };
+  }
+
   if (paymentMethod === "trc20") {
     try {
       const deposit = await syncUsdtTrc20SettingsFromEnv();

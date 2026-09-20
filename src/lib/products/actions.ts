@@ -15,21 +15,38 @@ export type ProductActionState = {
   success?: string;
 } | null;
 
-function isCompareAtPriceSchemaError(message: string | undefined) {
+function isSchemaCacheColumnError(
+  message: string | undefined,
+  column: string,
+) {
   if (!message) return false;
   const m = message.toLowerCase();
   return (
-    m.includes("compare_at_price") &&
+    m.includes(column.toLowerCase()) &&
     (m.includes("schema cache") ||
       m.includes("does not exist") ||
       m.includes("could not find"))
   );
 }
 
+function isCompareAtPriceSchemaError(message: string | undefined) {
+  return isSchemaCacheColumnError(message, "compare_at_price");
+}
+
+function isCurrencySchemaError(message: string | undefined) {
+  return isSchemaCacheColumnError(message, "currency");
+}
+
 function stripCompareAtPrice<T extends Record<string, unknown>>(payload: T) {
   const { compare_at_price: _ignored, ...rest } = payload;
   void _ignored;
   return rest as Omit<T, "compare_at_price">;
+}
+
+function stripCurrency<T extends Record<string, unknown>>(payload: T) {
+  const { currency: _ignored, ...rest } = payload;
+  void _ignored;
+  return rest as Omit<T, "currency">;
 }
 
 function parseMoney(value: FormDataEntryValue | null): number | null {
@@ -259,12 +276,17 @@ export async function createProduct(
     ships_to_region_ids: parsed.shipsToRegionIds,
   };
 
-  let { error } = await supabase.from("products").insert(insertPayload);
+  let writePayload: Record<string, unknown> = { ...insertPayload };
+  let { error } = await supabase.from("products").insert(writePayload);
 
   if (error && isCompareAtPriceSchemaError(error.message)) {
-    ({ error } = await supabase
-      .from("products")
-      .insert(stripCompareAtPrice(insertPayload)));
+    writePayload = stripCompareAtPrice(writePayload);
+    ({ error } = await supabase.from("products").insert(writePayload));
+  }
+
+  if (error && isCurrencySchemaError(error.message)) {
+    writePayload = stripCurrency(writePayload);
+    ({ error } = await supabase.from("products").insert(writePayload));
   }
 
   if (error) {
@@ -356,16 +378,27 @@ export async function updateProduct(
     ships_to_region_ids: parsed.shipsToRegionIds,
   };
 
+  let writePayload: Record<string, unknown> = { ...updatePayload };
   let { error } = await supabase
     .from("products")
-    .update(updatePayload)
+    .update(writePayload)
     .eq("id", productId)
     .eq("vendor_id", vendor.id);
 
   if (error && isCompareAtPriceSchemaError(error.message)) {
+    writePayload = stripCompareAtPrice(writePayload);
     ({ error } = await supabase
       .from("products")
-      .update(stripCompareAtPrice(updatePayload))
+      .update(writePayload)
+      .eq("id", productId)
+      .eq("vendor_id", vendor.id));
+  }
+
+  if (error && isCurrencySchemaError(error.message)) {
+    writePayload = stripCurrency(writePayload);
+    ({ error } = await supabase
+      .from("products")
+      .update(writePayload)
       .eq("id", productId)
       .eq("vendor_id", vendor.id));
   }

@@ -36,14 +36,26 @@ export type ExternalImportState = {
   oneClick?: boolean;
 } | null;
 
-function isCompareAtPriceSchemaError(message: string | undefined) {
+function isSchemaCacheColumnError(
+  message: string | undefined,
+  column: string,
+) {
   if (!message) return false;
   const m = message.toLowerCase();
-  return m.includes("compare_at_price") && (
-    m.includes("schema cache") ||
-    m.includes("does not exist") ||
-    m.includes("could not find")
+  return (
+    m.includes(column.toLowerCase()) &&
+    (m.includes("schema cache") ||
+      m.includes("does not exist") ||
+      m.includes("could not find"))
   );
+}
+
+function isCompareAtPriceSchemaError(message: string | undefined) {
+  return isSchemaCacheColumnError(message, "compare_at_price");
+}
+
+function isCurrencySchemaError(message: string | undefined) {
+  return isSchemaCacheColumnError(message, "currency");
 }
 
 /** Product write payload; omits null compare_at_price so partial DBs don't choke. */
@@ -65,6 +77,12 @@ function stripCompareAtPrice<T extends Record<string, unknown>>(payload: T) {
   const { compare_at_price: _ignored, ...rest } = payload;
   void _ignored;
   return rest as Omit<T, "compare_at_price">;
+}
+
+function stripCurrency<T extends Record<string, unknown>>(payload: T) {
+  const { currency: _ignored, ...rest } = payload;
+  void _ignored;
+  return rest as Omit<T, "currency">;
 }
 
 function resolveImportSellPrice(
@@ -529,17 +547,29 @@ export async function importExternalSupplierProductAction(
     product_type: "physical" as const,
   };
 
+  let writePayload: Record<string, unknown> = { ...insertPayload };
   let { data: product, error: productError } = await supabase
     .from("products")
-    .insert(insertPayload)
+    .insert(writePayload)
     .select("id")
     .single();
 
   if (productError && isCompareAtPriceSchemaError(productError.message)) {
+    writePayload = stripCompareAtPrice(writePayload);
     ({ data: product, error: productError } = await supabase
       .from("products")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .insert(stripCompareAtPrice(insertPayload) as any)
+      .insert(writePayload as any)
+      .select("id")
+      .single());
+  }
+
+  if (productError && isCurrencySchemaError(productError.message)) {
+    writePayload = stripCurrency(writePayload);
+    ({ data: product, error: productError } = await supabase
+      .from("products")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .insert(writePayload as any)
       .select("id")
       .single());
   }

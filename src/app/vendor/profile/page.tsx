@@ -37,6 +37,9 @@ export default async function VendorProfilePage() {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          My Store
+        </p>
         <h1 className="text-2xl font-semibold tracking-tight">Vendor profile</h1>
         <p className="max-w-2xl text-sm text-zinc-600">
           Keep your store details, contact information, business registration,

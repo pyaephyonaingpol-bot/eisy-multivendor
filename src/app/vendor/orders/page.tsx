@@ -24,6 +24,9 @@ export default async function VendorOrdersPage() {
   if (!vendor) {
     return (
       <div className="space-y-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          My Store
+        </p>
         <h1 className="text-2xl font-semibold tracking-tight">Vendor orders</h1>
         <p className="text-zinc-600">
           Submit a vendor application before you can receive orders.
@@ -43,6 +46,9 @@ export default async function VendorOrdersPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          My Store
+        </p>
         <h1 className="text-2xl font-semibold tracking-tight">Vendor orders</h1>
         <p className="text-zinc-600">
           Fulfillment orders route to the supplier. Dropship sales you made appear

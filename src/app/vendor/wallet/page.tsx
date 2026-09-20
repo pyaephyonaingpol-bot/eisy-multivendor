@@ -34,6 +34,9 @@ export default async function VendorWalletPage() {
 
   return (
     <div className="space-y-6">
+      <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+        My Store
+      </p>
       {!kycApproved ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           Wallet withdrawals stay locked until KYC is approved.{" "}

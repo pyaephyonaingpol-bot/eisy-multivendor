@@ -5,8 +5,8 @@ import { getExternalProduct, parseSupplierKind } from "@/lib/suppliers";
 import { hasLiveSupplierCredentials } from "@/lib/suppliers/auth";
 import { loadPlatformSupplierContext } from "@/lib/suppliers/platform-credentials";
 import {
-  supplierIntegrationsMode,
   supplierPlatformLabel,
+  useLiveSupplierApi,
 } from "@/lib/suppliers/types";
 
 export const runtime = "nodejs";
@@ -56,7 +56,7 @@ export async function GET(request: Request) {
     credentials,
   );
 
-  const mode = supplierIntegrationsMode();
+  const mode = useLiveSupplierApi(provider, credentials) ? "live" : "mock";
   if (mode === "live" && !platformConnected) {
     return NextResponse.json(
       {

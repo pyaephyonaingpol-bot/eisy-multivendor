@@ -3,13 +3,10 @@ import { PlatformSupplierCredentialsForm } from "@/components/suppliers/platform
 import { canAccessAdmin, getSessionProfile } from "@/lib/auth/session";
 import { listPlatformSupplierCredentials } from "@/lib/suppliers/platform-actions";
 import {
-  hasLiveSupplierCredentials,
-  listConfiguredPlatformSuppliers,
-} from "@/lib/suppliers/auth";
-import {
-  supplierIntegrationsMode,
-  supplierPlatformLabel,
-} from "@/lib/suppliers/types";
+  listLivePlatformSuppliers,
+  platformSupplierHasLiveKey,
+} from "@/lib/suppliers/platform-credentials";
+import { supplierPlatformLabel } from "@/lib/suppliers/types";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +16,9 @@ export default async function AdminIntegrationsPage() {
   if (!canAccessAdmin(session.role)) redirect("/unauthorized?from=admin");
 
   const { rows, providers, error } = await listPlatformSupplierCredentials();
-  const mode = supplierIntegrationsMode();
-  const configured = listConfiguredPlatformSuppliers();
+  const configured = await listLivePlatformSuppliers();
+  const mode = configured.length > 0 ? "live" : "mock";
+  const printifyLive = await platformSupplierHasLiveKey("printify");
 
   return (
     <div className="space-y-8">
@@ -38,19 +36,20 @@ export default async function AdminIntegrationsPage() {
           Runtime mode: <strong>{mode}</strong>
         </p>
         <p className="mt-1">
-          Env keys detected:{" "}
+          Live sources (DB + env):{" "}
           {configured.length
             ? configured.map((k) => supplierPlatformLabel(k)).join(", ")
-            : "none (mock catalog / DB keys only)"}
+            : "none — catalog uses mock data until keys are saved"}
         </p>
         <p className="mt-1 text-zinc-500">
           Keys can live in this table and/or environment variables (
           <code className="rounded bg-white px-1">CJ_API_KEY</code>,{" "}
           <code className="rounded bg-white px-1">DSERS_API_KEY</code>,{" "}
           <code className="rounded bg-white px-1">PRINTIFY_API_KEY</code>, …).
-          DB values take precedence when present.
+          DB values take precedence when present. CJ API keys are exchanged for
+          an access token automatically before catalog calls.
         </p>
-        {hasLiveSupplierCredentials("printify") ? null : (
+        {printifyLive ? null : (
           <p className="mt-2 text-amber-800">
             Printify needs <code className="rounded bg-white px-1">PRINTIFY_SHOP_ID</code>{" "}
             (env or Shop ID field) in addition to an API key.

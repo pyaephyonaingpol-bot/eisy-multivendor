@@ -5,7 +5,8 @@ import type {
   SupplierFulfillmentRequest,
   SupplierFulfillmentResult,
 } from "@/lib/suppliers/types";
-import { supplierIntegrationsMode } from "@/lib/suppliers/types";
+import { useLiveSupplierApi } from "@/lib/suppliers/types";
+import { shouldFallbackToMock } from "@/lib/suppliers/auth";
 
 /** Spocket — US/EU dropship catalog adapter. */
 const SPOCKET_API_BASE =
@@ -83,8 +84,10 @@ async function spocketFetch(
     options.credentials?.apiKey?.trim() ||
     process.env.SPOCKET_API_KEY?.trim() ||
     "";
-  if (!apiKey && supplierIntegrationsMode() === "live") {
-    throw new Error("Spocket credentials missing. Set SPOCKET_API_KEY.");
+  if (!apiKey) {
+    throw new Error(
+      "Spocket credentials missing. Save a platform Spocket API key or set SPOCKET_API_KEY.",
+    );
   }
 
   const url = new URL(`${SPOCKET_API_BASE.replace(/\/$/, "")}${path}`);
@@ -146,12 +149,18 @@ function mapSpocketProduct(row: Record<string, unknown>): ExternalCatalogProduct
   };
 }
 
+function hasSpocketKey(credentials?: SupplierCredentials | null): boolean {
+  return Boolean(
+    credentials?.apiKey?.trim() || process.env.SPOCKET_API_KEY?.trim(),
+  );
+}
+
 export async function searchSpocketProducts(
   query: string,
   credentials?: SupplierCredentials | null,
   page = 1,
 ): Promise<ExternalCatalogProduct[]> {
-  if (supplierIntegrationsMode() === "mock") return mockCatalog(query);
+  if (!useLiveSupplierApi("spocket", credentials)) return mockCatalog(query);
   try {
     const json = await spocketFetch("/products", {
       query: { q: query, page, per_page: 24 },
@@ -162,9 +171,9 @@ export async function searchSpocketProducts(
       : Array.isArray(json.products)
         ? (json.products as Record<string, unknown>[])
         : [];
-    if (rows.length === 0) return mockCatalog(query);
     return rows.map(mapSpocketProduct);
-  } catch {
+  } catch (error) {
+    if (hasSpocketKey(credentials) || !shouldFallbackToMock()) throw error;
     return mockCatalog(query);
   }
 }
@@ -174,7 +183,7 @@ export async function getSpocketProduct(
   credentials?: SupplierCredentials | null,
 ): Promise<ExternalCatalogProduct | null> {
   if (
-    supplierIntegrationsMode() === "mock" ||
+    !useLiveSupplierApi("spocket", credentials) ||
     externalProductId.startsWith("SPK-MOCK-")
   ) {
     return (
@@ -190,7 +199,8 @@ export async function getSpocketProduct(
     );
     const row = (json.data ?? json.product ?? json) as Record<string, unknown>;
     return mapSpocketProduct(row);
-  } catch {
+  } catch (error) {
+    if (hasSpocketKey(credentials) || !shouldFallbackToMock()) throw error;
     return mockCatalog(externalProductId)[0] ?? null;
   }
 }
@@ -214,7 +224,7 @@ export async function createSpocketOrder(
   request: SupplierFulfillmentRequest,
   credentials?: SupplierCredentials | null,
 ): Promise<SupplierFulfillmentResult> {
-  if (supplierIntegrationsMode() === "mock") {
+  if (!useLiveSupplierApi("spocket", credentials)) {
     return {
       ok: true,
       supplierOrderRef: `SPK-MOCK-ORD-${request.orderId.slice(0, 8)}`,

@@ -5,7 +5,8 @@ import type {
   SupplierFulfillmentRequest,
   SupplierFulfillmentResult,
 } from "@/lib/suppliers/types";
-import { supplierIntegrationsMode } from "@/lib/suppliers/types";
+import { useLiveSupplierApi } from "@/lib/suppliers/types";
+import { shouldFallbackToMock } from "@/lib/suppliers/auth";
 
 /**
  * DSers / AliExpress adapter.
@@ -97,8 +98,10 @@ async function dsersFetch(
     options.credentials?.apiKey?.trim() ||
     process.env.DSERS_API_KEY?.trim() ||
     "";
-  if (!apiKey && supplierIntegrationsMode() === "live") {
-    throw new Error("DSers credentials missing. Set DSERS_API_KEY.");
+  if (!apiKey) {
+    throw new Error(
+      "DSers credentials missing. Save a platform DSers API key or set DSERS_API_KEY.",
+    );
   }
 
   const url = new URL(`${DSERS_API_BASE.replace(/\/$/, "")}${path}`);
@@ -170,12 +173,18 @@ function mapDsersProduct(row: Record<string, unknown>): ExternalCatalogProduct {
   };
 }
 
+function hasDsersKey(credentials?: SupplierCredentials | null): boolean {
+  return Boolean(
+    credentials?.apiKey?.trim() || process.env.DSERS_API_KEY?.trim(),
+  );
+}
+
 export async function searchDsersProducts(
   query: string,
   credentials?: SupplierCredentials | null,
   page = 1,
 ): Promise<ExternalCatalogProduct[]> {
-  if (supplierIntegrationsMode() === "mock") {
+  if (!useLiveSupplierApi("dsers", credentials)) {
     return mockCatalog(query);
   }
 
@@ -190,7 +199,7 @@ export async function searchDsersProducts(
       .map((row) => mapDsersProduct(row as Record<string, unknown>))
       .filter((p) => p.externalProductId);
   } catch (error) {
-    if (process.env.SUPPLIER_INTEGRATIONS_FALLBACK_MOCK === "0") throw error;
+    if (hasDsersKey(credentials) || !shouldFallbackToMock()) throw error;
     return mockCatalog(query);
   }
 }
@@ -199,7 +208,7 @@ export async function getDsersProduct(
   externalProductId: string,
   credentials?: SupplierCredentials | null,
 ): Promise<ExternalCatalogProduct | null> {
-  if (supplierIntegrationsMode() === "mock") {
+  if (!useLiveSupplierApi("dsers", credentials)) {
     const nMatch = externalProductId.match(/-(\d+)$/);
     const n = nMatch ? Number(nMatch[1]) : 1;
     const queryHint =
@@ -248,7 +257,7 @@ export async function createDsersOrder(
   request: SupplierFulfillmentRequest,
   credentials?: SupplierCredentials | null,
 ): Promise<SupplierFulfillmentResult> {
-  if (supplierIntegrationsMode() === "mock") {
+  if (!useLiveSupplierApi("dsers", credentials)) {
     const ref = `DSERS-MOCK-${request.orderId.slice(0, 8).toUpperCase()}`;
     return {
       ok: true,

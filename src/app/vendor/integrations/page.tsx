@@ -5,11 +5,10 @@ import { ExternalSupplierCatalogPanel } from "@/components/suppliers/external-su
 import { getSessionProfile, canAccessVendor } from "@/lib/auth/session";
 import { getVendorImportQuota } from "@/lib/import-limits/queries";
 import {
-  hasLiveSupplierCredentials,
-  listConfiguredPlatformSuppliers,
-} from "@/lib/suppliers/auth";
+  listLivePlatformSuppliers,
+  platformSupplierHasLiveKey,
+} from "@/lib/suppliers/platform-credentials";
 import {
-  supplierIntegrationsMode,
   supplierPlatformLabel,
   type ExternalSupplierKind,
 } from "@/lib/suppliers/types";
@@ -60,8 +59,11 @@ export default async function VendorIntegrationsPage() {
   }
 
   const quota = await getVendorImportQuota(vendor.id);
-  const mode = supplierIntegrationsMode();
-  const configured = listConfiguredPlatformSuppliers();
+  const configured = await listLivePlatformSuppliers();
+  const mode = configured.length > 0 ? "live" : "mock";
+  const hasCjOrDsers =
+    (await platformSupplierHasLiveKey("cj_dropshipping")) ||
+    (await platformSupplierHasLiveKey("dsers"));
 
   const quotaHints = quota
     ? {
@@ -142,8 +144,7 @@ export default async function VendorIntegrationsPage() {
           POST /api/cron/fulfill-supplier-orders
         </code>
         .
-        {hasLiveSupplierCredentials("cj_dropshipping") ||
-        hasLiveSupplierCredentials("dsers")
+        {hasCjOrDsers
           ? null
           : " Configure keys under Admin → Supplier APIs or platform env vars."}
       </div>

@@ -5,13 +5,48 @@ import type {
   SupplierFulfillmentRequest,
   SupplierFulfillmentResult,
 } from "@/lib/suppliers/types";
-import { supplierIntegrationsMode } from "@/lib/suppliers/types";
+import { useLiveSupplierApi } from "@/lib/suppliers/types";
+import { shouldFallbackToMock } from "@/lib/suppliers/auth";
 
 const CJ_API_BASE =
   process.env.CJ_API_BASE?.trim() ||
   "https://developers.cjdropshipping.com/api2.0/v1";
 
 type CjJson = Record<string, unknown>;
+
+/** Process-local access-token cache keyed by apiKey (or "env"). */
+const accessTokenCache = new Map<
+  string,
+  { accessToken: string; refreshToken: string; expiresAtMs: number }
+>();
+
+function resolveCjAuth(credentials?: SupplierCredentials | null): {
+  token: string;
+  apiKey: string;
+  refreshToken: string;
+} {
+  return {
+    token:
+      credentials?.accessToken?.trim() ||
+      process.env.CJ_ACCESS_TOKEN?.trim() ||
+      "",
+    apiKey:
+      credentials?.apiKey?.trim() || process.env.CJ_API_KEY?.trim() || "",
+    refreshToken:
+      credentials?.refreshToken?.trim() ||
+      process.env.CJ_REFRESH_TOKEN?.trim() ||
+      "",
+  };
+}
+
+function credentialsHaveKey(credentials?: SupplierCredentials | null): boolean {
+  return Boolean(
+    credentials?.apiKey?.trim() ||
+      credentials?.accessToken?.trim() ||
+      process.env.CJ_API_KEY?.trim() ||
+      process.env.CJ_ACCESS_TOKEN?.trim(),
+  );
+}
 
 function mockCatalog(query: string): ExternalCatalogProduct[] {
   const q = query.trim() || "gadget";
@@ -79,6 +114,112 @@ function mockCatalog(query: string): ExternalCatalogProduct[] {
   });
 }
 
+async function postCjAuth(
+  path: string,
+  body: Record<string, string>,
+): Promise<CjJson> {
+  const url = `${CJ_API_BASE.replace(/\/$/, "")}${path}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+  const text = await response.text();
+  let json: CjJson = {};
+  try {
+    json = text ? (JSON.parse(text) as CjJson) : {};
+  } catch {
+    throw new Error(`CJ auth returned non-JSON (${response.status})`);
+  }
+  if (!response.ok) {
+    throw new Error(
+      `CJ auth ${response.status}: ${String(json.message ?? json.error ?? text).slice(0, 240)}`,
+    );
+  }
+  // CJ wraps payloads as { code, result: true, data: { accessToken, ... } }
+  const code = json.code;
+  if (code != null && Number(code) !== 200 && String(code) !== "0") {
+    throw new Error(
+      `CJ auth error: ${String(json.message ?? json.errorMsg ?? code).slice(0, 240)}`,
+    );
+  }
+  return json;
+}
+
+function readTokenPayload(json: CjJson): {
+  accessToken: string;
+  refreshToken: string;
+  expiresAtMs: number;
+} {
+  const data = (json.data ?? json.result ?? json) as Record<string, unknown>;
+  const accessToken = String(
+    data.accessToken ?? data.access_token ?? "",
+  ).trim();
+  const refreshToken = String(
+    data.refreshToken ?? data.refresh_token ?? "",
+  ).trim();
+  if (!accessToken) {
+    throw new Error("CJ auth did not return an accessToken.");
+  }
+  const expiryRaw = String(
+    data.accessTokenExpiryDate ?? data.accessTokenExpiry ?? "",
+  ).trim();
+  const parsedExpiry = expiryRaw ? Date.parse(expiryRaw) : NaN;
+  // Default ~14 days with a 1h safety margin when expiry is missing.
+  const expiresAtMs = Number.isFinite(parsedExpiry)
+    ? parsedExpiry - 60 * 60 * 1000
+    : Date.now() + 14 * 24 * 60 * 60 * 1000;
+  return { accessToken, refreshToken, expiresAtMs };
+}
+
+/**
+ * CJ product APIs require a `CJ-Access-Token`. When only an API key is stored
+ * (Admin → Supplier APIs / CJ_API_KEY), exchange it for an access token via
+ * `/authentication/getAccessToken`.
+ */
+async function ensureCjAccessToken(
+  credentials?: SupplierCredentials | null,
+): Promise<string> {
+  const { token, apiKey, refreshToken } = resolveCjAuth(credentials);
+  if (token) return token;
+
+  const cacheKey = apiKey || refreshToken || "env";
+  const cached = accessTokenCache.get(cacheKey);
+  if (cached && cached.expiresAtMs > Date.now() && cached.accessToken) {
+    return cached.accessToken;
+  }
+
+  if (refreshToken || cached?.refreshToken) {
+    try {
+      const json = await postCjAuth("/authentication/refreshAccessToken", {
+        refreshToken: refreshToken || cached!.refreshToken,
+      });
+      const payload = readTokenPayload(json);
+      accessTokenCache.set(cacheKey, payload);
+      return payload.accessToken;
+    } catch {
+      // Fall through to apiKey exchange.
+    }
+  }
+
+  if (!apiKey) {
+    throw new Error(
+      "CJ credentials missing. Save a platform CJ API key (Admin → Supplier APIs) or set CJ_ACCESS_TOKEN / CJ_API_KEY.",
+    );
+  }
+
+  const json = await postCjAuth("/authentication/getAccessToken", {
+    apiKey,
+  });
+  const payload = readTokenPayload(json);
+  accessTokenCache.set(cacheKey, payload);
+  return payload.accessToken;
+}
+
 async function cjFetch(
   path: string,
   options: {
@@ -88,16 +229,7 @@ async function cjFetch(
     credentials?: SupplierCredentials | null;
   } = {},
 ): Promise<CjJson> {
-  const token =
-    options.credentials?.accessToken?.trim() ||
-    process.env.CJ_ACCESS_TOKEN?.trim() ||
-    "";
-  const apiKey =
-    options.credentials?.apiKey?.trim() || process.env.CJ_API_KEY?.trim() || "";
-
-  if (!token && !apiKey && supplierIntegrationsMode() === "live") {
-    throw new Error("CJ credentials missing. Set CJ_ACCESS_TOKEN or CJ_API_KEY.");
-  }
+  const accessToken = await ensureCjAccessToken(options.credentials);
 
   const url = new URL(`${CJ_API_BASE.replace(/\/$/, "")}${path}`);
   for (const [key, value] of Object.entries(options.query ?? {})) {
@@ -107,9 +239,8 @@ async function cjFetch(
   const headers: Record<string, string> = {
     Accept: "application/json",
     "Content-Type": "application/json",
+    "CJ-Access-Token": accessToken,
   };
-  if (token) headers["CJ-Access-Token"] = token;
-  if (apiKey) headers["CJ-API-KEY"] = apiKey;
 
   const response = await fetch(url.toString(), {
     method: options.method ?? "GET",
@@ -132,6 +263,13 @@ async function cjFetch(
     );
   }
 
+  const code = json.code;
+  if (code != null && Number(code) !== 200 && String(code) !== "0") {
+    throw new Error(
+      `CJ API error: ${String(json.message ?? json.errorMsg ?? code).slice(0, 240)}`,
+    );
+  }
+
   return json;
 }
 
@@ -148,9 +286,8 @@ function mapCjProduct(row: Record<string, unknown>): ExternalCatalogProduct {
   return {
     providerKind: "cj_dropshipping",
     externalProductId: String(row.pid ?? row.productId ?? row.id ?? ""),
-    externalVariantId: String(
-      row.vid ?? row.variantId ?? row.productSku ?? "",
-    ) || null,
+    externalVariantId:
+      String(row.vid ?? row.variantId ?? row.productSku ?? "") || null,
     externalSku: String(row.productSku ?? row.sku ?? "") || null,
     name: String(row.productNameEn ?? row.productName ?? row.name ?? "CJ product"),
     description:
@@ -165,11 +302,27 @@ function mapCjProduct(row: Record<string, unknown>): ExternalCatalogProduct {
       row.inventory != null && Number.isFinite(Number(row.inventory))
         ? Number(row.inventory)
         : null,
-    warehouseCountry: String(row.warehouseCountryCode ?? row.countryCode ?? "CN"),
+    warehouseCountry: String(
+      row.warehouseCountryCode ?? row.countryCode ?? "CN",
+    ),
     shippingDaysMin: 5,
     shippingDaysMax: 18,
     raw: row,
   };
+}
+
+function maybeMockFallback<T>(
+  credentials: SupplierCredentials | null | undefined,
+  error: unknown,
+  fallback: () => T,
+): T {
+  // Never hide live failures behind mock when a key was configured.
+  if (credentialsHaveKey(credentials) || !shouldFallbackToMock()) {
+    throw error instanceof Error
+      ? error
+      : new Error("CJ live catalog request failed.");
+  }
+  return fallback();
 }
 
 export async function searchCjProducts(
@@ -177,19 +330,33 @@ export async function searchCjProducts(
   credentials?: SupplierCredentials | null,
   page = 1,
 ): Promise<ExternalCatalogProduct[]> {
-  if (supplierIntegrationsMode() === "mock") {
+  if (!useLiveSupplierApi("cj_dropshipping", credentials)) {
     return mockCatalog(query);
   }
 
   try {
-    const json = await cjFetch("/product/list", {
-      credentials,
-      query: {
-        keyWord: query || undefined,
-        pageNum: page,
-        pageSize: 20,
-      },
-    });
+    // Prefer listV2 (keyWord) — falls back to classic /product/list.
+    let json: CjJson;
+    try {
+      json = await cjFetch("/product/listV2", {
+        credentials,
+        query: {
+          keyWord: query || undefined,
+          page,
+          size: 20,
+        },
+      });
+    } catch {
+      json = await cjFetch("/product/list", {
+        credentials,
+        query: {
+          productNameEn: query || undefined,
+          keyWord: query || undefined,
+          pageNum: page,
+          pageSize: 20,
+        },
+      });
+    }
     const data = (json.data ?? json.result ?? {}) as Record<string, unknown>;
     const list = (data.list ?? data.content ?? data) as unknown;
     const rows = Array.isArray(list) ? list : [];
@@ -197,8 +364,7 @@ export async function searchCjProducts(
       .map((row) => mapCjProduct(row as Record<string, unknown>))
       .filter((p) => p.externalProductId);
   } catch (error) {
-    if (process.env.SUPPLIER_INTEGRATIONS_FALLBACK_MOCK === "0") throw error;
-    return mockCatalog(query);
+    return maybeMockFallback(credentials, error, () => mockCatalog(query));
   }
 }
 
@@ -206,7 +372,7 @@ export async function getCjProduct(
   externalProductId: string,
   credentials?: SupplierCredentials | null,
 ): Promise<ExternalCatalogProduct | null> {
-  if (supplierIntegrationsMode() === "mock") {
+  if (!useLiveSupplierApi("cj_dropshipping", credentials)) {
     const nMatch = externalProductId.match(/-(\d+)$/);
     const n = nMatch ? Number(nMatch[1]) : 1;
     const queryHint =
@@ -224,14 +390,26 @@ export async function getCjProduct(
     return { ...hit, externalProductId };
   }
 
-  const json = await cjFetch("/product/query", {
-    credentials,
-    query: { pid: externalProductId },
-  });
-  const data = (json.data ?? json.result ?? json) as Record<string, unknown>;
-  if (!data || typeof data !== "object") return null;
-  const mapped = mapCjProduct(data);
-  return mapped.externalProductId ? mapped : null;
+  try {
+    const json = await cjFetch("/product/query", {
+      credentials,
+      query: { pid: externalProductId },
+    });
+    const data = (json.data ?? json.result ?? json) as Record<string, unknown>;
+    if (!data || typeof data !== "object") return null;
+    const mapped = mapCjProduct(data);
+    return mapped.externalProductId ? mapped : null;
+  } catch (error) {
+    return maybeMockFallback(credentials, error, () => {
+      return (
+        mockCatalog(externalProductId).find(
+          (p) => p.externalProductId === externalProductId,
+        ) ??
+        mockCatalog(externalProductId)[0] ??
+        null
+      );
+    });
+  }
 }
 
 export async function syncCjInventory(
@@ -256,7 +434,7 @@ export async function createCjOrder(
   request: SupplierFulfillmentRequest,
   credentials?: SupplierCredentials | null,
 ): Promise<SupplierFulfillmentResult> {
-  if (supplierIntegrationsMode() === "mock") {
+  if (!useLiveSupplierApi("cj_dropshipping", credentials)) {
     const ref = `CJ-MOCK-${request.orderId.slice(0, 8).toUpperCase()}`;
     return {
       ok: true,

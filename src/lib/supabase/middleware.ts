@@ -95,7 +95,7 @@ export async function updateSession(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = "/unauthorized";
       url.search = "from=admin";
-      return copyCookies(sessionResponse, NextResponse.redirect(url));
+      return copyCookies(supabaseResponse, NextResponse.redirect(url));
     }
 
     if (isVendorRoute && role !== "vendor" && role !== "admin") {

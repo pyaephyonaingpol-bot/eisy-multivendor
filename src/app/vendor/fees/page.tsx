@@ -72,6 +72,9 @@ export default async function VendorFeesPage() {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-sky-800">
+          Dropshipping workspace
+        </p>
         <h1 className="text-2xl font-semibold tracking-tight">Fees & payouts</h1>
         <p className="max-w-2xl text-zinc-600">
           Dropshippers pay 1 USDT per active listing each month (minimum 10 USDT),
@@ -81,6 +84,11 @@ export default async function VendorFeesPage() {
             wallet
           </Link>
           ; MMK remains withdraw-only.
+        </p>
+        <p className="text-sm text-zinc-500">
+          <Link href="/vendor/dropship" className="font-medium underline">
+            Dropshipping hub
+          </Link>
         </p>
       </div>
 

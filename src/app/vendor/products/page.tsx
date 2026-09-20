@@ -66,17 +66,21 @@ export default async function VendorProductsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+            My Store
+          </p>
           <h1 className="text-2xl font-semibold tracking-tight">Your products</h1>
           <p className="text-zinc-600">
-            Catalog for <strong>{vendor.name}</strong>.
+            Catalog for <strong>{vendor.name}</strong>. Source new supplier items
+            from the Dropshipping workspace; manage pricing and publishing here.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            href="/vendor/import"
-            className="inline-flex rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-100"
+            href="/vendor/dropship"
+            className="inline-flex rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-950 hover:bg-sky-100"
           >
-            Import to My Store
+            Source via Dropshipping
           </Link>
           <Link
             href="/vendor/products/new"

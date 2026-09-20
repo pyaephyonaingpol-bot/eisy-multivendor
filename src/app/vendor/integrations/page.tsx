@@ -85,6 +85,9 @@ export default async function VendorIntegrationsPage() {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-sky-800">
+          Dropshipping workspace
+        </p>
         <h1 className="text-2xl font-semibold tracking-tight">
           Supplier catalog
         </h1>
@@ -93,6 +96,17 @@ export default async function VendorIntegrationsPage() {
           products into your store. API keys are configured by the platform —
           you do not need your own supplier accounts. DSers, Spocket, and POD
           sources are coming soon.
+        </p>
+        <p className="text-sm text-zinc-500">
+          <Link href="/vendor/dropship" className="font-medium underline">
+            Dropshipping hub
+          </Link>
+          {" · "}
+          Prefer region filters on{" "}
+          <Link href="/vendor/sourcing" className="font-medium underline">
+            Product sourcing
+          </Link>
+          .
         </p>
       </div>
 

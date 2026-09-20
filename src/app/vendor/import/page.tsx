@@ -63,19 +63,33 @@ export default async function VendorImportPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-sky-800">
+            Dropshipping workspace
+          </p>
           <h1 className="text-2xl font-semibold tracking-tight">Import to My Store</h1>
           <p className="max-w-2xl text-zinc-600">
             Browse the marketplace supplier catalog, set your selling price, and
             add products to <strong>{vendor.name}</strong>. When customers buy from
             you, orders and stock automatically route to the original vendor.
           </p>
+          <p className="text-sm text-zinc-500">
+            <Link href="/vendor/dropship" className="font-medium underline">
+              Dropshipping hub
+            </Link>
+            {" · "}
+            Manage published listings in{" "}
+            <Link href="/vendor/products" className="font-medium underline">
+              My Store → Products
+            </Link>
+            .
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
-            href="/vendor/integrations"
+            href="/vendor/sourcing"
             className="inline-flex rounded-lg bg-zinc-950 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
           >
-            CJ / DSers catalog
+            Catalog sourcing
           </Link>
           <Link
             href="/vendor/import/extension"

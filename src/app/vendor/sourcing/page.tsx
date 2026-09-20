@@ -53,10 +53,24 @@ export default async function VendorSourcingIndexPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-sky-800">
+          Dropshipping workspace
+        </p>
         <h1 className="text-2xl font-semibold tracking-tight">
           {t.sourcing.title}
         </h1>
         <p className="max-w-2xl text-zinc-600">{t.sourcing.subtitle}</p>
+        <p className="text-sm text-zinc-500">
+          <Link href="/vendor/dropship" className="font-medium underline">
+            Dropshipping hub
+          </Link>
+          {" · "}
+          Store listings live in{" "}
+          <Link href="/vendor/products" className="font-medium underline">
+            My Store → Products
+          </Link>
+          .
+        </p>
       </div>
 
       <UnifiedSupplierSourcingCatalog

@@ -26,7 +26,7 @@ export default async function AdminWalletsPage() {
   }
 
   if (!canAccessAdmin(session.role)) {
-    redirect("/");
+    redirect("/unauthorized?from=admin");
   }
 
   const pending = await listPendingWalletTransactions();

@@ -91,7 +91,11 @@ export async function updateSession(request: NextRequest) {
     const role = profile?.role ?? null;
 
     if (isAdminRoute && role !== "admin") {
-      return homeRedirect(request, supabaseResponse);
+      // Visible destination (not silent `/`) so nav clicks always change the URL.
+      const url = request.nextUrl.clone();
+      url.pathname = "/unauthorized";
+      url.search = "from=admin";
+      return copyCookies(sessionResponse, NextResponse.redirect(url));
     }
 
     if (isVendorRoute && role !== "vendor" && role !== "admin") {

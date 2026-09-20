@@ -94,7 +94,8 @@ export function kindsForSourceTab(tab: SupplierSourceTab): ExternalSupplierKind[
       return ["printful", "printify"];
     case "all":
     default:
-      return ["dsers", "cj_dropshipping", "spocket", "printful", "printify"];
+      // Platform currently focuses on CJ only; other sources stay Coming Soon in UI.
+      return ["cj_dropshipping"];
   }
 }
 

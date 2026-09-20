@@ -1,19 +1,20 @@
 "use client";
 
 import type { SupplierSourceTab } from "@/lib/suppliers";
-
-export const SUPPLIER_SOURCE_TAB_IDS: SupplierSourceTab[] = [
-  "all",
-  "dsers",
-  "cj_dropshipping",
-  "spocket",
-  "pod",
-];
+import {
+  ACTIVE_SUPPLIER_SOURCE_TABS,
+  COMING_SOON_SUPPLIER_SOURCE_TABS,
+} from "@/lib/suppliers/availability";
 
 type Translate = (
   path: string,
   vars?: Record<string, string | number>,
 ) => string;
+
+export const SUPPLIER_SOURCE_TAB_IDS: SupplierSourceTab[] = [
+  ...(ACTIVE_SUPPLIER_SOURCE_TABS as readonly SupplierSourceTab[]),
+  ...(COMING_SOON_SUPPLIER_SOURCE_TABS as readonly SupplierSourceTab[]),
+];
 
 export function supplierSourceTabLabel(
   tab: SupplierSourceTab,
@@ -44,9 +45,11 @@ type Props = {
 
 /**
  * Source selection tabs for the dropshipper sourcing catalog.
- * Clicking a tab filters the product grid to that supplier (or All).
+ * Only CJ is selectable for now; other sources show Coming Soon.
  */
 export function SupplierSourceTabs({ value, onChange, t, counts }: Props) {
+  const comingSoonSet = new Set<string>(COMING_SOON_SUPPLIER_SOURCE_TABS);
+
   return (
     <div
       className="flex flex-wrap gap-2"
@@ -54,7 +57,8 @@ export function SupplierSourceTabs({ value, onChange, t, counts }: Props) {
       aria-label={t("sourcing.sourceTabsLabel")}
     >
       {SUPPLIER_SOURCE_TAB_IDS.map((tabId) => {
-        const active = value === tabId;
+        const comingSoon = comingSoonSet.has(tabId);
+        const active = value === tabId && !comingSoon;
         const count = counts?.[tabId];
         return (
           <button
@@ -62,15 +66,25 @@ export function SupplierSourceTabs({ value, onChange, t, counts }: Props) {
             type="button"
             role="tab"
             aria-selected={active}
-            onClick={() => onChange(tabId)}
+            disabled={comingSoon}
+            title={comingSoon ? "Coming soon" : undefined}
+            onClick={() => {
+              if (!comingSoon) onChange(tabId);
+            }}
             className={`min-h-10 rounded-lg px-3 py-2 text-sm font-medium transition ${
-              active
-                ? "bg-zinc-950 text-white"
-                : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+              comingSoon
+                ? "cursor-not-allowed border border-dashed border-zinc-200 bg-zinc-50 text-zinc-400"
+                : active
+                  ? "bg-zinc-950 text-white"
+                  : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
             }`}
           >
             {supplierSourceTabLabel(tabId, t)}
-            {typeof count === "number" ? (
+            {comingSoon ? (
+              <span className="ms-1.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700/80">
+                Soon
+              </span>
+            ) : typeof count === "number" ? (
               <span
                 className={`ms-1.5 tabular-nums text-xs ${
                   active ? "text-zinc-300" : "text-zinc-400"

@@ -1,9 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ImportQuotaBanner } from "@/components/import-limits/import-quota-banner";
+import { ComingSoonSupplierCard } from "@/components/suppliers/coming-soon-supplier-card";
 import { ExternalSupplierCatalogPanel } from "@/components/suppliers/external-supplier-catalog-panel";
 import { getSessionProfile, canAccessVendor } from "@/lib/auth/session";
 import { getVendorImportQuota } from "@/lib/import-limits/queries";
+import {
+  COMING_SOON_SUPPLIER_KINDS,
+  PRIMARY_SUPPLIER_KIND,
+} from "@/lib/suppliers/availability";
 import {
   listLivePlatformSuppliers,
   platformSupplierHasLiveKey,
@@ -16,11 +21,10 @@ import { getVendorForOwner } from "@/lib/vendors/queries";
 
 export const dynamic = "force-dynamic";
 
-const CATALOG_PANELS: Array<{
+const COMING_SOON_PANELS: Array<{
   kind: ExternalSupplierKind;
   label: string;
 }> = [
-  { kind: "cj_dropshipping", label: "CJ Dropshipping" },
   { kind: "dsers", label: "DSers / AliExpress" },
   { kind: "spocket", label: "Spocket" },
   { kind: "printful", label: "Printful (POD)" },
@@ -59,11 +63,11 @@ export default async function VendorIntegrationsPage() {
   }
 
   const quota = await getVendorImportQuota(vendor.id);
-  const configured = await listLivePlatformSuppliers();
+  const configured = (await listLivePlatformSuppliers()).filter(
+    (kind) => kind === PRIMARY_SUPPLIER_KIND,
+  );
   const mode = configured.length > 0 ? "live" : "mock";
-  const hasCjOrDsers =
-    (await platformSupplierHasLiveKey("cj_dropshipping")) ||
-    (await platformSupplierHasLiveKey("dsers"));
+  const hasCj = await platformSupplierHasLiveKey(PRIMARY_SUPPLIER_KIND);
 
   const quotaHints = quota
     ? {
@@ -85,29 +89,31 @@ export default async function VendorIntegrationsPage() {
           Supplier catalog
         </h1>
         <p className="max-w-2xl text-zinc-600">
-          Browse the platform&apos;s unified supplier catalog (CJ, DSers, Spocket,
-          Printful, Printify) and one-click import products into your store.
-          API keys are configured by the platform — you do not need your own
-          supplier accounts.
+          Browse the platform&apos;s CJ Dropshipping catalog and one-click import
+          products into your store. API keys are configured by the platform —
+          you do not need your own supplier accounts. DSers, Spocket, and POD
+          sources are coming soon.
         </p>
       </div>
 
       <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-3 text-sm text-emerald-950 sm:px-4">
         <p className="font-semibold text-emerald-900">Platform-managed sources</p>
         <p className="mt-1 text-emerald-900/90">
+          Primary source: <strong>CJ Dropshipping</strong>
+          {" · "}
           Catalog mode: <strong>{mode}</strong>
           {configured.length > 0 ? (
             <>
               {" "}
-              · Live sources:{" "}
+              · Live:{" "}
               {configured.map((k) => supplierPlatformLabel(k)).join(", ")}
             </>
           ) : (
-            <> · Using safe mock catalog until an admin configures live API keys.</>
+            <> · Using safe mock catalog until an admin configures the CJ API key.</>
           )}
         </p>
         <p className="mt-2">
-          Prefer the multi-supplier workspace with region filters on{" "}
+          Prefer the sourcing workspace with region filters on{" "}
           <Link href="/vendor/sourcing" className="font-medium underline">
             Product sourcing
           </Link>
@@ -120,33 +126,43 @@ export default async function VendorIntegrationsPage() {
       <div className="rounded-xl border border-sky-200 bg-sky-50/70 px-3 py-3 text-sm text-sky-950 sm:px-4">
         <p className="font-semibold text-sky-900">Preview & one-click Import to Store</p>
         <p className="mt-1 text-sky-900/90">
-          Search a supplier below, open <strong>Preview</strong>, then{" "}
+          Search CJ below, open <strong>Preview</strong>, then{" "}
           <strong>Import to Store</strong>. One-click import uses a default 35%
           markup. Imports count toward your catalog cap
           {quota ? ` (${quota.max_import_items})` : ""}.
         </p>
       </div>
 
-      {CATALOG_PANELS.map((panel) => (
-        <ExternalSupplierCatalogPanel
-          key={panel.kind}
-          providerKind={panel.kind}
-          providerLabel={panel.label}
-          importDisabled={quota?.at_import_limit ?? false}
-          quota={quotaHints}
-        />
-      ))}
+      <ExternalSupplierCatalogPanel
+        providerKind={PRIMARY_SUPPLIER_KIND}
+        providerLabel="CJ Dropshipping"
+        importDisabled={quota?.at_import_limit ?? false}
+        quota={quotaHints}
+      />
+
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+          Coming soon
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {COMING_SOON_PANELS.filter((panel) =>
+            COMING_SOON_SUPPLIER_KINDS.includes(panel.kind),
+          ).map((panel) => (
+            <ComingSoonSupplierCard key={panel.kind} label={panel.label} />
+          ))}
+        </div>
+      </div>
 
       <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-        Paid orders with supplier routes are fulfilled with the platform&apos;s
+        Paid orders with CJ supplier routes are fulfilled with the platform&apos;s
         source APIs via{" "}
         <code className="rounded bg-white px-1">
           POST /api/cron/fulfill-supplier-orders
         </code>
         .
-        {hasCjOrDsers
+        {hasCj
           ? null
-          : " Configure keys under Admin → Supplier APIs or platform env vars."}
+          : " Configure the CJ key under Admin → Supplier APIs or platform env vars."}
       </div>
     </div>
   );

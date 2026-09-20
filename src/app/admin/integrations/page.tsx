@@ -25,9 +25,10 @@ export default async function AdminIntegrationsPage() {
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">Supplier APIs</h1>
         <p className="max-w-2xl text-zinc-600">
-          Configure the platform&apos;s CJ, DSers, Spocket, and POD API keys.
-          Vendors use a unified catalog and one-click import — they never paste
-          their own supplier credentials.
+          Configure the platform&apos;s supplier API keys. Vendors currently
+          import from <strong>CJ Dropshipping</strong> only — DSers, Spocket, and
+          POD are marked Coming Soon in the vendor catalog. Keys for future
+          sources can still be saved here ahead of launch.
         </p>
       </div>
 

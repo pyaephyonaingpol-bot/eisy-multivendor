@@ -60,6 +60,52 @@ $$;
 
 create index if not exists orders_customer_id_idx on public.orders (customer_id);
 
+-- Prerequisite tracking / supplier ref columns (from 017; missing on drifted DBs).
+do $$
+begin
+  create type public.fulfillment_sync_status as enum (
+    'idle', 'pending', 'synced', 'error'
+  );
+exception
+  when duplicate_object then null;
+end;
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'orders' and column_name = 'supplier_order_ref'
+  ) then
+    if exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'orders' and column_name = 'supplier_ref'
+    ) then
+      alter table public.orders rename column supplier_ref to supplier_order_ref;
+    elsif exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'orders' and column_name = 'external_order_ref'
+    ) then
+      alter table public.orders rename column external_order_ref to supplier_order_ref;
+    end if;
+  end if;
+end;
+$$;
+
+alter table public.orders
+  add column if not exists tracking_number text,
+  add column if not exists tracking_carrier text,
+  add column if not exists tracking_url text,
+  add column if not exists supplier_order_ref text,
+  add column if not exists fulfillment_sync_status public.fulfillment_sync_status
+    not null default 'idle',
+  add column if not exists fulfillment_synced_at timestamptz,
+  add column if not exists fulfillment_sync_error text;
+
+create index if not exists orders_supplier_order_ref_idx
+  on public.orders (supplier_order_ref)
+  where supplier_order_ref is not null;
+
 do $$
 begin
   if not exists (

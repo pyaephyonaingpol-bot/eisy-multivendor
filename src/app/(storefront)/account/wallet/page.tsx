@@ -27,40 +27,30 @@ export default async function AccountWalletPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 py-2">
-      <header className="space-y-3">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">
-            Wallet
-          </h1>
-          <p className="text-sm text-zinc-500">
-            USDT balance, deposits, and withdrawals.
-          </p>
-        </div>
-        <nav
-          aria-label="Account sections"
-          className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-zinc-200 pb-3 text-sm"
+      <nav
+        aria-label="Account sections"
+        className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-zinc-200 pb-3 text-sm"
+      >
+        <Link
+          href="/profile"
+          className="text-zinc-500 transition hover:text-zinc-950"
         >
-          <Link
-            href="/profile"
-            className="text-zinc-500 transition hover:text-zinc-950"
-          >
-            Profile
-          </Link>
-          <span className="font-medium text-zinc-950">Wallet</span>
-          <Link
-            href="/orders"
-            className="text-zinc-500 transition hover:text-zinc-950"
-          >
-            Orders
-          </Link>
-        </nav>
-      </header>
+          Profile
+        </Link>
+        <span className="font-medium text-zinc-950">Wallet</span>
+        <Link
+          href="/orders"
+          className="text-zinc-500 transition hover:text-zinc-950"
+        >
+          Orders
+        </Link>
+      </nav>
 
       <WalletDashboard
         wallets={wallets}
         transactions={transactions}
-        title="Balances"
-        subtitle="Checkout uses USDT. MMK is for earnings withdrawals only — MMK deposits are not accepted."
+        title="Wallet"
+        subtitle="USDT balance, deposits, and withdrawals. MMK is for earnings withdrawals only — MMK deposits are not accepted."
       />
     </div>
   );

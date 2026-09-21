@@ -25,27 +25,27 @@ export async function StorefrontHeader() {
   ];
 
   return (
-    <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white/95 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-[var(--market-line)] bg-[color-mix(in_srgb,var(--market-surface)_92%,transparent)] backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 px-4 sm:h-16 sm:gap-4">
         <div className="flex min-w-0 items-center gap-4 sm:gap-8">
           <Link
             href="/"
-            className="truncate text-base font-semibold tracking-tight sm:text-lg"
+            className="font-display truncate text-lg font-medium tracking-tight text-[var(--market-ink)] sm:text-xl"
           >
-            <span className="sm:hidden">{t.brand.short}</span>
-            <span className="hidden sm:inline">{t.brand.full}</span>
+            <span className="sm:hidden">Eisy</span>
+            <span className="hidden sm:inline">Eisy Marketplace</span>
           </Link>
-          <nav className="hidden items-center gap-5 text-sm text-zinc-600 md:flex">
+          <nav className="hidden items-center gap-5 text-sm text-[var(--market-muted)] md:flex">
             {nav.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="hover:text-zinc-950"
+                className="transition hover:text-[var(--market-ink)]"
               >
                 {item.label}
               </Link>
             ))}
-            <AdminDashboardLink className="hover:text-zinc-950">
+            <AdminDashboardLink className="transition hover:text-[var(--market-ink)]">
               {t.nav.adminDashboard}
             </AdminDashboardLink>
           </nav>

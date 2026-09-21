@@ -11,7 +11,6 @@ export const dynamic = "force-dynamic";
 
 /**
  * Buyer Portal (Marketplace) — primary landing page for `/`.
- * Seller and admin tools live under /vendor and /admin; linked from the footer hub.
  */
 export default async function StorefrontHomePage() {
   const products = await listPublicProducts(12);
@@ -27,8 +26,8 @@ export default async function StorefrontHomePage() {
       eyebrow: "Promotion",
       title: "Shop the catalog. Pay with USDT.",
       description:
-        "Discover new arrivals and limited offers. Add to cart and checkout securely in USDT — no seller tools in your way.",
-      ctaLabel: "Shop promotions",
+        "Discover new arrivals from trusted vendors and checkout securely in USDT.",
+      ctaLabel: "Shop now",
       ctaHref: "/products",
       accent: "emerald",
       imageUrl: products[1]?.images?.[0] ?? newestImage,
@@ -36,12 +35,10 @@ export default async function StorefrontHomePage() {
     {
       id: "new-products",
       eyebrow: "New products",
-      title: newest
-        ? `Just in: ${newest.name}`
-        : "Fresh listings for buyers",
+      title: newest ? `Just in: ${newest.name}` : "Fresh listings, ready to ship",
       description: newest
-        ? "Browse the latest products added to the marketplace. Checkout settles in USDT."
-        : "New products appear here as soon as they go live. Checkout settles in USDT.",
+        ? "Browse the latest products added to the marketplace."
+        : "New products appear here as soon as vendors publish them.",
       ctaLabel: newest ? "View product" : "Browse shop",
       ctaHref: newest ? `/products/${newest.id}` : "/products",
       accent: "sky",
@@ -50,9 +47,9 @@ export default async function StorefrontHomePage() {
     {
       id: "promo-checkout",
       eyebrow: "Buyer offer",
-      title: "Fast USDT checkout",
+      title: "Fast, focused USDT checkout",
       description:
-        "Keep shopping focused: browse stores, fill your cart, and pay from your platform wallet in USDT.",
+        "Fill your cart, pay from your wallet, and track orders in one place.",
       ctaLabel: "Go to cart",
       ctaHref: "/cart",
       accent: "amber",
@@ -61,24 +58,33 @@ export default async function StorefrontHomePage() {
   ];
 
   return (
-    <div className="space-y-12">
-      <HomePromoBanner slides={slides} />
+    <div className="pb-2">
+      {/* Full-bleed hero breaks out of the storefront content column */}
+      <div className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 -mt-6 sm:-mt-10">
+        <HomePromoBanner slides={slides} brandName="Eisy Marketplace" />
+      </div>
 
-      <section className="space-y-5">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight">New &amp; featured</h2>
-            <p className="text-sm text-zinc-500">
-              Latest products for buyers · checkout in USDT
+      <section className="mt-12 space-y-7 sm:mt-16">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--market-accent)]">
+              Catalog
+            </p>
+            <h2 className="font-display text-3xl font-medium tracking-tight text-[var(--market-ink)] sm:text-4xl">
+              New &amp; featured
+            </h2>
+            <p className="max-w-md text-sm text-[var(--market-muted)] sm:text-base">
+              Hand-picked listings for buyers · prices in USDT
             </p>
           </div>
           <Link
             href="/products"
-            className="text-sm font-medium text-zinc-950 underline underline-offset-4"
+            className="inline-flex min-h-10 items-center text-sm font-semibold text-[var(--market-ink)] underline decoration-[var(--market-line)] underline-offset-4 transition hover:decoration-[var(--market-accent)]"
           >
             View all products
           </Link>
         </div>
+
         <FeaturedProductRail products={products} />
         <div className="hidden sm:block">
           <ProductGrid products={products} />

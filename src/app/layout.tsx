@@ -1,23 +1,24 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fraunces, Manrope } from "next/font/google";
 import { LanguageProvider } from "@/components/i18n/language-provider";
 import { isRtlLocale } from "@/lib/i18n/config";
 import { getRequestLocale } from "@/lib/i18n/locale";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const display = Fraunces({
+  variable: "--font-display",
   subsets: ["latin"],
+  axes: ["SOFT", "WONK", "opsz"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const sans = Manrope({
+  variable: "--font-sans-body",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "EISY Marketplace",
-  description: "Multi-vendor e-commerce marketplace",
+  title: "Eisy Marketplace",
+  description: "Shop products from trusted vendors. Checkout securely in USDT.",
 };
 
 export default async function RootLayout({
@@ -33,11 +34,11 @@ export default async function RootLayout({
       lang={locale}
       dir={dir}
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${display.variable} ${sans.variable} h-full antialiased`}
     >
       <body
         suppressHydrationWarning
-        className="flex min-h-full flex-col bg-zinc-50 text-zinc-950"
+        className="flex min-h-full flex-col bg-[var(--background)] text-[var(--foreground)]"
       >
         <LanguageProvider locale={locale}>{children}</LanguageProvider>
       </body>

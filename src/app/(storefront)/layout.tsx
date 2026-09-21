@@ -15,7 +15,9 @@ export default function StorefrontLayout({
   return (
     <CartProvider>
       <StorefrontHeader />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:py-10">{children}</main>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:py-10">
+        {children}
+      </main>
       <StorefrontFooter />
       <CartDrawer />
     </CartProvider>

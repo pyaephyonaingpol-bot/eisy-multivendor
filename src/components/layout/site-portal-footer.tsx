@@ -51,7 +51,7 @@ type SitePortalFooterProps = {
  * Used on buyer storefront; compact variants can omit shop links.
  */
 export function SitePortalFooter({
-  brandTitle = "EISY Marketplace",
+          brandTitle = "Eisy Marketplace",
   brandDescription = "Browse products, pay with USDT, and checkout in a clean buyer storefront.",
   shopLinks = true,
 }: SitePortalFooterProps) {
@@ -100,7 +100,7 @@ export function SitePortalFooter({
       </div>
       <div className="border-t border-zinc-100">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4 text-xs text-zinc-500">
-          <p>© 2026 EISY Marketplace · Checkout in USDT</p>
+          <p>© 2026 Eisy Marketplace · Checkout in USDT</p>
           <p>
             Default home:{" "}
             <Link href="/" className="font-medium text-zinc-700 hover:text-zinc-950">

@@ -20,18 +20,17 @@ export type PromoBannerSlide = {
   accent?: "emerald" | "sky" | "amber";
 };
 
-const accentClass: Record<NonNullable<PromoBannerSlide["accent"]>, string> = {
-  emerald: "from-zinc-50 via-white to-emerald-50/70",
-  sky: "from-zinc-50 via-white to-sky-50/70",
-  amber: "from-zinc-50 via-white to-amber-50/60",
-};
-
 type HomePromoBannerProps = {
   slides: PromoBannerSlide[];
+  brandName?: string;
 };
 
-export function HomePromoBanner({ slides }: HomePromoBannerProps) {
+export function HomePromoBanner({
+  slides,
+  brandName = "Eisy Marketplace",
+}: HomePromoBannerProps) {
   const [index, setIndex] = useState(0);
+  const [animKey, setAnimKey] = useState(0);
   const count = slides.length;
   const pointerStartX = useRef<number | null>(null);
   const reduceMotion = useRef(false);
@@ -46,7 +45,8 @@ export function HomePromoBanner({ slides }: HomePromoBannerProps) {
     if (count <= 1 || reduceMotion.current) return;
     const timer = window.setInterval(() => {
       setIndex((current) => (current + 1) % count);
-    }, 6500);
+      setAnimKey((k) => k + 1);
+    }, 7000);
     return () => window.clearInterval(timer);
   }, [count]);
 
@@ -54,6 +54,7 @@ export function HomePromoBanner({ slides }: HomePromoBannerProps) {
     (next: number) => {
       if (count <= 0) return;
       setIndex(((next % count) + count) % count);
+      setAnimKey((k) => k + 1);
     },
     [count],
   );
@@ -73,95 +74,104 @@ export function HomePromoBanner({ slides }: HomePromoBannerProps) {
   if (count === 0) return null;
 
   const slide = slides[index] ?? slides[0];
-  const gradient = accentClass[slide.accent ?? "emerald"];
 
   return (
     <section
       aria-roledescription="carousel"
-      aria-label="Promotions and new products"
-      className={`relative touch-pan-y overflow-hidden rounded-3xl border border-zinc-200 bg-gradient-to-br ${gradient}`}
+      aria-label={`${brandName} promotions`}
+      className="relative isolate min-h-[min(78vh,40rem)] w-full overflow-hidden bg-[#1a1814] text-white touch-pan-y sm:min-h-[min(72vh,36rem)]"
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
       onPointerCancel={() => {
         pointerStartX.current = null;
       }}
     >
-      <div className="grid min-h-[18rem] items-center gap-6 px-5 py-8 pb-14 sm:min-h-[24rem] sm:grid-cols-[1.2fr_0.8fr] sm:gap-8 sm:px-10 sm:py-10 sm:pb-14">
-        <div className="relative z-10 max-w-xl space-y-4 sm:space-y-5">
-          <p className="text-xs font-medium uppercase tracking-wide text-emerald-800/80 sm:text-sm">
-            {slide.eyebrow}
+      {/* Full-bleed visual plane */}
+      <div className="absolute inset-0" key={`img-${slide.id}-${animKey}`}>
+        {slide.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={slide.imageUrl}
+            alt=""
+            draggable={false}
+            className="market-kenburns h-full w-full object-cover"
+          />
+        ) : (
+          <div className="h-full w-full bg-[radial-gradient(ellipse_at_30%_20%,#2a4a43,transparent_50%),linear-gradient(145deg,#1c1915,#24352f_55%,#1a1814)]" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/78 via-black/55 to-black/25" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20" />
+      </div>
+
+      <div className="relative z-10 mx-auto flex min-h-[min(78vh,40rem)] w-full max-w-6xl flex-col justify-end px-4 pb-16 pt-20 sm:min-h-[min(72vh,36rem)] sm:justify-center sm:pb-20 sm:pt-24">
+        <div
+          key={`copy-${slide.id}-${animKey}`}
+          className="market-fade-up max-w-2xl space-y-5 sm:space-y-6"
+        >
+          <p className="font-display text-4xl font-medium tracking-tight text-white sm:text-5xl lg:text-6xl">
+            {brandName}
           </p>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-4xl lg:text-5xl">
+          <h1 className="max-w-xl text-xl font-medium leading-snug tracking-tight text-white/95 sm:text-2xl lg:text-3xl">
             {slide.title}
           </h1>
-          <p className="text-sm text-zinc-600 sm:text-lg">{slide.description}</p>
-          <div className="flex flex-wrap gap-2 sm:gap-3">
+          <p className="max-w-lg text-sm leading-relaxed text-white/75 sm:text-base">
+            {slide.description}
+          </p>
+          <div className="flex flex-wrap gap-3 pt-1">
             <Link
               href={slide.ctaHref}
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
+              className="inline-flex min-h-11 items-center justify-center rounded-md bg-[var(--market-accent)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0c584c]"
             >
               {slide.ctaLabel}
             </Link>
             <Link
               href="/products"
-              className="inline-flex min-h-11 items-center justify-center rounded-full border border-zinc-200 bg-white px-5 py-2.5 text-sm font-medium text-zinc-950 transition hover:bg-zinc-50"
+              className="inline-flex min-h-11 items-center justify-center rounded-md border border-white/35 bg-white/10 px-5 py-2.5 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20"
             >
               Browse shop
             </Link>
           </div>
         </div>
 
-        <div className="relative hidden h-full min-h-[16rem] sm:block">
-          {slide.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={slide.imageUrl}
-              alt=""
-              draggable={false}
-              className="absolute inset-0 h-full w-full rounded-2xl object-cover shadow-sm ring-1 ring-zinc-200/80"
-            />
-          ) : (
-            <div className="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_30%_20%,rgba(16,185,129,0.18),transparent_55%),linear-gradient(160deg,#fafafa,#f4f4f5)] ring-1 ring-zinc-200/80" />
-          )}
-        </div>
-      </div>
-
-      {count > 1 ? (
-        <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-1 px-5 sm:bottom-4 sm:justify-start sm:px-10">
-          <button
-            type="button"
-            aria-label="Previous slide"
-            onClick={() => goTo(index - 1)}
-            className="mr-1 inline-flex h-11 w-11 items-center justify-center rounded-full text-lg text-zinc-700 hover:bg-white/70 sm:mr-2"
-          >
-            ‹
-          </button>
-          {slides.map((item, i) => (
+        {count > 1 ? (
+          <div className="mt-10 flex items-center gap-2 sm:mt-12">
             <button
-              key={item.id}
               type="button"
-              aria-label={`Show slide ${i + 1}: ${item.title}`}
-              aria-current={i === index}
-              onClick={() => setIndex(i)}
-              className="inline-flex h-11 w-11 items-center justify-center"
+              aria-label="Previous slide"
+              onClick={() => goTo(index - 1)}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/25 text-lg text-white/90 transition hover:bg-white/10"
             >
-              <span
-                className={`block h-2 rounded-full transition ${
-                  i === index ? "w-6 bg-zinc-950" : "w-2 bg-zinc-300"
-                }`}
-              />
+              ‹
             </button>
-          ))}
-          <button
-            type="button"
-            aria-label="Next slide"
-            onClick={() => goTo(index + 1)}
-            className="ml-1 inline-flex h-11 w-11 items-center justify-center rounded-full text-lg text-zinc-700 hover:bg-white/70 sm:ml-2"
-          >
-            ›
-          </button>
-        </div>
-      ) : null}
+            <div className="flex items-center gap-1.5 px-1">
+              {slides.map((item, i) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-label={`Show slide ${i + 1}: ${item.title}`}
+                  aria-current={i === index}
+                  onClick={() => goTo(i)}
+                  className="inline-flex h-8 items-center justify-center px-0.5"
+                >
+                  <span
+                    className={`block h-1 rounded-full transition-all ${
+                      i === index ? "w-7 bg-white" : "w-2 bg-white/40"
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              aria-label="Next slide"
+              onClick={() => goTo(index + 1)}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/25 text-lg text-white/90 transition hover:bg-white/10"
+            >
+              ›
+            </button>
+          </div>
+        ) : null}
+      </div>
     </section>
   );
 }

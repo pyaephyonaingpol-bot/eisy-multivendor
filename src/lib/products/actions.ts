@@ -46,6 +46,7 @@ const PRODUCT_SCHEMA_FALLBACK_COLUMNS = [
   "source_product_id",
   "price_usdt",
   "title",
+  "catalog_kind",
 ] as const;
 
 function stripProductSchemaColumn(
@@ -306,6 +307,9 @@ export async function createProduct(
     images: imageResult.images,
     specifications: parsed.specifications,
     product_type: parsed.productType,
+    // Manual vendor catalog — never mark as CJ import.
+    catalog_kind: "manual",
+    is_dropship: false,
     download_url: parsed.productType === "digital" ? parsed.downloadUrl : null,
     download_label:
       parsed.productType === "digital" ? parsed.downloadLabel || null : null,
@@ -388,6 +392,12 @@ export async function updateProduct(
     return { error: "Product not found in your catalog." };
   }
 
+  // Keep CJ imports in the CJ workflow — never reclassify via the manual form.
+  const existingKind =
+    (existing as { catalog_kind?: string | null }).catalog_kind === "cj_import"
+      ? "cj_import"
+      : "manual";
+
   const imageResult = await resolveProductImages(vendor.id, formData);
   if (imageResult.error) {
     return { error: imageResult.error };
@@ -410,6 +420,7 @@ export async function updateProduct(
     images: imageResult.images,
     specifications: parsed.specifications,
     product_type: parsed.productType,
+    catalog_kind: existingKind,
     download_url: parsed.productType === "digital" ? parsed.downloadUrl : null,
     download_label:
       parsed.productType === "digital" ? parsed.downloadLabel || null : null,

@@ -11,6 +11,8 @@ export type VendorKycDocumentType =
   | "trade_license";
 export type ProductStatus = "draft" | "active" | "archived";
 export type ProductType = "physical" | "digital";
+/** Vendor catalog workflow: manual listings vs CJ Dropshipping imports. */
+export type ProductCatalogKind = "manual" | "cj_import";
 export type OrderStatus =
   | "pending"
   | "paid"
@@ -113,6 +115,22 @@ export type ExternalProductImport = {
   source_payload: Record<string, unknown>;
   last_synced_at: string | null;
   created_at: string;
+};
+
+/** Dedicated registry row for CJ Dropshipping imports (never used for manual products). */
+export type CjImportedProduct = {
+  id: string;
+  vendor_id: string;
+  product_id: string;
+  provider_id: string | null;
+  external_product_id: string;
+  external_variant_id: string | null;
+  external_sku: string | null;
+  supplier_cost_usdt: number;
+  source_payload: Record<string, unknown>;
+  last_synced_at: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type SupplierFulfillmentJob = {
@@ -286,9 +304,15 @@ export type Product = {
   product_type: ProductType;
   download_url: string | null;
   download_label: string | null;
-  /** Original supplier product when this row is a dropship listing. */
+  /** Original supplier product when this row is a marketplace dropship listing. */
   source_product_id: string | null;
   is_dropship: boolean;
+  /**
+   * Catalog workflow partition:
+   * - manual: vendor-created (or marketplace-copied) products
+   * - cj_import: imported from CJ Dropshipping (see cj_imported_products)
+   */
+  catalog_kind: ProductCatalogKind;
   /** ISO country code for the listing's primary warehouse / origin. */
   origin_country_code: string | null;
   /** Primary sourcing region for this listing. */
@@ -843,6 +867,16 @@ export type Database = {
             "vendor_id" | "provider_id" | "external_product_id"
           >;
         Update: Partial<ExternalProductImport>;
+        Relationships: [];
+      };
+      cj_imported_products: {
+        Row: CjImportedProduct;
+        Insert: Partial<CjImportedProduct> &
+          Pick<
+            CjImportedProduct,
+            "vendor_id" | "product_id" | "external_product_id"
+          >;
+        Update: Partial<CjImportedProduct>;
         Relationships: [];
       };
       supplier_fulfillment_jobs: {

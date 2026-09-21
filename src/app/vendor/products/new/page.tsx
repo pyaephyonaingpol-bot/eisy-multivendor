@@ -30,12 +30,13 @@ export default async function NewVendorProductPage() {
     <section className="space-y-6">
       <div className="space-y-2">
         <p className="text-sm font-medium uppercase tracking-wide text-zinc-500">
-          Catalog
+          Manual catalog
         </p>
         <h1 className="text-3xl font-semibold tracking-tight">Add product</h1>
         <p className="max-w-xl text-zinc-600">
-          Create a physical or digital catalog item for <strong>{vendor.name}</strong>.
-          Choose a category, then set status to active when you are ready to sell.
+          Create a manually sourced physical or digital item for{" "}
+          <strong>{vendor.name}</strong>. CJ Dropshipping imports use Dropshipper
+          → CJ catalog and stay in a separate product list.
         </p>
       </div>
 

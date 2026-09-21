@@ -4,10 +4,15 @@ import { createClient } from "@/lib/supabase/server";
 import { getSupabasePublicEnv } from "@/lib/supabase/env";
 import { normalizeProductSpecifications } from "@/lib/products/specifications";
 import { getBuyerSourcingContext } from "@/lib/sourcing/queries";
-import type { Product, Vendor } from "@/lib/types/database";
+import type { Product, ProductCatalogKind, Vendor } from "@/lib/types/database";
 import { DEFAULT_BUYER_COUNTRY } from "@/lib/sourcing/constants";
 
 function normalizeProduct(row: Product): Product {
+  const catalogKind =
+    (row as Product & { catalog_kind?: ProductCatalogKind | null }).catalog_kind ===
+    "cj_import"
+      ? "cj_import"
+      : "manual";
   return {
     ...row,
     images: Array.isArray(row.images) ? row.images : [],
@@ -16,7 +21,8 @@ function normalizeProduct(row: Product): Product {
     ),
     product_type: row.product_type ?? "physical",
     source_product_id: row.source_product_id ?? null,
-    is_dropship: Boolean(row.is_dropship),
+    is_dropship: Boolean(row.is_dropship) || catalogKind === "cj_import",
+    catalog_kind: catalogKind,
     origin_country_code:
       (row as Product & { origin_country_code?: string | null }).origin_country_code ??
       null,
@@ -215,7 +221,12 @@ export async function listPublicProductsForCountry(
 
 export async function listProductsForVendor(
   vendorId: string,
-  options?: { page?: number; pageSize?: number },
+  options?: {
+    page?: number;
+    pageSize?: number;
+    /** When set, only return that catalog workflow partition. */
+    catalogKind?: ProductCatalogKind;
+  },
 ): Promise<Product[]> {
   if (!getSupabasePublicEnv()) {
     return [];
@@ -228,14 +239,66 @@ export async function listProductsForVendor(
   });
 
   const supabase = await createClient();
-  const { data } = await supabase
+  let query = supabase
     .from("products")
     .select("*")
     .eq("vendor_id", vendorId)
     .order("created_at", { ascending: false })
     .range(from, to);
 
+  if (options?.catalogKind) {
+    query = query.eq("catalog_kind", options.catalogKind);
+  }
+
+  const { data, error } = await query;
+
+  // Older DBs without catalog_kind: fall back and filter in memory.
+  if (error && /catalog_kind/i.test(error.message)) {
+    const { data: legacy } = await supabase
+      .from("products")
+      .select("*")
+      .eq("vendor_id", vendorId)
+      .order("created_at", { ascending: false })
+      .range(from, to);
+    const rows = ((legacy as Product[] | null) ?? []).map(normalizeProduct);
+    if (!options?.catalogKind) return rows;
+    if (options.catalogKind === "cj_import") {
+      return rows.filter(
+        (product) =>
+          product.catalog_kind === "cj_import" ||
+          (product.is_dropship && !product.source_product_id),
+      );
+    }
+    return rows.filter(
+      (product) =>
+        product.catalog_kind !== "cj_import" &&
+        !(product.is_dropship && !product.source_product_id),
+    );
+  }
+
   return ((data as Product[] | null) ?? []).map(normalizeProduct);
+}
+
+/** Manual vendor catalog only (excludes CJ Dropshipping imports). */
+export async function listManualProductsForVendor(
+  vendorId: string,
+  options?: { page?: number; pageSize?: number },
+): Promise<Product[]> {
+  return listProductsForVendor(vendorId, {
+    ...options,
+    catalogKind: "manual",
+  });
+}
+
+/** CJ Dropshipping imports only. */
+export async function listCjImportedProductsForVendor(
+  vendorId: string,
+  options?: { page?: number; pageSize?: number },
+): Promise<Product[]> {
+  return listProductsForVendor(vendorId, {
+    ...options,
+    catalogKind: "cj_import",
+  });
 }
 
 export async function getVendorProductById(

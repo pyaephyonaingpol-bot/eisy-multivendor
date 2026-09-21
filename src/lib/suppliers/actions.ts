@@ -72,6 +72,9 @@ const PRODUCT_SCHEMA_FALLBACK_COLUMNS = [
   "source_product_id",
   "price_usdt",
   "title",
+  "catalog_kind",
+  "source_provider_kind",
+  "external_product_id",
 ] as const;
 
 function stripProductSchemaColumn(
@@ -167,6 +170,43 @@ function importProductCoreFields(args: {
     stock_quantity: Math.max(0, Math.floor(args.stockQuantity)),
     images: Array.isArray(args.images) ? args.images : [],
   };
+}
+
+/** Upsert the dedicated CJ import registry (separate from manual catalog). */
+async function upsertCjImportedProductRegistry(args: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any;
+  vendorId: string;
+  productId: string;
+  providerId: string | null | undefined;
+  remote: ExternalCatalogProduct;
+  externalVariantId: string | null;
+  externalSku: string | null;
+  supplierCostUsdt: number;
+}) {
+  if (args.remote.providerKind !== "cj_dropshipping") return;
+  const { error } = await args.supabase.from("cj_imported_products").upsert(
+    {
+      vendor_id: args.vendorId,
+      product_id: args.productId,
+      provider_id: args.providerId ?? null,
+      external_product_id: args.remote.externalProductId,
+      external_variant_id: args.externalVariantId,
+      external_sku: args.externalSku,
+      supplier_cost_usdt: sanitizeUsdtPrice(args.supplierCostUsdt),
+      source_payload: toImportSourcePayload(args.remote),
+      last_synced_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "product_id" },
+  );
+  // Older DBs may not have the table yet — ignore schema-cache misses.
+  if (
+    error &&
+    !/schema cache|does not exist|could not find/i.test(error.message ?? "")
+  ) {
+    console.warn("cj_imported_products upsert:", error.message);
+  }
 }
 
 function resolveImportSellPrice(
@@ -523,6 +563,10 @@ export async function importExternalSupplierProductAction(
           stockQuantity: effectiveStock ?? 0,
           sku: variant.externalSku,
         }),
+        catalog_kind: kind === "cj_dropshipping" ? "cj_import" : "manual",
+        is_dropship: true,
+        source_provider_kind: kind === "cj_dropshipping" ? "cj_dropshipping" : null,
+        external_product_id: remote.externalProductId,
         updated_at: new Date().toISOString(),
       };
       let { error: updateError } = await supabase
@@ -566,7 +610,19 @@ export async function importExternalSupplierProductAction(
         })
         .eq("id", existingImport.id);
 
+      await upsertCjImportedProductRegistry({
+        supabase,
+        vendorId: gate.vendor.id,
+        productId: existingImport.product_id,
+        providerId: linked?.providerId,
+        remote,
+        externalVariantId: variant.externalVariantId,
+        externalSku: variant.externalSku,
+        supplierCostUsdt: minCost,
+      });
+
       revalidatePath("/vendor/products");
+      revalidatePath("/vendor/dropship/imported");
       revalidatePath("/vendor/import");
       revalidatePath("/vendor/integrations");
       revalidatePath(`/vendor/sourcing/${existingImport.product_id}`);
@@ -600,6 +656,10 @@ export async function importExternalSupplierProductAction(
           stockQuantity: effectiveStock ?? 0,
           sku: variant.externalSku,
         }),
+        catalog_kind: kind === "cj_dropshipping" ? "cj_import" : "manual",
+        is_dropship: true,
+        source_provider_kind: kind === "cj_dropshipping" ? "cj_dropshipping" : null,
+        external_product_id: remote.externalProductId,
         updated_at: new Date().toISOString(),
       };
       let { error: updateError } = await supabase
@@ -633,7 +693,19 @@ export async function importExternalSupplierProductAction(
         return { error: updateError.message };
       }
 
+      await upsertCjImportedProductRegistry({
+        supabase,
+        vendorId: gate.vendor.id,
+        productId: existingBySku.id,
+        providerId: linked?.providerId,
+        remote,
+        externalVariantId: variant.externalVariantId,
+        externalSku: variant.externalSku,
+        supplierCostUsdt: minCost,
+      });
+
       revalidatePath("/vendor/products");
+      revalidatePath("/vendor/dropship/imported");
       revalidatePath("/vendor/integrations");
 
       return {
@@ -715,6 +787,9 @@ export async function importExternalSupplierProductAction(
     status: "active" as const,
     product_type: "physical" as const,
     is_dropship: true,
+    catalog_kind: kind === "cj_dropshipping" ? "cj_import" : "manual",
+    source_provider_kind: kind === "cj_dropshipping" ? "cj_dropshipping" : null,
+    external_product_id: remote.externalProductId,
   };
 
   let { data: product, error: productError } = await supabase
@@ -820,7 +895,19 @@ export async function importExternalSupplierProductAction(
     }
   }
 
+  await upsertCjImportedProductRegistry({
+    supabase,
+    vendorId: gate.vendor.id,
+    productId: product.id,
+    providerId: linked?.providerId,
+    remote,
+    externalVariantId: variant.externalVariantId,
+    externalSku: variant.externalSku,
+    supplierCostUsdt: minCost,
+  });
+
   revalidatePath("/vendor/products");
+  revalidatePath("/vendor/dropship/imported");
   revalidatePath("/vendor/import");
   revalidatePath("/vendor/integrations");
   revalidatePath("/vendor/sourcing");

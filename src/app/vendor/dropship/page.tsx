@@ -44,13 +44,13 @@ export default async function VendorDropshipHubPage() {
     },
     {
       href: "/vendor/sourcing",
-      title: "Catalog",
-      body: "Browse the platform supplier catalog and import listings.",
+      title: "CJ catalog",
+      body: "Browse CJ Dropshipping and import listings into the CJ product list.",
     },
     {
       href: "/vendor/dropship/imported",
-      title: "Imported products",
-      body: "Review and price every dropship listing you have imported.",
+      title: "CJ products",
+      body: "Manage only CJ Dropshipping imports — kept separate from manual Vendor → Products.",
     },
   ] as const;
 

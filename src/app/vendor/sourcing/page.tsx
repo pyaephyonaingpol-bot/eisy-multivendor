@@ -5,7 +5,7 @@ import { getSessionProfile, canAccessVendor } from "@/lib/auth/session";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { getRequestLocale } from "@/lib/i18n/locale";
 import { getVendorImportQuota } from "@/lib/import-limits/queries";
-import { listProductsForVendor } from "@/lib/products/queries";
+import { listManualProductsForVendor } from "@/lib/products/queries";
 import { listSourcingRegions } from "@/lib/sourcing/queries";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 
@@ -29,13 +29,14 @@ export default async function VendorSourcingIndexPage() {
   }
 
   const [products, regions, quota, locale] = await Promise.all([
-    listProductsForVendor(vendor.id),
+    listManualProductsForVendor(vendor.id),
     listSourcingRegions(),
     getVendorImportQuota(vendor.id),
     getRequestLocale(),
   ]);
   const t = getDictionary(locale);
-  const sourceProducts = products.filter((product) => !product.is_dropship);
+  // Regional route manager only applies to manually managed source SKUs.
+  const sourceProducts = products;
 
   const quotaHints = quota
     ? {

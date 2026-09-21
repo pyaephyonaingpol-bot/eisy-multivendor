@@ -820,7 +820,7 @@ const CJ_LIST_V2_PAGE_SIZE = 100;
 /** Classic list allows up to 200; keep 100 for balanced latency. */
 const CJ_LIST_V1_PAGE_SIZE = 100;
 /** Soft target for a rich first-page catalog response. */
-const CJ_SEARCH_TARGET_RESULTS = 180;
+const CJ_SEARCH_TARGET_RESULTS = 100;
 /** Extra listV2 pages to pull for the requested page window. */
 const CJ_SEARCH_MAX_EXTRA_PAGES = 2;
 

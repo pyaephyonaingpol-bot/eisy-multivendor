@@ -64,7 +64,8 @@ export async function listVendorsForAdmin(status?: VendorStatus): Promise<Vendor
   let query = supabase
     .from("vendors")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(200);
 
   if (status) {
     query = query.eq("status", status);
@@ -85,7 +86,8 @@ export async function listVendorsForKycAdmin(
   let query = supabase
     .from("vendors")
     .select("*")
-    .order("kyc_submitted_at", { ascending: false, nullsFirst: false });
+    .order("kyc_submitted_at", { ascending: false, nullsFirst: false })
+    .limit(200);
 
   if (kycStatus) {
     query = query.eq("kyc_status", kycStatus);

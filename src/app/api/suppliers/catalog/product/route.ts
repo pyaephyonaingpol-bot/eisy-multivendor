@@ -3,6 +3,7 @@ import { canAccessVendor, getSessionProfile } from "@/lib/auth/session";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 import { getExternalProduct, parseSupplierKind } from "@/lib/suppliers";
 import { hasLiveSupplierCredentials } from "@/lib/suppliers/auth";
+import { toClientCatalogProduct } from "@/lib/suppliers/catalog-dto";
 import { loadPlatformSupplierContext } from "@/lib/suppliers/platform-credentials";
 import {
   supplierPlatformLabel,
@@ -73,7 +74,7 @@ export async function GET(request: Request) {
     }
     return NextResponse.json({
       ok: true,
-      product,
+      product: toClientCatalogProduct(product),
       mode,
       hasCredentials: platformConnected,
       platformManaged: true,

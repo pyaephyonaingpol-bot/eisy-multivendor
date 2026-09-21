@@ -7,6 +7,7 @@ import {
   searchExternalProducts,
   searchExternalProductsForTab,
 } from "@/lib/suppliers";
+import { toClientCatalogProducts } from "@/lib/suppliers/catalog-dto";
 import { loadPlatformSupplierContext } from "@/lib/suppliers/platform-credentials";
 import type {
   ExternalSupplierKind,
@@ -85,7 +86,7 @@ export async function GET(request: Request) {
         query,
         region: regionCode || null,
         count: products.length,
-        products,
+        products: toClientCatalogProducts(products),
         platformManaged: true,
       });
     }
@@ -113,7 +114,7 @@ export async function GET(request: Request) {
       query,
       region: regionCode || null,
       count: products.length,
-      products,
+      products: toClientCatalogProducts(products),
       platformManaged: true,
     });
   } catch (error) {

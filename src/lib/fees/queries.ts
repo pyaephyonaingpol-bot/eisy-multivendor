@@ -149,7 +149,9 @@ export async function getVendorDropshipCommissionSummary(
       .from("orders")
       .select("subtotal, platform_commission_usdt, seller_vendor_id, vendor_id")
       .eq("seller_vendor_id", vendorId)
-      .eq("payment_status", "paid"),
+      .eq("payment_status", "paid")
+      .order("created_at", { ascending: false })
+      .limit(2000),
     getDropshipFeeSettings(),
   ]);
 
@@ -193,7 +195,9 @@ export async function getPlatformCommissionTotals(): Promise<{
     .from("orders")
     .select("platform_commission_usdt")
     .gt("platform_commission_usdt", 0)
-    .eq("payment_status", "paid");
+    .eq("payment_status", "paid")
+    .order("created_at", { ascending: false })
+    .limit(5000);
 
   const rows =
     (data as { platform_commission_usdt: number }[] | null) ?? [];

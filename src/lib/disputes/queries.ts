@@ -52,7 +52,8 @@ export async function listDisputesForBuyer(
     .from("disputes")
     .select("*")
     .eq("opened_by", userId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(100);
   return (data as Dispute[] | null) ?? [];
 }
 
@@ -64,7 +65,8 @@ export async function listDisputesForAdmin(
   let query = supabase
     .from("disputes")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(200);
 
   if (status) {
     query = query.eq("status", status);

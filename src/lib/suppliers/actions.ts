@@ -12,6 +12,11 @@ import {
 } from "@/lib/suppliers";
 import { loadPlatformSupplierContext } from "@/lib/suppliers/platform-credentials";
 import {
+  toClientCatalogProducts,
+  toImportSourcePayload,
+  toSlimInventoryRaw,
+} from "@/lib/suppliers/catalog-dto";
+import {
   MIN_IMPORT_STOCK_QUANTITY,
   ONE_CLICK_IMPORT_MARKUP,
   meetsMinImportStock,
@@ -318,7 +323,7 @@ async function loadSupplierContext(kind: ExternalSupplierKind) {
 export async function searchSupplierCatalogAction(
   kindRaw: string,
   query: string,
-): Promise<{ products: ExternalCatalogProduct[]; error?: string }> {
+): Promise<{ products: ReturnType<typeof toClientCatalogProducts>; error?: string }> {
   const kind = parseSupplierKind(kindRaw);
   if (!kind) return { products: [], error: "Unknown supplier platform." };
 
@@ -331,7 +336,7 @@ export async function searchSupplierCatalogAction(
     query,
     linked?.credentials ?? null,
   );
-  return { products };
+  return { products: toClientCatalogProducts(products) };
 }
 
 export async function importExternalSupplierProductAction(
@@ -499,7 +504,7 @@ export async function importExternalSupplierProductAction(
         .update({
           external_variant_id: variant.externalVariantId,
           external_sku: variant.externalSku,
-          source_payload: remote.raw,
+          source_payload: toImportSourcePayload(remote),
           last_synced_at: new Date().toISOString(),
         })
         .eq("id", existingImport.id);
@@ -726,19 +731,27 @@ export async function importExternalSupplierProductAction(
         .eq("vendor_id", gate.vendor.id);
     }
 
-    await supabase.from("external_product_imports").upsert(
-      {
-        vendor_id: gate.vendor.id,
-        provider_id: linked.providerId,
-        product_id: product.id,
-        external_product_id: remote.externalProductId,
-        external_variant_id: variant.externalVariantId,
-        external_sku: variant.externalSku,
-        source_payload: remote.raw,
-        last_synced_at: new Date().toISOString(),
-      },
-      { onConflict: "vendor_id,provider_id,external_product_id" },
-    );
+    const { error: importUpsertError } = await supabase
+      .from("external_product_imports")
+      .upsert(
+        {
+          vendor_id: gate.vendor.id,
+          provider_id: linked.providerId,
+          product_id: product.id,
+          external_product_id: remote.externalProductId,
+          external_variant_id: variant.externalVariantId,
+          external_sku: variant.externalSku,
+          source_payload: toImportSourcePayload(remote),
+          last_synced_at: new Date().toISOString(),
+        },
+        { onConflict: "vendor_id,provider_id,external_product_id" },
+      );
+    if (importUpsertError && !isMissingSchemaError(importUpsertError.message)) {
+      return {
+        error: `Product created but import tracking failed: ${importUpsertError.message}`,
+        productId: product.id,
+      };
+    }
   }
 
   revalidatePath("/vendor/products");
@@ -818,7 +831,7 @@ export async function syncExternalProductInventoryAction(
     .from("external_product_imports")
     .update({
       last_synced_at: new Date().toISOString(),
-      source_payload: snapshot.raw,
+      source_payload: toSlimInventoryRaw(snapshot),
       external_sku: snapshot.externalSku,
       external_variant_id: snapshot.externalVariantId,
     })

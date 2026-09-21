@@ -13,6 +13,7 @@ import {
   searchExternalProductsForTab,
 } from "@/lib/suppliers";
 import { importExternalSupplierProductAction } from "@/lib/suppliers/actions";
+import { toClientCatalogProduct } from "@/lib/suppliers/catalog-dto";
 import type {
   ExternalCatalogProduct,
   ExternalSupplierKind,
@@ -54,7 +55,7 @@ async function loadCredentialsForKind(
 
 function withSpeedMeta(product: ExternalCatalogProduct) {
   return {
-    ...product,
+    ...toClientCatalogProduct(product),
     shipping_speed_tags: shippingSpeedTagsForProduct(product),
   };
 }

@@ -2,8 +2,6 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { ClientOnly } from "@/components/client-only";
-import { FormSkeleton } from "@/components/form-skeleton";
 import { login, type AuthActionState } from "@/lib/auth/actions";
 
 const initialState: AuthActionState = null;
@@ -12,7 +10,7 @@ type LoginFormProps = {
   nextPath?: string;
 };
 
-function LoginFormFields({ nextPath = "/" }: LoginFormProps) {
+export function LoginForm({ nextPath = "/" }: LoginFormProps) {
   const [state, formAction, pending] = useActionState(login, initialState);
 
   return (
@@ -24,7 +22,7 @@ function LoginFormFields({ nextPath = "/" }: LoginFormProps) {
         required
         autoComplete="email"
         placeholder="Email"
-        className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+        className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-950"
       />
       <input
         type="password"
@@ -32,7 +30,7 @@ function LoginFormFields({ nextPath = "/" }: LoginFormProps) {
         required
         autoComplete="current-password"
         placeholder="Password"
-        className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+        className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-950"
       />
       {state?.error ? (
         <p className="text-sm text-red-600" role="alert">
@@ -53,13 +51,5 @@ function LoginFormFields({ nextPath = "/" }: LoginFormProps) {
         </Link>
       </p>
     </form>
-  );
-}
-
-export function LoginForm(props: LoginFormProps) {
-  return (
-    <ClientOnly fallback={<FormSkeleton rows={2} />}>
-      <LoginFormFields {...props} />
-    </ClientOnly>
   );
 }

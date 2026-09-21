@@ -6,12 +6,12 @@ import { getRequestLocale } from "@/lib/i18n/locale";
 import "./globals.css";
 
 const display = Fraunces({
-  variable: "--font-display",
+  variable: "--font-fraunces",
   subsets: ["latin"],
 });
 
 const sans = Manrope({
-  variable: "--font-sans-body",
+  variable: "--font-manrope",
   subsets: ["latin"],
 });
 

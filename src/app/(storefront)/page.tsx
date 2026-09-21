@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Buyer Portal (Marketplace) — primary landing page for `/`.
+ * Hero is full-bleed via negative margins (no w-screen/clip tricks that blank out iframe previews).
  */
 export default async function StorefrontHomePage() {
   const products = await listPublicProducts(12);
@@ -59,8 +60,7 @@ export default async function StorefrontHomePage() {
 
   return (
     <div className="pb-2">
-      {/* Full-bleed hero breaks out of the storefront content column */}
-      <div className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 -mt-6 sm:-mt-10">
+      <div className="-mx-4 -mt-6 sm:-mt-10">
         <HomePromoBanner slides={slides} brandName="Eisy Marketplace" />
       </div>
 

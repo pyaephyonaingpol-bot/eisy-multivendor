@@ -79,7 +79,7 @@ export function HomePromoBanner({
     <section
       aria-roledescription="carousel"
       aria-label={`${brandName} promotions`}
-      className="relative isolate min-h-[min(78vh,40rem)] w-full overflow-hidden bg-[#1a1814] text-white touch-pan-y sm:min-h-[min(72vh,36rem)]"
+      className="relative isolate min-h-[min(70vh,36rem)] w-full overflow-hidden bg-[#1a1814] text-white touch-pan-y sm:min-h-[min(68vh,34rem)]"
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
       onPointerCancel={() => {
@@ -103,7 +103,7 @@ export function HomePromoBanner({
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20" />
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-[min(78vh,40rem)] w-full max-w-6xl flex-col justify-end px-4 pb-16 pt-20 sm:min-h-[min(72vh,36rem)] sm:justify-center sm:pb-20 sm:pt-24">
+      <div className="relative z-10 mx-auto flex min-h-[min(70vh,36rem)] w-full max-w-6xl flex-col justify-end px-4 pb-16 pt-16 sm:min-h-[min(68vh,34rem)] sm:justify-center sm:px-8 sm:pb-20 sm:pt-20">
         <div
           key={`copy-${slide.id}-${animKey}`}
           className="market-fade-up max-w-2xl space-y-5 sm:space-y-6"

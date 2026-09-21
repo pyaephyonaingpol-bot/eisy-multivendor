@@ -301,6 +301,12 @@ create table if not exists public.cj_order_fulfillments (
   updated_at timestamptz not null default now()
 );
 
+-- CREATE TABLE IF NOT EXISTS does not add columns to an existing partial table.
+alter table public.cj_order_fulfillments
+  add column if not exists created_at timestamptz not null default now();
+alter table public.cj_order_fulfillments
+  add column if not exists updated_at timestamptz not null default now();
+
 create index if not exists cj_order_fulfillments_vendor_idx
   on public.cj_order_fulfillments (vendor_id, created_at desc);
 

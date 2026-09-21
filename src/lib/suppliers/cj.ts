@@ -62,8 +62,8 @@ function mockCatalog(query: string): ExternalCatalogProduct[] {
     return {
       providerKind: "cj_dropshipping" as const,
       externalProductId: `CJ-MOCK-${q.slice(0, 12).toUpperCase()}-${n}`,
-      externalVariantId: `CJ-VID-MOCK-${n}-BLK`,
-      externalSku: `CJ-SKU-MOCK-${n}-BLK`,
+      externalVariantId: `CJ-VID-MOCK-${n}-BLK-S`,
+      externalSku: `CJ-SKU-MOCK-${n}-BLK-S`,
       name: `CJ ${q} sample #${n}`,
       description: [
         `Premium ${q} sourced via CJ Dropshipping (mock catalog).`,
@@ -86,25 +86,49 @@ function mockCatalog(query: string): ExternalCatalogProduct[] {
       shippingDaysMax: 15,
       variants: [
         {
-          externalVariantId: `CJ-VID-MOCK-${n}-BLK`,
-          externalSku: `CJ-SKU-MOCK-${n}-BLK`,
-          label: "Black",
+          externalVariantId: `CJ-VID-MOCK-${n}-BLK-S`,
+          externalSku: `CJ-SKU-MOCK-${n}-BLK-S`,
+          label: "Black / S",
           priceUsdt: base,
           stockQuantity: 30 * n,
           imageUrl: images[0],
         },
         {
-          externalVariantId: `CJ-VID-MOCK-${n}-WHT`,
-          externalSku: `CJ-SKU-MOCK-${n}-WHT`,
-          label: "White",
+          externalVariantId: `CJ-VID-MOCK-${n}-BLK-M`,
+          externalSku: `CJ-SKU-MOCK-${n}-BLK-M`,
+          label: "Black / M",
+          priceUsdt: base,
+          stockQuantity: 28 * n,
+          imageUrl: images[0],
+        },
+        {
+          externalVariantId: `CJ-VID-MOCK-${n}-BLK-L`,
+          externalSku: `CJ-SKU-MOCK-${n}-BLK-L`,
+          label: "Black / L",
+          priceUsdt: Number((base + 0.2).toFixed(2)),
+          stockQuantity: 22 * n,
+          imageUrl: images[0],
+        },
+        {
+          externalVariantId: `CJ-VID-MOCK-${n}-WHT-S`,
+          externalSku: `CJ-SKU-MOCK-${n}-WHT-S`,
+          label: "White / S",
           priceUsdt: Number((base + 0.4).toFixed(2)),
           stockQuantity: 20 * n,
           imageUrl: images[1],
         },
         {
-          externalVariantId: `CJ-VID-MOCK-${n}-BLU`,
-          externalSku: `CJ-SKU-MOCK-${n}-BLU`,
-          label: "Blue",
+          externalVariantId: `CJ-VID-MOCK-${n}-WHT-M`,
+          externalSku: `CJ-SKU-MOCK-${n}-WHT-M`,
+          label: "White / M",
+          priceUsdt: Number((base + 0.4).toFixed(2)),
+          stockQuantity: 18 * n,
+          imageUrl: images[1],
+        },
+        {
+          externalVariantId: `CJ-VID-MOCK-${n}-BLU-L`,
+          externalSku: `CJ-SKU-MOCK-${n}-BLU-L`,
+          label: "Blue / L",
           priceUsdt: Number((base + 0.6).toFixed(2)),
           stockQuantity: 15 * n,
           imageUrl: images[2],
@@ -627,10 +651,15 @@ function mapCjVariant(
       ? fallbackPriceUsdt
       : null) ??
     0.01;
+
+  // Prefer human-readable option labels (color/size): English name, then
+  // variantKey (e.g. "Black-XXL"), then SKU / id.
   const label =
     pickCjText(
       row.variantNameEn,
       row.variantKey,
+      row.variantProperty,
+      row.variantStandard,
       row.variantName,
       row.variantSku,
       externalVariantId,
@@ -653,23 +682,59 @@ function mapCjVariant(
   };
 }
 
+/** Collect raw variant row arrays from the many CJ payload shapes. */
+function collectCjVariantRows(
+  row: Record<string, unknown>,
+): Record<string, unknown>[] {
+  const candidates = [
+    row.variants,
+    row.productVariants,
+    row.productVariantList,
+    row.variantList,
+    row.variantInfos,
+  ];
+
+  const out: Record<string, unknown>[] = [];
+  const seen = new Set<string>();
+
+  for (const candidate of candidates) {
+    const parsed = parseMaybeJson(candidate);
+    if (!Array.isArray(parsed)) continue;
+    for (const item of parsed) {
+      const variantRow = asRecord(item);
+      if (!variantRow) continue;
+      const vid = String(
+        variantRow.vid ?? variantRow.variantId ?? variantRow.id ?? "",
+      ).trim();
+      const key = vid || JSON.stringify(variantRow).slice(0, 80);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(variantRow);
+    }
+  }
+
+  return out;
+}
+
 function mapCjVariants(
   row: Record<string, unknown>,
   productPriceUsdt: number,
 ): ExternalProductVariant[] {
   const stockByVid = variantStockMapFromProduct(row);
-  const variantsRaw = Array.isArray(row.variants) ? row.variants : [];
+  const variantsRaw = collectCjVariantRows(row);
   const variants: ExternalProductVariant[] = [];
+  const seenVids = new Set<string>();
 
-  for (const item of variantsRaw) {
-    const variantRow = asRecord(item);
-    if (!variantRow) continue;
+  for (const variantRow of variantsRaw) {
     const vid = String(
       variantRow.vid ?? variantRow.variantId ?? variantRow.id ?? "",
     ).trim();
     const override = vid ? stockByVid.get(vid) : undefined;
     const mapped = mapCjVariant(variantRow, override, productPriceUsdt);
-    if (mapped) variants.push(mapped);
+    if (!mapped) continue;
+    if (seenVids.has(mapped.externalVariantId)) continue;
+    seenVids.add(mapped.externalVariantId);
+    variants.push(mapped);
   }
 
   // listV2 may only expose variantInventories without a full variants[].
@@ -687,6 +752,73 @@ function mapCjVariants(
   }
 
   return variants;
+}
+
+/**
+ * Fetch every SKU/color/size for a CJ pid via /product/variant/query.
+ * Product detail (`/product/query`) sometimes omits or truncates `variants`.
+ */
+async function fetchCjVariantsByPid(
+  pid: string,
+  credentials?: SupplierCredentials | null,
+  fallbackPriceUsdt = 0.01,
+): Promise<ExternalProductVariant[]> {
+  const json = await cjFetch("/product/variant/query", {
+    credentials,
+    query: { pid },
+  });
+
+  const data = json.data ?? json.result ?? json;
+  const rows = Array.isArray(data)
+    ? data
+    : Array.isArray(asRecord(data)?.list)
+      ? (asRecord(data)!.list as unknown[])
+      : Array.isArray(asRecord(data)?.variants)
+        ? (asRecord(data)!.variants as unknown[])
+        : [];
+
+  const variants: ExternalProductVariant[] = [];
+  const seen = new Set<string>();
+  for (const item of rows) {
+    const variantRow = asRecord(item);
+    if (!variantRow) continue;
+    const mapped = mapCjVariant(variantRow, null, fallbackPriceUsdt);
+    if (!mapped || seen.has(mapped.externalVariantId)) continue;
+    seen.add(mapped.externalVariantId);
+    variants.push(mapped);
+  }
+  return variants;
+}
+
+function mergeCjVariants(
+  primary: ExternalProductVariant[] | undefined,
+  secondary: ExternalProductVariant[],
+): ExternalProductVariant[] {
+  const byId = new Map<string, ExternalProductVariant>();
+  for (const variant of [...(primary ?? []), ...secondary]) {
+    const existing = byId.get(variant.externalVariantId);
+    if (!existing) {
+      byId.set(variant.externalVariantId, variant);
+      continue;
+    }
+    // Prefer richer labels / stock / images from either source.
+    byId.set(variant.externalVariantId, {
+      ...existing,
+      ...variant,
+      label:
+        variant.label &&
+        variant.label !== variant.externalVariantId &&
+        !variant.label.startsWith("CJ-")
+          ? variant.label
+          : existing.label,
+      stockQuantity: variant.stockQuantity ?? existing.stockQuantity,
+      imageUrl: variant.imageUrl ?? existing.imageUrl,
+      externalSku: variant.externalSku ?? existing.externalSku,
+      priceUsdt:
+        variant.priceUsdt > 0 ? variant.priceUsdt : existing.priceUsdt,
+    });
+  }
+  return [...byId.values()];
 }
 
 function productLevelStock(row: Record<string, unknown>): number | null {
@@ -1179,8 +1311,53 @@ export async function getCjProduct(
       asRecord(json) ??
       null;
     if (!data) return null;
-    let mapped = mapCjProduct(data);
+
+    // Some CJ responses nest the product under `data.product` and attach
+    // variants beside it — fold sibling variant arrays into the product row.
+    const nestedProduct = asRecord(data.product);
+    const productRow: Record<string, unknown> = nestedProduct
+      ? {
+          ...nestedProduct,
+          variants:
+            nestedProduct.variants ??
+            data.variants ??
+            data.productVariants ??
+            data.productVariantList,
+        }
+      : data;
+
+    let mapped = mapCjProduct(productRow);
     if (!mapped.externalProductId) return null;
+
+    // Always hydrate the full color/size matrix from the dedicated variants API.
+    // /product/query frequently returns only a default SKU.
+    try {
+      const allVariants = await fetchCjVariantsByPid(
+        mapped.externalProductId,
+        credentials,
+        mapped.priceUsdt,
+      );
+      if (allVariants.length > 0) {
+        const merged = mergeCjVariants(mapped.variants, allVariants);
+        const first = merged[0] ?? null;
+        const variantStockSum = merged.reduce<number | null>((acc, variant) => {
+          if (variant.stockQuantity == null) return acc;
+          return (acc ?? 0) + variant.stockQuantity;
+        }, null);
+        mapped = {
+          ...mapped,
+          variants: merged,
+          externalVariantId:
+            mapped.externalVariantId ?? first?.externalVariantId ?? null,
+          externalSku: mapped.externalSku ?? first?.externalSku ?? null,
+          priceUsdt:
+            first && first.priceUsdt > 0 ? first.priceUsdt : mapped.priceUsdt,
+          stockQuantity: mapped.stockQuantity ?? variantStockSum,
+        };
+      }
+    } catch {
+      // Detail still usable with whatever variants product/query returned.
+    }
 
     const needsInventoryEnrich =
       mapped.stockQuantity == null ||

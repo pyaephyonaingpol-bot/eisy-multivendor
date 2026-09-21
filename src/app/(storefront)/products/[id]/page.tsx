@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { SoldByBadge } from "@/components/storefront/sold-by-badge";
 import { notFound } from "next/navigation";
-import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 import { ImportToMyStorePanel } from "@/components/storefront/import-to-my-store-panel";
+import { ProductPurchasePanel } from "@/components/storefront/product-purchase-panel";
 import { ProductSpecificationsTable } from "@/components/storefront/product-specifications-table";
 import { CjLiveShippingEstimate } from "@/components/storefront/cj-live-shipping-estimate";
 import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
@@ -132,11 +132,11 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
             />
           ) : null}
 
-          <AddToCartButton
+          <ProductPurchasePanel
             productId={product.id}
             vendorId={product.vendor_id}
             name={product.name}
-            price={Number(product.price)}
+            basePrice={Number(product.price)}
             currency={MARKETPLACE_CURRENCY}
             imageUrl={heroImage}
             productType={productType}
@@ -146,6 +146,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
                 : null
             }
             disabled={outOfStock}
+            variants={product.catalog_variants ?? []}
           />
 
           <ImportToMyStorePanel

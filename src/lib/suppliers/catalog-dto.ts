@@ -30,7 +30,9 @@ function slimVariants(
   variants: ExternalProductVariant[] | undefined,
 ): ExternalProductVariant[] | undefined {
   if (!variants?.length) return undefined;
-  return variants.slice(0, 60).map((variant) => ({
+  // CJ products can expose large color/size matrices — keep a high ceiling so
+  // preview/import can show every option returned by the API.
+  return variants.slice(0, 250).map((variant) => ({
     externalVariantId: variant.externalVariantId,
     externalSku: variant.externalSku,
     label: variant.label,

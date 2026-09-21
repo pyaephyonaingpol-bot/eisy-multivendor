@@ -41,6 +41,15 @@ export type PublicProductDetail = Product & {
   /** Supplier stock when this is a dropship listing; otherwise own stock. */
   available_stock: number;
   source_vendor: Pick<Vendor, "id" | "name" | "slug"> | null;
+  /** CJ / supplier color-size options from import source_payload when present. */
+  catalog_variants: Array<{
+    externalVariantId: string;
+    externalSku: string | null;
+    label: string;
+    priceUsdt: number | null;
+    stockQuantity: number | null;
+    imageUrl: string | null;
+  }>;
 };
 
 export type PublicProductSummary = PublicProductDetail;
@@ -184,6 +193,7 @@ async function withPublicVendorMeta(
       vendor,
       available_stock,
       source_vendor,
+      catalog_variants: [],
     });
   }
 
@@ -372,7 +382,86 @@ export async function getPublicProductById(
   }
 
   const [detail] = await withPublicVendorMeta([deliverable]);
-  return detail ?? null;
+  if (!detail) return null;
+
+  // Attach full CJ color/size matrix from the import payload when available.
+  const { data: importRow } = await supabase
+    .from("external_product_imports")
+    .select("source_payload, external_variant_id")
+    .eq("product_id", detail.id)
+    .maybeSingle();
+
+  const payload =
+    importRow &&
+    typeof importRow === "object" &&
+    importRow.source_payload &&
+    typeof importRow.source_payload === "object"
+      ? (importRow.source_payload as Record<string, unknown>)
+      : null;
+  const rawVariants = Array.isArray(payload?.variants)
+    ? (payload!.variants as unknown[])
+    : [];
+
+  const catalog_variants = rawVariants
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      const externalVariantId = String(
+        row.externalVariantId ?? row.vid ?? "",
+      ).trim();
+      if (!externalVariantId) return null;
+      const label = String(
+        row.label ?? row.variantNameEn ?? row.variantKey ?? externalVariantId,
+      ).trim();
+      const priceRaw = row.priceUsdt ?? row.variantSellPrice;
+      const stockRaw = row.stockQuantity ?? row.totalInventory;
+      return {
+        externalVariantId,
+        externalSku:
+          row.externalSku != null
+            ? String(row.externalSku)
+            : row.variantSku != null
+              ? String(row.variantSku)
+              : null,
+        label: label || externalVariantId,
+        priceUsdt:
+          typeof priceRaw === "number"
+            ? priceRaw
+            : priceRaw != null && Number.isFinite(Number(priceRaw))
+              ? Number(priceRaw)
+              : null,
+        stockQuantity:
+          typeof stockRaw === "number"
+            ? stockRaw
+            : stockRaw != null && Number.isFinite(Number(stockRaw))
+              ? Number(stockRaw)
+              : null,
+        imageUrl:
+          row.imageUrl != null
+            ? String(row.imageUrl)
+            : row.variantImage != null
+              ? String(row.variantImage)
+              : null,
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => row != null);
+
+  // Prefer the imported default variant first in the selector.
+  const preferredVid =
+    importRow &&
+    typeof importRow === "object" &&
+    importRow.external_variant_id
+      ? String(importRow.external_variant_id)
+      : null;
+  if (preferredVid && catalog_variants.length > 1) {
+    catalog_variants.sort((a, b) => {
+      if (a.externalVariantId === preferredVid) return -1;
+      if (b.externalVariantId === preferredVid) return 1;
+      return 0;
+    });
+  }
+
+  return { ...detail, catalog_variants };
 }
 
 

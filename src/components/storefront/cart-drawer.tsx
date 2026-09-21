@@ -60,9 +60,11 @@ export function CartDrawer() {
             </div>
           ) : (
             <ul className="space-y-4">
-              {items.map((item) => (
+              {items.map((item) => {
+                const rowKey = `${item.productId}::${item.variantId ?? ""}`;
+                return (
                 <li
-                  key={item.productId}
+                  key={rowKey}
                   className="flex gap-3 rounded-xl border border-zinc-200 p-3"
                 >
                   <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-zinc-100">
@@ -86,7 +88,9 @@ export function CartDrawer() {
                       </Link>
                       <button
                         type="button"
-                        onClick={() => removeItem(item.productId)}
+                        onClick={() =>
+                          removeItem(item.productId, item.variantId)
+                        }
                         className="text-xs text-zinc-500 hover:text-zinc-950"
                       >
                         Remove
@@ -96,11 +100,11 @@ export function CartDrawer() {
                       {formatMoney(item.price, item.currency)}
                     </p>
                     <div className="flex items-center gap-2">
-                      <label className="sr-only" htmlFor={`qty-${item.productId}`}>
+                      <label className="sr-only" htmlFor={`qty-${rowKey}`}>
                         Quantity
                       </label>
                       <input
-                        id={`qty-${item.productId}`}
+                        id={`qty-${rowKey}`}
                         type="number"
                         min={1}
                         max={item.maxQuantity ?? undefined}
@@ -109,6 +113,7 @@ export function CartDrawer() {
                           updateQuantity(
                             item.productId,
                             Number(event.target.value) || 1,
+                            item.variantId,
                           )
                         }
                         className="w-16 rounded-md border border-zinc-200 px-2 py-1 text-sm"
@@ -119,7 +124,8 @@ export function CartDrawer() {
                     </div>
                   </div>
                 </li>
-              ))}
+              );
+              })}
             </ul>
           )}
         </div>

@@ -13,6 +13,9 @@ type AddToCartButtonProps = {
   productType: "physical" | "digital";
   maxQuantity: number | null;
   disabled?: boolean;
+  variantId?: string | null;
+  variantSku?: string | null;
+  variantLabel?: string | null;
 };
 
 export function AddToCartButton({
@@ -25,6 +28,9 @@ export function AddToCartButton({
   productType,
   maxQuantity,
   disabled = false,
+  variantId = null,
+  variantSku = null,
+  variantLabel = null,
 }: AddToCartButtonProps) {
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
@@ -62,6 +68,9 @@ export function AddToCartButton({
             productType,
             maxQuantity,
             quantity: productType === "digital" ? 1 : quantity,
+            variantId,
+            variantSku,
+            variantLabel,
           })
         }
         className="inline-flex w-full items-center justify-center rounded-lg bg-zinc-950 px-4 py-3 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"

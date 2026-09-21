@@ -153,11 +153,24 @@ export function SupplierProductPreviewModal({
         setProduct(p);
         setEditName(p.name);
         setEditDescription(p.description ?? "");
-        const firstVariant = p.variants?.[0] ?? null;
-        setSelectedVariant(firstVariant);
-        setEditPrice(
-          String(suggestedSellPrice(firstVariant?.priceUsdt ?? p.priceUsdt)),
-        );
+        const variants = p.variants ?? [];
+        setSelectedVariant((prev) => {
+          const preferred =
+            (prev &&
+              variants.find(
+                (variant) =>
+                  variant.externalVariantId === prev.externalVariantId,
+              )) ||
+            variants.find(
+              (variant) => variant.externalVariantId === p.externalVariantId,
+            ) ||
+            variants[0] ||
+            null;
+          setEditPrice(
+            String(suggestedSellPrice(preferred?.priceUsdt ?? p.priceUsdt)),
+          );
+          return preferred;
+        });
         setActiveImage(0);
         setImageReady(false);
       } catch {
@@ -345,10 +358,18 @@ export function SupplierProductPreviewModal({
                       )}
               </div>
 
-              <div className="min-h-[5.5rem]">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                  Variants
-                </p>
+              <div className="min-h-[5.5rem] space-y-2">
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    Variants
+                  </p>
+                  {!showSkeleton && (product?.variants?.length ?? 0) > 0 ? (
+                    <p className="text-[11px] text-zinc-500">
+                      {product!.variants!.length} option
+                      {product!.variants!.length === 1 ? "" : "s"}
+                    </p>
+                  ) : null}
+                </div>
                 {showSkeleton ? (
                   <div className="flex flex-wrap gap-2">
                     <SkeletonBlock className="h-12 w-28" />
@@ -356,34 +377,64 @@ export function SupplierProductPreviewModal({
                     <SkeletonBlock className="h-12 w-24" />
                   </div>
                 ) : (product?.variants?.length ?? 0) > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {product!.variants!.map((v) => {
-                      const selected =
-                        selectedVariant?.externalVariantId ===
-                        v.externalVariantId;
-                      return (
-                        <button
-                          key={v.externalVariantId}
-                          type="button"
-                          onClick={() => applyVariant(v)}
-                          className={`min-h-12 rounded-lg border px-3 py-2 text-left text-xs transition ${
-                            selected
-                              ? "border-emerald-700 bg-emerald-50 text-zinc-950"
-                              : "border-zinc-200 bg-white text-zinc-600 hover:border-emerald-600"
-                          }`}
-                        >
-                          <span className="block font-medium text-zinc-950">
-                            {v.label}
-                          </span>
-                          <span className="text-zinc-500">
-                            {formatMoney(v.priceUsdt, MARKETPLACE_CURRENCY)}
-                            {v.stockQuantity != null
-                              ? ` · ${v.stockQuantity} in stock`
-                              : " · stock unknown"}
-                          </span>
-                        </button>
-                      );
-                    })}
+                  <div className="space-y-2">
+                    <label className="block space-y-1">
+                      <span className="sr-only">Select color / size</span>
+                      <select
+                        value={selectedVariant?.externalVariantId ?? ""}
+                        onChange={(event) => {
+                          const next = product!.variants!.find(
+                            (variant) =>
+                              variant.externalVariantId === event.target.value,
+                          );
+                          if (next) applyVariant(next);
+                        }}
+                        className="h-11 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-950 outline-none focus:border-emerald-700"
+                      >
+                        {product!.variants!.map((variant) => (
+                          <option
+                            key={variant.externalVariantId}
+                            value={variant.externalVariantId}
+                          >
+                            {variant.label}
+                            {" · "}
+                            {formatMoney(variant.priceUsdt, MARKETPLACE_CURRENCY)}
+                            {variant.stockQuantity != null
+                              ? ` · ${variant.stockQuantity} in stock`
+                              : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto">
+                      {product!.variants!.map((v) => {
+                        const selected =
+                          selectedVariant?.externalVariantId ===
+                          v.externalVariantId;
+                        return (
+                          <button
+                            key={v.externalVariantId}
+                            type="button"
+                            onClick={() => applyVariant(v)}
+                            className={`min-h-12 max-w-full rounded-lg border px-3 py-2 text-left text-xs transition ${
+                              selected
+                                ? "border-emerald-700 bg-emerald-50 text-zinc-950"
+                                : "border-zinc-200 bg-white text-zinc-600 hover:border-emerald-600"
+                            }`}
+                          >
+                            <span className="block break-words font-medium text-zinc-950">
+                              {v.label}
+                            </span>
+                            <span className="text-zinc-500">
+                              {formatMoney(v.priceUsdt, MARKETPLACE_CURRENCY)}
+                              {v.stockQuantity != null
+                                ? ` · ${v.stockQuantity} in stock`
+                                : " · stock unknown"}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 ) : (
                   <p className="text-xs text-zinc-500">

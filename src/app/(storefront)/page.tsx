@@ -9,6 +9,10 @@ import { listPublicProducts } from "@/lib/products/queries";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Buyer Portal (Marketplace) — primary landing page for `/`.
+ * Seller and admin tools live under /vendor and /admin; linked from the footer hub.
+ */
 export default async function StorefrontHomePage() {
   const products = await listPublicProducts(12);
   const newest = products[0] ?? null;

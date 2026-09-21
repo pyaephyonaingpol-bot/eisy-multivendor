@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { AdminDashboardLink } from "@/components/layout/admin-dashboard-link";
+import { SitePortalFooter } from "@/components/layout/site-portal-footer";
 import { getSessionProfile } from "@/lib/auth/session";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { getRequestLocale } from "@/lib/i18n/locale";
@@ -94,26 +96,20 @@ export async function Header() {
 }
 
 export async function Footer() {
-  const locale = await getRequestLocale();
-  const t = getDictionary(locale);
   return (
-    <footer className="mt-auto border-t border-zinc-200 bg-white">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm text-zinc-500">
-        <p>
-          © 2026 {t.brand.full} · USDT
-        </p>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <AdminDashboardLink className="text-xs text-zinc-400 transition hover:text-zinc-600">
-            {t.nav.adminDashboard}
-          </AdminDashboardLink>
-          <Link
-            href="/vendor/dashboard"
-            className="text-xs text-zinc-400 transition hover:text-zinc-600"
-          >
-            {t.nav.vendorPortal}
-          </Link>
-        </div>
-      </div>
-    </footer>
+    <Suspense
+      fallback={
+        <footer className="mt-auto border-t border-zinc-200 bg-white">
+          <div className="mx-auto max-w-6xl px-4 py-6 text-sm text-zinc-500">
+            © 2026 EISY Marketplace
+          </div>
+        </footer>
+      }
+    >
+      <SitePortalFooter
+        brandDescription="Sign in to shop, sell, or manage the platform."
+        shopLinks={false}
+      />
+    </Suspense>
   );
 }

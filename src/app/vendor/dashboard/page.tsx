@@ -6,8 +6,8 @@ import { getVendorForOwner } from "@/lib/vendors/queries";
 export const dynamic = "force-dynamic";
 
 /**
- * Vendor management home — Product, Store, Orders, Tracking only.
- * Dropshipper fees/catalog live under /vendor/dropship (separate workspace).
+ * Independent Vendor Portal home — Products, Store, Orders, Tracking, Disputes.
+ * CJ Dropshipping is a separate portal at /vendor/dropship.
  */
 export default async function VendorDashboardPage() {
   const session = await getSessionProfile();
@@ -16,7 +16,9 @@ export default async function VendorDashboardPage() {
   if (!vendor) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Vendor management</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Independent Vendor Portal
+        </h1>
         <p className="text-zinc-600">
           You do not have a store application yet. Submit one to start selling
           after admin approval.
@@ -34,8 +36,8 @@ export default async function VendorDashboardPage() {
   const vendorActions = [
     {
       href: "/vendor/products",
-      title: "Product",
-      body: "Add and edit manual / custom-sourced products for your storefront.",
+      title: "Products",
+      body: "Manual / custom-sourced products for your storefront.",
     },
     {
       href: "/vendor/settings",
@@ -45,12 +47,17 @@ export default async function VendorDashboardPage() {
     {
       href: "/vendor/orders",
       title: "Orders",
-      body: "Manual / custom-sourced orders you fulfill yourself.",
+      body: "Custom-sourced orders you fulfill yourself.",
     },
     {
       href: "/vendor/tracking",
       title: "Tracking",
-      body: "Shipment tracking for your local / custom-sourced orders.",
+      body: "Shipment tracking for local / custom-sourced orders.",
+    },
+    {
+      href: "/vendor/disputes",
+      title: "Disputes",
+      body: "Buyer disputes for custom-sourced orders only.",
     },
   ] as const;
 
@@ -58,12 +65,16 @@ export default async function VendorDashboardPage() {
     <div className="space-y-8">
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-          Vendor management
+          Independent Vendor Portal
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">{vendor.name}</h1>
           <VendorStatusBadge status={vendor.status} />
         </div>
+        <p className="text-zinc-600">
+          Custom sourcing only — Products, Store, Orders, Tracking, and Disputes.
+          CJ Dropshipping is a separate portal.
+        </p>
         <p className="text-zinc-600">
           Public store:{" "}
           <Link href={`/store/${vendor.slug}`} className="font-medium underline">
@@ -74,9 +85,8 @@ export default async function VendorDashboardPage() {
 
       {vendor.status === "pending" ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Your application is pending admin review. You can explore Vendor
-          management, but products will not appear on the storefront until you
-          are approved.
+          Your application is pending admin review. Products will not appear on
+          the storefront until you are approved.
         </div>
       ) : null}
 
@@ -95,8 +105,7 @@ export default async function VendorDashboardPage() {
 
       {vendor.status === "approved" ? (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-          Your store is approved. Manage Product, Store, Orders, and Tracking
-          here. CJ Dropshipping lives in a separate Dropshipper workspace.
+          Store approved. Use this portal for custom-source ops only.
         </div>
       ) : null}
 
@@ -104,7 +113,7 @@ export default async function VendorDashboardPage() {
         <p className="max-w-2xl text-zinc-600">{vendor.description}</p>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {vendorActions.map((item) => (
           <Link
             key={item.href}
@@ -119,24 +128,6 @@ export default async function VendorDashboardPage() {
             </p>
           </Link>
         ))}
-      </div>
-
-      <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-zinc-600">
-        <Link href="/vendor/profile" className="underline">
-          Profile & settings
-        </Link>
-        <Link href="/vendor/kyc" className="underline">
-          KYC
-        </Link>
-        <Link href="/vendor/wallet" className="underline">
-          Wallet
-        </Link>
-        <Link
-          href="/vendor/dropship"
-          className="font-medium text-sky-800 underline"
-        >
-          Open Dropshipper workspace
-        </Link>
       </div>
     </div>
   );

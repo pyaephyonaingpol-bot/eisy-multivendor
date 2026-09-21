@@ -49,17 +49,12 @@ export default async function VendorOrdersPage() {
     <div className="space-y-6">
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-          Vendor · Manual fulfillment
+          Independent Vendor Portal
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
         <p className="text-zinc-600">
-          Local / custom-sourced orders you fulfill yourself. CJ Dropshipping
-          API orders live under Dropshipper → CJ orders.
-        </p>
-        <p className="text-sm text-zinc-500">
-          <Link href="/vendor/dropship/orders" className="font-medium underline">
-            Open CJ orders
-          </Link>
+          Custom-sourced orders you fulfill yourself. CJ orders are in the CJ
+          Dropshipping Portal.
         </p>
       </div>
 

@@ -10,15 +10,13 @@ export type VendorNavLink = {
 
 type Props = {
   vendorTitle: string;
-  profileTitle: string;
   dropshipTitle: string;
   vendorLinks: VendorNavLink[];
-  profileLinks: VendorNavLink[];
   dropshipLinks: VendorNavLink[];
   vendorHomeHref?: string;
   dropshipHomeHref?: string;
-  switchToVendorLabel?: string;
-  switchToDropshipLabel?: string;
+  accountHref?: string;
+  accountLabel?: string;
   backLabel: string;
 };
 
@@ -28,27 +26,17 @@ function linkIsActive(pathname: string, href: string) {
   if (hrefPath !== "/vendor/dashboard" && pathname.startsWith(`${hrefPath}/`)) {
     return true;
   }
-  // Query-scoped support links (channel=manual|cj)
-  if (href.includes("?")) {
-    return false;
-  }
   return false;
 }
 
-function isDropshipPath(pathname: string, dropshipLinks: VendorNavLink[]) {
-  if (
+function isCjPortalPath(pathname: string) {
+  return (
     pathname.startsWith("/vendor/dropship") ||
     pathname.startsWith("/vendor/sourcing") ||
     pathname.startsWith("/vendor/import") ||
     pathname.startsWith("/vendor/integrations") ||
     pathname.startsWith("/vendor/fees")
-  ) {
-    return true;
-  }
-  return dropshipLinks.some((link) => {
-    const path = link.href.split("?")[0] || link.href;
-    return pathname === path || pathname.startsWith(`${path}/`);
-  });
+  );
 }
 
 function NavSection({
@@ -60,19 +48,14 @@ function NavSection({
   title: string;
   links: VendorNavLink[];
   pathname: string;
-  accent: "vendor" | "profile" | "dropship";
+  accent: "vendor" | "dropship";
 }) {
-  const headingClass =
-    accent === "dropship"
-      ? "text-sky-800/80"
-      : accent === "profile"
-        ? "text-zinc-400"
-        : "text-zinc-500";
-
   return (
     <div className="space-y-2">
       <p
-        className={`px-1 text-[11px] font-semibold uppercase tracking-wider md:px-0 ${headingClass}`}
+        className={`px-1 text-[11px] font-semibold uppercase tracking-wider md:px-0 ${
+          accent === "dropship" ? "text-sky-800/80" : "text-zinc-500"
+        }`}
       >
         {title}
       </p>
@@ -104,43 +87,41 @@ function NavSection({
 }
 
 /**
- * Seller portal nav — shows either Vendor or Dropshipper workspace menus,
- * never both at once, so Product/Orders/Tracking never overlap with
- * Dropshipper Orders/Catalog/Imported products.
+ * Two fully independent portals — only one sidebar menu is visible at a time.
+ * Independent Vendor and CJ Dropshipping never share nav items.
  */
 export function VendorPortalNav({
   vendorTitle,
-  profileTitle,
   dropshipTitle,
   vendorLinks,
-  profileLinks,
   dropshipLinks,
   vendorHomeHref = "/vendor/dashboard",
   dropshipHomeHref = "/vendor/dropship",
-  switchToVendorLabel = "← Vendor management",
-  switchToDropshipLabel = "Dropshipper workspace →",
+  accountHref = "/vendor/profile",
+  accountLabel = "Account",
   backLabel,
 }: Props) {
   const pathname = usePathname() || "/vendor/dashboard";
-  const inDropship = isDropshipPath(pathname, dropshipLinks);
+  const inCjPortal = isCjPortalPath(pathname);
 
   return (
     <nav
       className="-mx-1 space-y-4 overflow-x-auto px-1 pb-1 text-sm [scrollbar-width:none] md:overflow-visible md:pb-0 [&::-webkit-scrollbar]:hidden"
-      aria-label={inDropship ? "Dropshipper management" : "Vendor management"}
+      aria-label={
+        inCjPortal ? "CJ Dropshipping Portal" : "Independent Vendor Portal"
+      }
     >
-      {/* Workspace switcher — exclusive modes */}
       <div
         className="grid grid-cols-2 gap-1 rounded-xl border border-zinc-200 bg-zinc-100/80 p-1"
         role="tablist"
-        aria-label="Seller workspace"
+        aria-label="Seller portals"
       >
         <Link
           href={vendorHomeHref}
           role="tab"
-          aria-selected={!inDropship}
-          className={`rounded-lg px-2 py-2 text-center text-xs font-semibold transition sm:text-sm ${
-            !inDropship
+          aria-selected={!inCjPortal}
+          className={`rounded-lg px-2 py-2 text-center text-[11px] font-semibold leading-tight transition sm:text-xs ${
+            !inCjPortal
               ? "bg-white text-zinc-950 shadow-sm"
               : "text-zinc-500 hover:text-zinc-800"
           }`}
@@ -150,9 +131,9 @@ export function VendorPortalNav({
         <Link
           href={dropshipHomeHref}
           role="tab"
-          aria-selected={inDropship}
-          className={`rounded-lg px-2 py-2 text-center text-xs font-semibold transition sm:text-sm ${
-            inDropship
+          aria-selected={inCjPortal}
+          className={`rounded-lg px-2 py-2 text-center text-[11px] font-semibold leading-tight transition sm:text-xs ${
+            inCjPortal
               ? "bg-sky-50 text-sky-950 shadow-sm ring-1 ring-sky-200"
               : "text-zinc-500 hover:text-sky-900"
           }`}
@@ -161,52 +142,40 @@ export function VendorPortalNav({
         </Link>
       </div>
 
-      {inDropship ? (
-        <div className="space-y-3 rounded-xl border border-sky-200 bg-sky-50/60 p-2 md:border-0 md:bg-transparent md:p-0">
+      {inCjPortal ? (
+        <div className="space-y-3 rounded-xl border border-sky-200 bg-sky-50/70 p-2.5 md:border-sky-100 md:bg-sky-50/40">
           <NavSection
             title={dropshipTitle}
             links={dropshipLinks}
             pathname={pathname}
             accent="dropship"
           />
-          <Link
-            href={vendorHomeHref}
-            className="inline-flex text-xs font-medium text-zinc-500 underline-offset-2 hover:text-zinc-900 hover:underline md:px-1"
-          >
-            {switchToVendorLabel}
-          </Link>
         </div>
       ) : (
-        <div className="space-y-3 rounded-xl border border-zinc-200 bg-zinc-50/80 p-2 md:border-0 md:bg-transparent md:p-0">
+        <div className="space-y-3 rounded-xl border border-zinc-300 bg-zinc-50/90 p-2.5 md:border-zinc-200 md:bg-zinc-50/60">
           <NavSection
             title={vendorTitle}
             links={vendorLinks}
             pathname={pathname}
             accent="vendor"
           />
-          <div className="rounded-lg border border-dashed border-zinc-200 bg-white/70 p-2 md:border-0 md:bg-transparent md:p-0">
-            <NavSection
-              title={profileTitle}
-              links={profileLinks}
-              pathname={pathname}
-              accent="profile"
-            />
-          </div>
-          <Link
-            href={dropshipHomeHref}
-            className="inline-flex text-xs font-medium text-sky-800 underline-offset-2 hover:underline md:px-1"
-          >
-            {switchToDropshipLabel}
-          </Link>
         </div>
       )}
 
-      <Link
-        href="/"
-        className="inline-flex whitespace-nowrap rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-zinc-400 hover:text-zinc-950 md:rounded-none md:border-0 md:bg-transparent md:px-0 md:pb-0 md:pt-2"
-      >
-        {backLabel}
-      </Link>
+      <div className="space-y-2 border-t border-zinc-200 pt-3 md:pt-2">
+        <Link
+          href={accountHref}
+          className="inline-flex whitespace-nowrap rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-zinc-500 hover:text-zinc-950 md:rounded-none md:border-0 md:bg-transparent md:px-0 md:py-0"
+        >
+          {accountLabel}
+        </Link>
+        <Link
+          href="/"
+          className="block whitespace-nowrap rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-zinc-400 hover:text-zinc-950 md:rounded-none md:border-0 md:bg-transparent md:px-0 md:py-0"
+        >
+          {backLabel}
+        </Link>
+      </div>
     </nav>
   );
 }

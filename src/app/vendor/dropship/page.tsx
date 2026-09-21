@@ -11,8 +11,8 @@ import { getVendorForOwner } from "@/lib/vendors/queries";
 export const dynamic = "force-dynamic";
 
 /**
- * Dropshipper workspace hub — Orders, Catalog, and Imported products only.
- * Vendor store ops stay under /vendor/dashboard.
+ * CJ Dropshipping Portal home — Catalog, Imported products, CJ Orders,
+ * CJ Tracking, CJ Disputes. Independent Vendor ops stay under /vendor/dashboard.
  */
 export default async function VendorDropshipHubPage() {
   const session = await getSessionProfile();
@@ -28,11 +28,11 @@ export default async function VendorDropshipHubPage() {
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold tracking-tight">
-          Dropshipper management
+          CJ Dropshipping Portal
         </h1>
         <p className="text-zinc-600">
-          Apply as a vendor first, then use this workspace for CJ orders,
-          catalog sourcing, and imported products.
+          Apply as a vendor first, then use this portal for CJ catalog, imports,
+          orders, tracking, and disputes.
         </p>
         <Link
           href="/vendor/apply"
@@ -53,19 +53,29 @@ export default async function VendorDropshipHubPage() {
 
   const cards = [
     {
-      href: "/vendor/dropship/orders",
-      title: "Orders",
-      body: "CJ Dropshipping API orders — separate from Vendor → Orders.",
-    },
-    {
       href: "/vendor/sourcing",
       title: "Catalog",
-      body: "Browse CJ Dropshipping and import listings into your CJ product list.",
+      body: "Browse CJ Dropshipping and import listings.",
     },
     {
       href: "/vendor/dropship/imported",
       title: "Imported products",
-      body: "Manage CJ imports — kept separate from Vendor → Product.",
+      body: "Manage CJ imports — separate from Vendor → Products.",
+    },
+    {
+      href: "/vendor/dropship/orders",
+      title: "CJ Orders",
+      body: "Orders fulfilled through the CJ Dropshipping API.",
+    },
+    {
+      href: "/vendor/dropship/tracking",
+      title: "CJ Tracking",
+      body: "Supplier tracking numbers and sync status from CJ.",
+    },
+    {
+      href: "/vendor/dropship/disputes",
+      title: "CJ Disputes",
+      body: "Buyer disputes for CJ orders only.",
     },
   ] as const;
 
@@ -73,18 +83,18 @@ export default async function VendorDropshipHubPage() {
     <div className="space-y-8">
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wider text-sky-800">
-          Dropshipper management
+          CJ Dropshipping Portal
         </p>
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">
-          Dropshipper workspace
+          CJ Dropshipping
         </h1>
         <p className="max-w-2xl text-sm text-zinc-600">
-          CJ Dropshipping only: Orders, Catalog, and Imported products. Store
-          ops (Product, Store, Orders, Tracking) stay under Vendor management.
+          Catalog, Imported products, CJ Orders, CJ Tracking, and CJ Disputes.
+          Custom-source ops stay in the Independent Vendor Portal.
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => (
           <Link
             key={card.href}
@@ -134,29 +144,11 @@ export default async function VendorDropshipHubPage() {
             </p>
             <p className="mt-2 text-sm text-zinc-600">
               {commissionPct}% platform fee across {commissions.order_count} paid
-              CJ dropship order{commissions.order_count === 1 ? "" : "s"}
+              CJ order{commissions.order_count === 1 ? "" : "s"}
             </p>
           </div>
         </div>
       ) : null}
-
-      <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-zinc-600">
-        <Link href="/vendor/dropship/tracking" className="underline">
-          CJ tracking
-        </Link>
-        <Link href="/vendor/support?channel=cj" className="underline">
-          CJ support
-        </Link>
-        <Link href="/vendor/integrations" className="underline">
-          Supplier panels
-        </Link>
-        <Link href="/vendor/import" className="underline">
-          Import tools
-        </Link>
-        <Link href="/vendor/dashboard" className="font-medium underline">
-          ← Vendor management
-        </Link>
-      </div>
     </div>
   );
 }

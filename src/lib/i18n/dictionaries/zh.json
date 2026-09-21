@@ -18,13 +18,13 @@
     "adminDashboard": "管理后台"
   },
   "vendorNav": {
-    "title": "卖家中心",
-    "subtitle": "卖家与代发",
-    "storeSection": "卖家",
-    "dropshipSection": "代发商",
+    "title": "卖家入口",
+    "subtitle": "独立卖家或 CJ 代发",
+    "storeSection": "独立卖家",
+    "dropshipSection": "CJ 代发",
     "dropshipHub": "工作台",
     "overview": "概览",
-    "profile": "资料",
+    "profile": "账户",
     "kyc": "KYC 认证",
     "storeBranding": "店铺品牌",
     "application": "申请",
@@ -36,7 +36,7 @@
     "wallet": "钱包",
     "orders": "订单",
     "backToStorefront": "← 返回商城",
-    "vendorSection": "卖家",
+    "vendorSection": "独立卖家",
     "profileSection": "资料与设置",
     "kycShort": "KYC",
     "email": "邮箱",
@@ -47,7 +47,11 @@
     "tracking": "物流跟踪",
     "catalog": "目录",
     "importedProducts": "已导入商品",
-    "dropshipOrders": "订单"
+    "dropshipOrders": "CJ 订单",
+    "disputes": "纠纷",
+    "cjOrders": "CJ 订单",
+    "cjTracking": "CJ 物流",
+    "cjDisputes": "CJ 纠纷"
   },
   "sourcing": {
     "title": "商品货源",

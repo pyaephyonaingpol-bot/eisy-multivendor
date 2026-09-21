@@ -47,24 +47,12 @@ export default async function VendorTrackingPage() {
     <div className="space-y-6">
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-          Vendor · Manual tracking
+          Independent Vendor Portal
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">Tracking</h1>
         <p className="max-w-2xl text-zinc-600">
-          Local shipment tracking for custom-sourced orders. CJ API tracking
-          lives under Dropshipper → CJ tracking.
-        </p>
-        <p className="text-sm text-zinc-500">
-          <Link href="/vendor/orders" className="font-medium underline">
-            Manual orders
-          </Link>
-          {" · "}
-          <Link
-            href="/vendor/dropship/tracking"
-            className="font-medium underline"
-          >
-            CJ tracking
-          </Link>
+          Shipment tracking for custom-sourced orders. CJ tracking is in the CJ
+          Dropshipping Portal.
         </p>
       </div>
 

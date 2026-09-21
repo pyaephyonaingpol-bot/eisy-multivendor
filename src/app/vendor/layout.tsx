@@ -11,30 +11,25 @@ export default async function VendorLayout({
   const locale = await getRequestLocale();
   const t = getDictionary(locale);
 
-  // Vendor management — storefront ops only (never dropship routes).
+  // Independent Vendor Portal — custom sources only (zero CJ overlap).
   const vendorLinks = [
-    { href: "/vendor/products", label: t.vendorNav.product },
+    { href: "/vendor/products", label: t.vendorNav.products },
     { href: "/vendor/settings", label: t.vendorNav.store },
     { href: "/vendor/orders", label: t.vendorNav.orders },
     { href: "/vendor/tracking", label: t.vendorNav.tracking },
+    { href: "/vendor/disputes", label: t.vendorNav.disputes },
   ];
 
-  const profileLinks = [
-    { href: "/vendor/kyc", label: t.vendorNav.kycShort },
-    { href: "/vendor/profile/email", label: t.vendorNav.email },
-    { href: "/vendor/profile/phone", label: t.vendorNav.phone },
-    { href: "/vendor/profile/address", label: t.vendorNav.address },
-    { href: "/vendor/wallet", label: t.vendorNav.wallet },
-  ];
-
-  // Dropshipper management — CJ workspace only (never vendor store routes).
+  // CJ Dropshipping Portal — CJ workflow only (zero vendor overlap).
   const dropshipLinks = [
-    { href: "/vendor/dropship/orders", label: t.vendorNav.dropshipOrders },
     { href: "/vendor/sourcing", label: t.vendorNav.catalog },
     {
       href: "/vendor/dropship/imported",
       label: t.vendorNav.importedProducts,
     },
+    { href: "/vendor/dropship/orders", label: t.vendorNav.cjOrders },
+    { href: "/vendor/dropship/tracking", label: t.vendorNav.cjTracking },
+    { href: "/vendor/dropship/disputes", label: t.vendorNav.cjDisputes },
   ];
 
   return (
@@ -51,13 +46,13 @@ export default async function VendorLayout({
         </div>
         <VendorPortalNav
           vendorTitle={t.vendorNav.vendorSection}
-          profileTitle={t.vendorNav.profileSection}
           dropshipTitle={t.vendorNav.dropshipSection}
           vendorLinks={vendorLinks}
-          profileLinks={profileLinks}
           dropshipLinks={dropshipLinks}
           vendorHomeHref="/vendor/dashboard"
           dropshipHomeHref="/vendor/dropship"
+          accountHref="/vendor/profile"
+          accountLabel={t.vendorNav.profile}
           backLabel={t.vendorNav.backToStorefront}
         />
       </aside>

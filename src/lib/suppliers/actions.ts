@@ -154,14 +154,31 @@ function resolveImportListingCopy(
   formData: FormData,
   remote: ExternalCatalogProduct,
 ): { name: string; description: string } {
-  const nameOverride = String(formData.get("name") ?? "").trim();
+  const nameOverride = String(
+    formData.get("name") ?? formData.get("title") ?? "",
+  ).trim();
   const descriptionOverride = String(formData.get("description") ?? "").trim();
+
+  // Never insert a null/empty product title — prefer override, then CJ mapping,
+  // then a deterministic fallback from the external product id.
+  const rawName = nameOverride || remote.name?.trim() || "";
+  const sanitizedName =
+    rawName &&
+    rawName.toLowerCase() !== "null" &&
+    rawName.toLowerCase() !== "undefined"
+      ? rawName
+      : remote.externalProductId
+        ? `${supplierPlatformLabel(remote.providerKind)} product ${remote.externalProductId}`
+        : `${supplierPlatformLabel(remote.providerKind)} product`;
+
+  const description =
+    descriptionOverride ||
+    remote.description?.trim() ||
+    `${sanitizedName} imported from ${supplierPlatformLabel(remote.providerKind)}.`;
+
   return {
-    name: (nameOverride || remote.name).slice(0, 180),
-    description:
-      descriptionOverride ||
-      remote.description ||
-      `${remote.name} imported from ${supplierPlatformLabel(remote.providerKind)}.`,
+    name: sanitizedName.slice(0, 180),
+    description,
   };
 }
 

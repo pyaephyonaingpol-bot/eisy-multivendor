@@ -332,6 +332,57 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return null;
 }
 
+/** Coerce CJ payload scalars into a non-empty trimmed string (or null). */
+function pickCjText(...candidates: unknown[]): string | null {
+  for (const candidate of candidates) {
+    if (candidate == null) continue;
+    if (typeof candidate === "number" && Number.isFinite(candidate)) {
+      const asNum = String(candidate).trim();
+      if (asNum) return asNum;
+      continue;
+    }
+    if (typeof candidate !== "string") continue;
+    const text = candidate.trim();
+    if (
+      !text ||
+      text.toLowerCase() === "null" ||
+      text.toLowerCase() === "undefined"
+    ) {
+      continue;
+    }
+    return text;
+  }
+  return null;
+}
+
+/**
+ * CJ list/detail payloads use several title keys across API versions.
+ * Prefer English title fields, then localized / generic name keys.
+ */
+export function pickCjProductTitle(
+  row: Record<string, unknown>,
+  fallback = "CJ product",
+): string {
+  const title =
+    pickCjText(
+      row.productNameEn,
+      row.nameEn,
+      row.productTitleEn,
+      row.titleEn,
+      row.productName,
+      row.productTitle,
+      row.title,
+      row.name,
+      row.spu,
+      row.productSku,
+      row.sku,
+      row.pid,
+      row.productId,
+      row.id,
+    ) ?? fallback;
+  return title.slice(0, 180);
+}
+
 function collectImages(row: Record<string, unknown>): string[] {
   const candidates = [
     row.bigImage,
@@ -608,6 +659,7 @@ function mapCjProduct(row: Record<string, unknown>): ExternalCatalogProduct {
   const stockQuantity = productLevelStock(row) ?? variantStockSum;
 
   const firstVariant = variants[0] ?? null;
+  const title = pickCjProductTitle(row, "CJ product");
 
   return {
     providerKind: "cj_dropshipping",
@@ -620,14 +672,10 @@ function mapCjProduct(row: Record<string, unknown>): ExternalCatalogProduct {
       firstVariant?.externalSku ||
       String(row.productSku ?? row.sku ?? row.spu ?? "").trim() ||
       null,
-    name: String(
-      row.productNameEn ?? row.nameEn ?? row.productName ?? row.name ?? "CJ product",
-    ),
+    name: title,
     description:
-      (row.description as string | null | undefined) ??
-      (row.productNameEn as string | null | undefined) ??
-      (row.nameEn as string | null | undefined) ??
-      null,
+      pickCjText(row.description, row.productDescription, row.desc) ??
+      title,
     imageUrl: images[0] ?? null,
     images,
     priceUsdt:
@@ -732,7 +780,10 @@ function extractCjProductRows(json: CjJson): Record<string, unknown>[] {
         blockRec.pid ||
         blockRec.productId ||
         blockRec.nameEn ||
-        blockRec.productNameEn
+        blockRec.productNameEn ||
+        blockRec.title ||
+        blockRec.productTitle ||
+        blockRec.productName
       ) {
         // Some payloads may flatten products directly into content[].
         rows.push(blockRec);

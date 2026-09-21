@@ -55,7 +55,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
               <img
                 src={heroImage}
                 alt={product.name}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain object-center p-3"
               />
             ) : (
               <div className="flex h-full items-center justify-center text-sm text-zinc-400">
@@ -71,7 +71,11 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
                   className="aspect-square overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={url}
+                    alt=""
+                    className="h-full w-full object-contain object-center p-1"
+                  />
                 </li>
               ))}
             </ul>

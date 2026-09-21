@@ -174,13 +174,13 @@ export function ExternalSupplierCatalogPanel({
                 className="flex min-w-0 max-w-full flex-col overflow-hidden rounded-xl border border-zinc-100"
               >
                 <div className="flex min-w-0 gap-3 p-3">
-                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-zinc-100 sm:h-24 sm:w-24">
+                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-zinc-50 sm:h-24 sm:w-24">
                     {product.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={product.imageUrl}
                         alt=""
-                        className="h-full w-full max-w-full object-cover"
+                        className="h-full w-full object-contain object-center p-1"
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-wide text-zinc-400">

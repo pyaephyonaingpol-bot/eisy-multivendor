@@ -94,7 +94,7 @@ export default async function DropshipImportedProductsPage() {
                       <img
                         src={thumbnail}
                         alt=""
-                        className="h-full w-full max-w-full object-cover"
+                        className="h-full w-full object-contain object-center p-0.5"
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-wide text-zinc-400">
@@ -112,8 +112,11 @@ export default async function DropshipImportedProductsPage() {
                       </span>
                     </div>
                     <p className="break-words text-sm text-zinc-500">
-                      {formatMoney(Number(product.price), product.currency)} ·{" "}
-                      {product.status} · Supplier stock{" "}
+                      {formatMoney(Number(product.price), product.currency)}
+                      {product.compare_at_price != null
+                        ? ` · was ${formatMoney(Number(product.compare_at_price), product.currency)}`
+                        : ""}{" "}
+                      · {product.status} · Supplier stock{" "}
                       {product.stock_quantity}
                     </p>
                   </div>

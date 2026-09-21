@@ -328,13 +328,13 @@ export function UnifiedSupplierSourcingCatalog({
                 key={`${product.providerKind}:${product.externalProductId}`}
                 className="flex min-w-0 max-w-full flex-col overflow-hidden rounded-xl border border-zinc-100"
               >
-                <div className="aspect-[4/3] w-full max-w-full overflow-hidden bg-zinc-100 sm:aspect-square">
+                <div className="aspect-[4/3] w-full max-w-full overflow-hidden bg-zinc-50 sm:aspect-square">
                   {product.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={product.imageUrl}
                       alt=""
-                      className="h-full w-full max-w-full object-cover"
+                      className="h-full w-full object-contain object-center p-2"
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-xs text-zinc-400">

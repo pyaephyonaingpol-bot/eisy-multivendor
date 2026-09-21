@@ -51,6 +51,24 @@ function suggestedSellPrice(costUsdt: number) {
   return Math.round(costUsdt * ONE_CLICK_IMPORT_MARKUP * 100) / 100;
 }
 
+function suggestedComparePrice(
+  sellPrice: number,
+  remoteCompare: number | null | undefined,
+) {
+  if (remoteCompare != null && Number.isFinite(remoteCompare) && remoteCompare > sellPrice) {
+    return Math.round(remoteCompare * 100) / 100;
+  }
+  return Math.round(sellPrice * 1.25 * 100) / 100;
+}
+
+/** Shared product photo frame — contain (no crop/stretch) inside a fixed aspect box. */
+const PRODUCT_IMAGE_FRAME =
+  "relative aspect-square w-full overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50";
+const PRODUCT_IMAGE_CLASS =
+  "absolute inset-0 h-full w-full object-contain object-center p-2";
+const PRODUCT_THUMB_CLASS =
+  "h-full w-full object-contain object-center p-0.5";
+
 function SkeletonBlock({ className = "" }: { className?: string }) {
   return (
     <div
@@ -93,6 +111,13 @@ export function SupplierProductPreviewModal({
         )
       : "",
   );
+  const [editComparePrice, setEditComparePrice] = useState(() => {
+    if (!seedProduct) return "";
+    const sell = suggestedSellPrice(
+      seedProduct.variants?.[0]?.priceUsdt ?? seedProduct.priceUsdt,
+    );
+    return String(suggestedComparePrice(sell, seedProduct.compareAtPriceUsdt));
+  });
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [, startTransition] = useTransition();
 
@@ -116,12 +141,12 @@ export function SupplierProductPreviewModal({
       setEditDescription(seedProduct.description ?? "");
       const firstVariant = seedProduct.variants?.[0] ?? null;
       setSelectedVariant(firstVariant);
-      setEditPrice(
-        String(
-          suggestedSellPrice(
-            firstVariant?.priceUsdt ?? seedProduct.priceUsdt,
-          ),
-        ),
+      const sell = suggestedSellPrice(
+        firstVariant?.priceUsdt ?? seedProduct.priceUsdt,
+      );
+      setEditPrice(String(sell));
+      setEditComparePrice(
+        String(suggestedComparePrice(sell, seedProduct.compareAtPriceUsdt)),
       );
       setLoading(false);
     } else {
@@ -129,6 +154,7 @@ export function SupplierProductPreviewModal({
       setEditName("");
       setEditDescription("");
       setEditPrice("");
+      setEditComparePrice("");
       setSelectedVariant(null);
       setLoading(true);
     }
@@ -166,8 +192,10 @@ export function SupplierProductPreviewModal({
             ) ||
             variants[0] ||
             null;
-          setEditPrice(
-            String(suggestedSellPrice(preferred?.priceUsdt ?? p.priceUsdt)),
+          const sell = suggestedSellPrice(preferred?.priceUsdt ?? p.priceUsdt);
+          setEditPrice(String(sell));
+          setEditComparePrice(
+            String(suggestedComparePrice(sell, p.compareAtPriceUsdt)),
           );
           return preferred;
         });
@@ -213,18 +241,29 @@ export function SupplierProductPreviewModal({
 
   const costUsdt = selectedVariant?.priceUsdt ?? product?.priceUsdt ?? 0;
   const parsedSell = Number(editPrice);
+  const parsedCompare = Number(editComparePrice);
   const sellOk =
     Number.isFinite(parsedSell) && parsedSell > 0 && parsedSell >= costUsdt;
+  const compareOk =
+    editComparePrice.trim() === "" ||
+    (Number.isFinite(parsedCompare) &&
+      parsedCompare > 0 &&
+      parsedCompare > parsedSell);
   const margin =
     sellOk && costUsdt > 0
       ? Math.round(((parsedSell - costUsdt) / costUsdt) * 1000) / 10
       : null;
   const showSkeleton = loading && !product;
-  const canImport = Boolean(product) && !loading && sellOk && !quota.atImportLimit;
+  const canImport =
+    Boolean(product) && !loading && sellOk && compareOk && !quota.atImportLimit;
 
   function applyVariant(v: ExternalProductVariant) {
     setSelectedVariant(v);
-    setEditPrice(String(suggestedSellPrice(v.priceUsdt)));
+    const sell = suggestedSellPrice(v.priceUsdt);
+    setEditPrice(String(sell));
+    setEditComparePrice(
+      String(suggestedComparePrice(sell, product?.compareAtPriceUsdt)),
+    );
     if (v.imageUrl) {
       const idx = images.indexOf(v.imageUrl);
       if (idx >= 0) {
@@ -235,12 +274,15 @@ export function SupplierProductPreviewModal({
   }
 
   function submitImport() {
-    if (!product || quota.atImportLimit || !sellOk) return;
+    if (!product || quota.atImportLimit || !sellOk || !compareOk) return;
     const fd = new FormData();
     fd.set("provider_kind", providerKind);
     fd.set("external_product_id", product.externalProductId);
     fd.set("region_code", regionCode);
     fd.set("price", String(parsedSell));
+    if (editComparePrice.trim() !== "" && compareOk) {
+      fd.set("compare_at_price", String(parsedCompare));
+    }
     fd.set("name", editName.trim() || product.name);
     fd.set("description", editDescription.trim() || product.description || "");
     if (selectedVariant) {
@@ -300,7 +342,7 @@ export function SupplierProductPreviewModal({
 
           <div className="grid min-h-[28rem] min-w-0 gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
             <div className="min-w-0 space-y-3">
-              <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100">
+              <div className={PRODUCT_IMAGE_FRAME}>
                 {!imageReady || !heroSrc ? (
                   <div className="absolute inset-0 animate-pulse bg-zinc-200/80" />
                 ) : null}
@@ -312,7 +354,7 @@ export function SupplierProductPreviewModal({
                     alt={product?.name ?? ""}
                     onLoad={() => setImageReady(true)}
                     onError={() => setImageReady(true)}
-                    className={`absolute inset-0 h-full w-full max-w-full object-contain transition-opacity duration-200 sm:object-cover ${
+                    className={`${PRODUCT_IMAGE_CLASS} transition-opacity duration-200 ${
                       imageReady ? "opacity-100" : "opacity-0"
                     }`}
                   />
@@ -332,7 +374,7 @@ export function SupplierProductPreviewModal({
                           setActiveImage(i);
                           setImageReady(false);
                         }}
-                        className={`h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 ${
+                        className={`h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 bg-zinc-50 ${
                           i === activeImage
                             ? "border-emerald-700"
                             : "border-zinc-200"
@@ -342,7 +384,7 @@ export function SupplierProductPreviewModal({
                         <img
                           src={src}
                           alt=""
-                          className="h-full w-full max-w-full object-cover"
+                          className={PRODUCT_THUMB_CLASS}
                         />
                       </button>
                     ))
@@ -512,59 +554,122 @@ export function SupplierProductPreviewModal({
                 )}
               </label>
 
-              <label className="block min-h-[5.5rem] space-y-1">
-                <span className="text-xs font-medium text-zinc-600">
-                  Your selling price ({MARKETPLACE_CURRENCY})
-                </span>
-                {showSkeleton ? (
-                  <SkeletonBlock className="h-10 w-36" />
-                ) : (
-                  <>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        type="number"
-                        min={costUsdt || 0.01}
-                        step="0.01"
-                        value={editPrice}
-                        onChange={(e) => setEditPrice(e.target.value)}
-                        className="h-10 w-36 rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-950 outline-none focus:border-emerald-700"
-                      />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block min-h-[5.5rem] space-y-1">
+                  <span className="text-xs font-medium text-zinc-600">
+                    Selling price ({MARKETPLACE_CURRENCY})
+                  </span>
+                  {showSkeleton ? (
+                    <SkeletonBlock className="h-10 w-full" />
+                  ) : (
+                    <>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          type="number"
+                          min={costUsdt || 0.01}
+                          step="0.01"
+                          value={editPrice}
+                          onChange={(e) => {
+                            const next = e.target.value;
+                            setEditPrice(next);
+                            const sell = Number(next);
+                            if (
+                              Number.isFinite(sell) &&
+                              sell > 0 &&
+                              (editComparePrice.trim() === "" ||
+                                Number(editComparePrice) <= sell)
+                            ) {
+                              setEditComparePrice(
+                                String(
+                                  suggestedComparePrice(
+                                    sell,
+                                    product?.compareAtPriceUsdt,
+                                  ),
+                                ),
+                              );
+                            }
+                          }}
+                          className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-950 outline-none focus:border-emerald-700"
+                        />
+                      </div>
                       <button
                         type="button"
-                        onClick={() =>
-                          setEditPrice(String(suggestedSellPrice(costUsdt)))
-                        }
-                        className="h-10 rounded-md border border-zinc-200 px-2.5 text-xs text-zinc-600 hover:bg-zinc-50"
+                        onClick={() => {
+                          const sell = suggestedSellPrice(costUsdt);
+                          setEditPrice(String(sell));
+                          setEditComparePrice(
+                            String(
+                              suggestedComparePrice(
+                                sell,
+                                product?.compareAtPriceUsdt,
+                              ),
+                            ),
+                          );
+                        }}
+                        className="h-8 rounded-md border border-zinc-200 px-2.5 text-[11px] text-zinc-600 hover:bg-zinc-50"
                       >
                         Reset to +
-                        {Math.round((ONE_CLICK_IMPORT_MARKUP - 1) * 100)}% markup
+                        {Math.round((ONE_CLICK_IMPORT_MARKUP - 1) * 100)}%
+                        markup
                       </button>
-                    </div>
-                    <p className="min-h-4 text-xs text-zinc-500">
-                      {margin != null ? (
-                        <>
-                          Est. margin vs supplier:{" "}
-                          <span
-                            className={
-                              margin >= 0 ? "text-emerald-700" : "text-red-700"
-                            }
-                          >
-                            {margin >= 0 ? "+" : ""}
-                            {margin}%
+                      <p className="min-h-4 text-xs text-zinc-500">
+                        {margin != null ? (
+                          <>
+                            Est. margin vs supplier:{" "}
+                            <span
+                              className={
+                                margin >= 0
+                                  ? "text-emerald-700"
+                                  : "text-red-700"
+                              }
+                            >
+                              {margin >= 0 ? "+" : ""}
+                              {margin}%
+                            </span>
+                          </>
+                        ) : !sellOk && editPrice !== "" ? (
+                          <span className="text-red-700">
+                            Sell price must be at least{" "}
+                            {formatMoney(costUsdt, MARKETPLACE_CURRENCY)}.
                           </span>
-                        </>
-                      ) : !sellOk && editPrice !== "" ? (
-                        <span className="text-red-700">
-                          Sell price must be at least{" "}
-                          {formatMoney(costUsdt, MARKETPLACE_CURRENCY)}.
-                        </span>
-                      ) : (
-                        "\u00a0"
-                      )}
-                    </p>
-                  </>
-                )}
-              </label>
+                        ) : (
+                          "\u00a0"
+                        )}
+                      </p>
+                    </>
+                  )}
+                </label>
+
+                <label className="block min-h-[5.5rem] space-y-1">
+                  <span className="text-xs font-medium text-zinc-600">
+                    Compare price ({MARKETPLACE_CURRENCY})
+                  </span>
+                  {showSkeleton ? (
+                    <SkeletonBlock className="h-10 w-full" />
+                  ) : (
+                    <>
+                      <input
+                        type="number"
+                        min={sellOk ? parsedSell + 0.01 : 0.01}
+                        step="0.01"
+                        value={editComparePrice}
+                        onChange={(e) => setEditComparePrice(e.target.value)}
+                        placeholder="Optional strikethrough"
+                        className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-950 outline-none focus:border-emerald-700"
+                      />
+                      <p className="min-h-4 text-xs text-zinc-500">
+                        {!compareOk && editComparePrice.trim() !== "" ? (
+                          <span className="text-red-700">
+                            Compare price must be higher than selling price.
+                          </span>
+                        ) : (
+                          "Shown as the crossed-out list price on your store."
+                        )}
+                      </p>
+                    </>
+                  )}
+                </label>
+              </div>
 
               <div
                 className={`min-h-[5.5rem] rounded-lg border px-3 py-2.5 text-xs ${
@@ -618,7 +723,7 @@ export function SupplierProductPreviewModal({
           <p className="break-words text-[11px] text-zinc-500">
             {confirmOpen
               ? "Confirm the import details below."
-              : "Import uses your edited title, description, price, and selected variant."}
+              : "Import uses your edited title, description, selling price, compare price, and selected variant."}
           </p>
           {!confirmOpen ? (
             <button
@@ -634,7 +739,11 @@ export function SupplierProductPreviewModal({
               <p className="break-words text-xs text-zinc-950">
                 Confirm import of{" "}
                 <strong>{editName.trim() || product?.name}</strong> at{" "}
-                {formatMoney(parsedSell, MARKETPLACE_CURRENCY)}?
+                {formatMoney(parsedSell, MARKETPLACE_CURRENCY)}
+                {editComparePrice.trim() !== "" && compareOk
+                  ? ` (compare ${formatMoney(parsedCompare, MARKETPLACE_CURRENCY)})`
+                  : ""}
+                ?
               </p>
               <p className="break-words text-[11px] text-zinc-600">
                 Minimum catalog size: {quota.minActiveItems} active items (you

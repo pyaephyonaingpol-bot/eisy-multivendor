@@ -137,12 +137,49 @@ function productPriceFields(
   const fields: {
     price: number;
     price_usdt: number;
-    compare_at_price?: number | null;
-  } = { price, price_usdt: price };
-  if (compareAtPriceUsdt != null && Number.isFinite(compareAtPriceUsdt) && compareAtPriceUsdt > price) {
+    compare_at_price: number | null;
+  } = { price, price_usdt: price, compare_at_price: null };
+  if (
+    compareAtPriceUsdt != null &&
+    Number.isFinite(compareAtPriceUsdt) &&
+    compareAtPriceUsdt > price
+  ) {
     fields.compare_at_price = sanitizeUsdtPrice(compareAtPriceUsdt, price);
   }
   return fields;
+}
+
+/**
+ * Prefer an explicit compare-at from the preview form; otherwise fall back to
+ * the supplier catalog value when it is above the sell price.
+ */
+function resolveImportCompareAtPrice(
+  formData: FormData,
+  sellPrice: number,
+  remoteCompareAt: number | null | undefined,
+): number | null {
+  const raw = String(
+    formData.get("compare_at_price") ?? formData.get("compare_price") ?? "",
+  ).trim();
+
+  if (raw !== "") {
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return null;
+    }
+    const compare = sanitizeUsdtPrice(parsed);
+    return compare > sellPrice ? compare : null;
+  }
+
+  if (
+    remoteCompareAt != null &&
+    Number.isFinite(remoteCompareAt) &&
+    remoteCompareAt > sellPrice
+  ) {
+    return sanitizeUsdtPrice(remoteCompareAt);
+  }
+
+  return null;
 }
 
 /** Non-null listing fields shared by import insert + update payloads. */
@@ -511,6 +548,11 @@ export async function importExternalSupplierProductAction(
   }
   const { price: sellPrice, oneClick } = priced;
   const minCost = sanitizeUsdtPrice(variant.supplierCostUsdt);
+  const compareAtPriceUsdt = resolveImportCompareAtPrice(
+    formData,
+    sellPrice,
+    remote.compareAtPriceUsdt,
+  );
 
   if (sellPrice + 1e-9 < minCost) {
     return {
@@ -558,7 +600,7 @@ export async function importExternalSupplierProductAction(
           name: listing.name,
           description: listing.description,
           sellPrice,
-          compareAtPriceUsdt: remote.compareAtPriceUsdt,
+          compareAtPriceUsdt,
           images: productImages,
           stockQuantity: effectiveStock ?? 0,
           sku: variant.externalSku,
@@ -651,7 +693,7 @@ export async function importExternalSupplierProductAction(
           name: listing.name,
           description: listing.description,
           sellPrice,
-          compareAtPriceUsdt: remote.compareAtPriceUsdt,
+          compareAtPriceUsdt,
           images: productImages,
           stockQuantity: effectiveStock ?? 0,
           sku: variant.externalSku,
@@ -781,7 +823,7 @@ export async function importExternalSupplierProductAction(
       name: listing.name,
       description: listing.description,
       sellPrice,
-      compareAtPriceUsdt: remote.compareAtPriceUsdt,
+      compareAtPriceUsdt,
       images: productImages,
       stockQuantity: effectiveStock ?? 0,
       sku: variant.externalSku,

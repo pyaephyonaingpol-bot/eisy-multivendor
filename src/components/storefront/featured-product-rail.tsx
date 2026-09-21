@@ -36,7 +36,7 @@ export function FeaturedProductRail({ products }: FeaturedProductRailProps) {
                     <img
                       src={image}
                       alt={product.name}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain object-center p-2"
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center text-xs text-[var(--market-muted)]">

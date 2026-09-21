@@ -1,22 +1,17 @@
 import Link from "next/link";
-import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { AccountMenu } from "@/components/layout/account-menu";
 import { BuyerAddressBook } from "@/components/profile/buyer-address-book";
 import { ProfileForm } from "@/components/profile/profile-form";
 import { listBuyerAddresses } from "@/lib/addresses/queries";
 import { getSessionProfile } from "@/lib/auth/session";
 import { getCurrentUserProfile } from "@/lib/profiles/queries";
-import { BUYER_COUNTRY_OPTIONS } from "@/lib/sourcing/constants";
 
 export const dynamic = "force-dynamic";
 
-function countryLabel(code: string | null) {
-  if (!code) return "Not set";
-  const match = BUYER_COUNTRY_OPTIONS.find((option) => option.code === code);
-  return match ? `${match.label} (${code})` : code;
-}
-
+/**
+ * Buyer account profile — details + delivery addresses only.
+ * Portal switching lives in the header Account menu.
+ */
 export default async function ProfilePage() {
   const session = await getSessionProfile();
   if (!session) {
@@ -27,17 +22,10 @@ export default async function ProfilePage() {
 
   if (!result.ok) {
     return (
-      <section className="space-y-4">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">Profile</h1>
-          <p className="text-sm text-zinc-600">
-            Your account details from Supabase Auth and the{" "}
-            <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">
-              profiles
-            </code>{" "}
-            table.
-          </p>
-        </div>
+      <section className="mx-auto max-w-2xl space-y-4 py-2">
+        <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">
+          Profile
+        </h1>
         <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
           {result.error}
         </p>
@@ -54,107 +42,60 @@ export default async function ProfilePage() {
     addresses.find((address) => address.is_default) ?? null;
 
   return (
-    <section className="space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Account</h1>
-        <p className="text-sm text-zinc-600">
-          Manage your profile, wallet, and switch between buyer and seller
-          portals from one place.
-          {result.authEmail && result.authEmail !== profile.email ? (
-            <> Signed in as {result.authEmail}.</>
-          ) : null}
-        </p>
-      </div>
+    <section className="mx-auto max-w-2xl space-y-10 py-2">
+      <header className="space-y-3">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">
+            Profile
+          </h1>
+          <p className="text-sm text-zinc-500">
+            Your personal details and delivery addresses for checkout.
+          </p>
+        </div>
+        <nav
+          aria-label="Account sections"
+          className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-zinc-200 pb-3 text-sm"
+        >
+          <span className="font-medium text-zinc-950">Profile</span>
+          <Link
+            href="/account/wallet"
+            className="text-zinc-500 transition hover:text-zinc-950"
+          >
+            Wallet
+          </Link>
+          <Link
+            href="/orders"
+            className="text-zinc-500 transition hover:text-zinc-950"
+          >
+            Orders
+          </Link>
+        </nav>
+      </header>
 
-      <Suspense
-        fallback={
-          <div className="h-40 animate-pulse rounded-2xl border border-zinc-200 bg-zinc-50" />
-        }
-      >
-        <AccountMenu
-          active="profile"
-          className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-4 sm:p-5"
-        />
-      </Suspense>
-
-      <div className="space-y-2">
-        <h2 className="text-xl font-semibold tracking-tight">Profile</h2>
-        <p className="text-sm text-zinc-600">
-          View and update your buyer profile, preferred country, and default
-          delivery address for checkout.
-        </p>
-      </div>
-
-      <dl className="grid gap-4 rounded-2xl border border-zinc-200 bg-white p-5 sm:grid-cols-2">
-        <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-            Name
-          </dt>
-          <dd className="mt-1 text-sm text-zinc-950">
-            {profile.full_name || "—"}
-          </dd>
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <h2 className="text-sm font-semibold text-zinc-950">Details</h2>
+          <p className="text-xs text-zinc-500">
+            {profile.email}
+            {profile.role ? ` · ${profile.role}` : ""}
+            {result.authEmail && result.authEmail !== profile.email
+              ? ` · signed in as ${result.authEmail}`
+              : ""}
+          </p>
         </div>
-        <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-            Email
-          </dt>
-          <dd className="mt-1 text-sm text-zinc-950">{profile.email}</dd>
-        </div>
-        <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-            Role
-          </dt>
-          <dd className="mt-1 text-sm capitalize text-zinc-950">{profile.role}</dd>
-        </div>
-        <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-            Phone
-          </dt>
-          <dd className="mt-1 text-sm text-zinc-950">{profile.phone || "—"}</dd>
-        </div>
-        <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-            Shipping country
-          </dt>
-          <dd className="mt-1 text-sm text-zinc-950">
-            {countryLabel(
-              defaultAddress?.country_code ?? profile.preferred_country_code,
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-            Default address
-          </dt>
-          <dd className="mt-1 text-sm text-zinc-950">
-            {defaultAddress
-              ? `${defaultAddress.line1}, ${defaultAddress.city}`
-              : "Not set"}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-            Member since
-          </dt>
-          <dd className="mt-1 text-sm text-zinc-950">
-            {new Date(profile.created_at).toLocaleDateString()}
-          </dd>
-        </div>
-      </dl>
-
-      <div className="space-y-3">
-        <h2 className="text-lg font-semibold tracking-tight">Edit profile</h2>
         <ProfileForm profile={profile} />
       </div>
 
-      <BuyerAddressBook
-        addresses={addresses}
-        defaultCountry={
-          profile.preferred_country_code ??
-          defaultAddress?.country_code ??
-          "MM"
-        }
-      />
+      <div className="border-t border-zinc-100 pt-10">
+        <BuyerAddressBook
+          addresses={addresses}
+          defaultCountry={
+            profile.preferred_country_code ??
+            defaultAddress?.country_code ??
+            "MM"
+          }
+        />
+      </div>
     </section>
   );
 }

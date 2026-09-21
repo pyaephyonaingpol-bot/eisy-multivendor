@@ -43,23 +43,22 @@ export function BuyerAddressBook({
   const status = saveState ?? defaultState ?? deleteState;
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
-          <h2 className="text-lg font-semibold tracking-tight">
+          <h2 className="text-sm font-semibold text-zinc-950">
             Delivery addresses
           </h2>
-          <p className="text-sm text-zinc-600">
-            Save addresses and mark one as default so checkout pre-fills
-            automatically.
+          <p className="text-xs text-zinc-500">
+            Default address pre-fills checkout.
           </p>
         </div>
         <button
           type="button"
           onClick={() => setShowForm((open) => !open)}
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
+          className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
         >
-          {showForm ? "Hide form" : "Add address"}
+          {showForm ? "Cancel" : "Add address"}
         </button>
       </div>
 

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { AccountMenu } from "@/components/layout/account-menu";
 import { PortalNavHub } from "@/components/layout/portal-nav-hub";
 
 function resolveActive(
@@ -105,9 +104,7 @@ export function SitePortalFooter({
           ) : null}
         </div>
 
-        {onAccountSurface ? (
-          <AccountMenu />
-        ) : showPortalHub ? (
+        {onAccountSurface ? null : showPortalHub ? (
           <PortalNavHub active={active} />
         ) : null}
       </div>

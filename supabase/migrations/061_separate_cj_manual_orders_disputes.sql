@@ -88,8 +88,55 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- Disputes: same channel partition (copied from order)
+-- Disputes: ensure base table exists, then add channel partition
 -- ---------------------------------------------------------------------------
+
+-- Enums + table (idempotent) — required before ALTER / VIEW / GRANT.
+do $$ begin
+  create type public.dispute_status as enum (
+    'open',
+    'under_review',
+    'resolved_refund',
+    'resolved_release',
+    'cancelled'
+  );
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create type public.dispute_reason as enum (
+    'not_received',
+    'damaged',
+    'not_as_described',
+    'wrong_item',
+    'other'
+  );
+exception when duplicate_object then null;
+end $$;
+
+create table if not exists public.disputes (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references public.orders (id) on delete cascade,
+  opened_by uuid not null references public.profiles (id) on delete restrict,
+  reason public.dispute_reason not null,
+  description text,
+  status public.dispute_status not null default 'open',
+  resolution_note text,
+  resolved_by uuid references public.profiles (id) on delete set null,
+  resolved_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists disputes_one_open_per_order_idx
+  on public.disputes (order_id)
+  where status in ('open', 'under_review');
+
+create index if not exists disputes_status_idx on public.disputes (status, created_at desc);
+create index if not exists disputes_opened_by_idx on public.disputes (opened_by);
+create index if not exists disputes_order_id_idx on public.disputes (order_id);
+
+alter table public.disputes enable row level security;
 
 alter table public.disputes
   add column if not exists fulfillment_channel public.fulfillment_channel;
@@ -486,6 +533,15 @@ from public.orders o
 left join public.cj_order_fulfillments c on c.order_id = o.id
 where o.fulfillment_channel = 'cj'::public.fulfillment_channel;
 
+-- Dispute views + grants only after public.disputes exists (created above).
+do $$
+begin
+  if to_regclass('public.disputes') is null then
+    raise exception 'public.disputes must exist before creating dispute views';
+  end if;
+end;
+$$;
+
 create or replace view public.manual_disputes as
 select * from public.disputes
 where fulfillment_channel = 'manual'::public.fulfillment_channel;
@@ -505,6 +561,7 @@ comment on view public.cj_disputes is
 
 grant select on public.manual_orders to authenticated, anon;
 grant select on public.cj_orders to authenticated, anon;
+grant select on public.disputes to authenticated, anon;
 grant select on public.manual_disputes to authenticated, anon;
 grant select on public.cj_disputes to authenticated, anon;
 

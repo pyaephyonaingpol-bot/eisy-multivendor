@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { BuyerAddressBook } from "@/components/profile/buyer-address-book";
 import { ProfileForm } from "@/components/profile/profile-form";
+import { listBuyerAddresses } from "@/lib/addresses/queries";
 import { getSessionProfile } from "@/lib/auth/session";
 import { getCurrentUserProfile } from "@/lib/profiles/queries";
 import { BUYER_COUNTRY_OPTIONS } from "@/lib/sourcing/constants";
@@ -45,14 +47,17 @@ export default async function ProfilePage() {
   }
 
   const { profile } = result;
+  const addresses = await listBuyerAddresses(profile.id);
+  const defaultAddress =
+    addresses.find((address) => address.is_default) ?? null;
 
   return (
     <section className="space-y-8">
       <div className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">Profile</h1>
         <p className="text-sm text-zinc-600">
-          View and update your buyer profile. Catalog filtering uses your
-          preferred shipping country.
+          View and update your buyer profile, preferred country, and default
+          delivery address for checkout.
           {result.authEmail && result.authEmail !== profile.email ? (
             <> Signed in as {result.authEmail}.</>
           ) : null}
@@ -91,7 +96,19 @@ export default async function ProfilePage() {
             Shipping country
           </dt>
           <dd className="mt-1 text-sm text-zinc-950">
-            {countryLabel(profile.preferred_country_code)}
+            {countryLabel(
+              defaultAddress?.country_code ?? profile.preferred_country_code,
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+            Default address
+          </dt>
+          <dd className="mt-1 text-sm text-zinc-950">
+            {defaultAddress
+              ? `${defaultAddress.line1}, ${defaultAddress.city}`
+              : "Not set"}
           </dd>
         </div>
         <div>
@@ -108,6 +125,15 @@ export default async function ProfilePage() {
         <h2 className="text-lg font-semibold tracking-tight">Edit profile</h2>
         <ProfileForm profile={profile} />
       </div>
+
+      <BuyerAddressBook
+        addresses={addresses}
+        defaultCountry={
+          profile.preferred_country_code ??
+          defaultAddress?.country_code ??
+          "MM"
+        }
+      />
 
       <p className="text-sm text-zinc-500">
         Need your balance?{" "}

@@ -164,6 +164,24 @@ export type Profile = {
   updated_at: string;
 };
 
+/** Saved buyer delivery address (address book). */
+export type BuyerAddress = {
+  id: string;
+  user_id: string;
+  label: string | null;
+  full_name: string;
+  phone: string | null;
+  line1: string;
+  line2: string | null;
+  city: string;
+  region: string | null;
+  postal_code: string | null;
+  country_code: string;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export type SourcingRegion = {
   id: string;
   code: string;
@@ -711,6 +729,16 @@ export type Database = {
         Row: Profile;
         Insert: Partial<Profile> & Pick<Profile, "id" | "email">;
         Update: Partial<Profile>;
+        Relationships: [];
+      };
+      buyer_addresses: {
+        Row: BuyerAddress;
+        Insert: Partial<BuyerAddress> &
+          Pick<
+            BuyerAddress,
+            "user_id" | "full_name" | "line1" | "city" | "country_code"
+          >;
+        Update: Partial<BuyerAddress>;
         Relationships: [];
       };
       vendors: {

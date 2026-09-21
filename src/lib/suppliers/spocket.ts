@@ -149,12 +149,6 @@ function mapSpocketProduct(row: Record<string, unknown>): ExternalCatalogProduct
   };
 }
 
-function hasSpocketKey(credentials?: SupplierCredentials | null): boolean {
-  return Boolean(
-    credentials?.apiKey?.trim() || process.env.SPOCKET_API_KEY?.trim(),
-  );
-}
-
 export async function searchSpocketProducts(
   query: string,
   credentials?: SupplierCredentials | null,
@@ -173,7 +167,7 @@ export async function searchSpocketProducts(
         : [];
     return rows.map(mapSpocketProduct);
   } catch (error) {
-    if (hasSpocketKey(credentials) || !shouldFallbackToMock()) throw error;
+    if (!shouldFallbackToMock()) throw error;
     return mockCatalog(query);
   }
 }
@@ -200,7 +194,7 @@ export async function getSpocketProduct(
     const row = (json.data ?? json.product ?? json) as Record<string, unknown>;
     return mapSpocketProduct(row);
   } catch (error) {
-    if (hasSpocketKey(credentials) || !shouldFallbackToMock()) throw error;
+    if (!shouldFallbackToMock()) throw error;
     return mockCatalog(externalProductId)[0] ?? null;
   }
 }

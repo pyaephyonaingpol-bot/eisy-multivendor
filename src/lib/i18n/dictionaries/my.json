@@ -74,6 +74,7 @@
     "daysRange": "{min}–{max} ရက်",
     "emptySearch": "ပေးသွင်းသူပစ္စည်းများ ဖွင့်ရန် ရှာဖွေပါ။",
     "emptySearchDev": "ပေးသွင်းသူပစ္စည်းများ ဖွင့်ရန် ရှာဖွေပါ (API သော့ မရှိလျှင် mock ကတ်တလောက်)။",
+    "mockCatalogBanner": "Showing mock catalog products for local testing. Set SUPPLIER_INTEGRATIONS_MODE=mock, or leave keys unset / enable SUPPLIER_INTEGRATIONS_FALLBACK_MOCK when live CJ keys are missing.",
     "searchFailed": "ရှာဖွေမှု မအောင်မြင်ပါ။",
     "catalogUnreachable": "ပေးသွင်းသူ ကတ်တလောက် API သို့ မရောက်နိုင်ပါ။",
     "sourceTabsLabel": "ပေးသွင်းသူအရင်းအမြစ်",

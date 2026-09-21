@@ -13,6 +13,7 @@ import type {
   ExternalSupplierKind,
   SupplierCredentials,
 } from "@/lib/suppliers/types";
+import { useLiveSupplierApi } from "@/lib/suppliers/types";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 
 export const runtime = "nodejs";
@@ -79,15 +80,22 @@ export async function GET(request: Request) {
           productMatchesSourcingRegion(product, regionCode),
         );
       }
+      const clientProducts = toClientCatalogProducts(products);
+      const liveAttempted = useLiveSupplierApi(singleKind, credentials);
+      const usedMock =
+        clientProducts.length > 0 &&
+        clientProducts.every((product) => product.isMock === true);
       return NextResponse.json({
         ok: true,
         provider: singleKind,
         source: sourceTab,
         query,
         region: regionCode || null,
-        count: products.length,
-        products: toClientCatalogProducts(products),
+        count: clientProducts.length,
+        products: clientProducts,
         platformManaged: true,
+        catalogMode: usedMock || !liveAttempted ? "mock" : "live",
+        usedMock,
       });
     }
 
@@ -107,15 +115,25 @@ export async function GET(request: Request) {
       regionCode: regionCode || null,
     });
 
+    const clientProducts = toClientCatalogProducts(products);
+    const usedMock =
+      clientProducts.length > 0 &&
+      clientProducts.every((product) => product.isMock === true);
+    const anyLive = kinds.some((kind) =>
+      useLiveSupplierApi(kind, credentialsByKind[kind] ?? null),
+    );
+
     return NextResponse.json({
       ok: true,
       provider: sourceTab,
       source: sourceTab,
       query,
       region: regionCode || null,
-      count: products.length,
-      products: toClientCatalogProducts(products),
+      count: clientProducts.length,
+      products: clientProducts,
       platformManaged: true,
+      catalogMode: usedMock || !anyLive ? "mock" : "live",
+      usedMock,
     });
   } catch (error) {
     return NextResponse.json(

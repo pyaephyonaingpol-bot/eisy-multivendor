@@ -74,6 +74,7 @@
     "daysRange": "{min}–{max} 天",
     "emptySearch": "运行搜索以加载供应商产品。",
     "emptySearchDev": "运行搜索以加载供应商产品（未配置 API 密钥时使用模拟目录）。",
+    "mockCatalogBanner": "Showing mock catalog products for local testing. Set SUPPLIER_INTEGRATIONS_MODE=mock, or leave keys unset / enable SUPPLIER_INTEGRATIONS_FALLBACK_MOCK when live CJ keys are missing.",
     "searchFailed": "搜索失败。",
     "catalogUnreachable": "无法连接供应商目录 API。",
     "sourceTabsLabel": "供应商来源",

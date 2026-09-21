@@ -144,6 +144,11 @@ export function supplierIntegrationsMode(): "live" | "mock" {
 /**
  * Whether a supplier adapter should call the live API for this request.
  * Uses explicit mode override, then passed credentials (DB/platform), then env.
+ *
+ * `SUPPLIER_INTEGRATIONS_MODE=mock` always uses mock catalogs (local testing).
+ * `live` still requires credentials — missing keys never force a live call that
+ * would throw; adapters return mock products instead.
+ * Default (`auto` / unset): live only when credentials exist for this kind.
  */
 export function useLiveSupplierApi(
   kind: ExternalSupplierKind,
@@ -151,8 +156,10 @@ export function useLiveSupplierApi(
 ): boolean {
   const mode = process.env.SUPPLIER_INTEGRATIONS_MODE?.trim().toLowerCase();
   if (mode === "mock") return false;
-  if (mode === "live") return true;
-  return credentialsHaveKey(credentials) || envHasKeyForKind(kind);
+  const hasCreds =
+    credentialsHaveKey(credentials) || envHasKeyForKind(kind);
+  if (mode === "live") return hasCreds;
+  return hasCreds;
 }
 
 export function slugifyExternalName(value: string): string {

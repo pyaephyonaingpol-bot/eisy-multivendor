@@ -74,6 +74,7 @@
     "daysRange": "{min}–{max} days",
     "emptySearch": "Run a search to load supplier products.",
     "emptySearchDev": "Run a search to load supplier products (mock catalogs when live API keys are unset).",
+    "mockCatalogBanner": "Showing mock catalog products for local testing. Set SUPPLIER_INTEGRATIONS_MODE=mock, or leave keys unset / enable SUPPLIER_INTEGRATIONS_FALLBACK_MOCK when live CJ keys are missing.",
     "searchFailed": "Search failed.",
     "catalogUnreachable": "Could not reach supplier catalog API.",
     "sourceTabsLabel": "Supplier source",

@@ -74,6 +74,7 @@
     "daysRange": "{min}–{max} дней",
     "emptySearch": "Запустите поиск, чтобы загрузить товары поставщиков.",
     "emptySearchDev": "Запустите поиск, чтобы загрузить товары (мок-каталоги без API-ключей).",
+    "mockCatalogBanner": "Showing mock catalog products for local testing. Set SUPPLIER_INTEGRATIONS_MODE=mock, or leave keys unset / enable SUPPLIER_INTEGRATIONS_FALLBACK_MOCK when live CJ keys are missing.",
     "searchFailed": "Поиск не удался.",
     "catalogUnreachable": "Не удалось связаться с API каталога поставщиков.",
     "sourceTabsLabel": "Источник поставщика",

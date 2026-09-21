@@ -870,12 +870,18 @@ function extractCjProductRows(json: CjJson): Record<string, unknown>[] {
   return rows;
 }
 
+/**
+ * When a live CJ call fails (missing/invalid keys, network, API errors), return
+ * mock catalog data unless SUPPLIER_INTEGRATIONS_FALLBACK_MOCK=0.
+ * Having keys configured must not block fallback — broken keys are the common
+ * local-dev case that previously surfaced as hard catalog errors.
+ */
 function maybeMockFallback<T>(
-  credentials: SupplierCredentials | null | undefined,
+  _credentials: SupplierCredentials | null | undefined,
   error: unknown,
   fallback: () => T,
 ): T {
-  if (credentialsHaveKey(credentials) || !shouldFallbackToMock()) {
+  if (!shouldFallbackToMock()) {
     throw error instanceof Error
       ? error
       : new Error("CJ live catalog request failed.");

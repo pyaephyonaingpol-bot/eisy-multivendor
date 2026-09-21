@@ -99,6 +99,7 @@ export function UnifiedSupplierSourcingCatalog({
   /** Full multi-source result set — tabs filter this client-side for instant toggles. */
   const [catalog, setCatalog] = useState<ExternalCatalogProduct[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [usedMock, setUsedMock] = useState(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [previewKind, setPreviewKind] = useState<ExternalSupplierKind | null>(
     null,
@@ -168,18 +169,32 @@ export function UnifiedSupplierSourcingCatalog({
           ok?: boolean;
           error?: string;
           products?: ExternalCatalogProduct[];
+          usedMock?: boolean;
+          catalogMode?: "mock" | "live";
         };
         if (!response.ok || payload.ok === false) {
           setError(payload.error ?? t("sourcing.searchFailed"));
           setCatalog([]);
+          setUsedMock(false);
           setHasSearched(true);
           return;
         }
-        setCatalog(payload.products ?? []);
+        const products = payload.products ?? [];
+        setCatalog(products);
+        setUsedMock(
+          payload.usedMock === true ||
+            payload.catalogMode === "mock" ||
+            products.some(
+              (product) =>
+                (product as { isMock?: boolean }).isMock === true ||
+                String(product.externalProductId ?? "").includes("-MOCK-"),
+            ),
+        );
         setHasSearched(true);
       } catch {
         setError(t("sourcing.catalogUnreachable"));
         setCatalog([]);
+        setUsedMock(false);
         setHasSearched(true);
       }
     });
@@ -199,6 +214,12 @@ export function UnifiedSupplierSourcingCatalog({
         </h2>
         <p className="text-sm text-zinc-600">{t("sourcing.catalogSubtitle")}</p>
       </div>
+
+      {usedMock ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-950 sm:px-4">
+          {t("sourcing.mockCatalogBanner")}
+        </div>
+      ) : null}
 
       <SupplierSourceTabs
         value={sourceTab}

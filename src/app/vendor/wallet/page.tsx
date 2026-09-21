@@ -1,15 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { WalletDashboard } from "@/components/wallets/wallet-dashboard";
+import { VendorFinanceDashboard } from "@/components/wallets/vendor-finance-dashboard";
 import { getSessionProfile, canAccessVendor } from "@/lib/auth/session";
 import {
   getVendorForOwner,
   isVendorKycApproved,
 } from "@/lib/vendors/queries";
-import {
-  listWalletTransactionsForUser,
-  listWalletsForUser,
-} from "@/lib/wallets/queries";
+import { getVendorFinanceSnapshot } from "@/lib/wallets/vendor-finance";
 
 export const dynamic = "force-dynamic";
 
@@ -24,12 +21,12 @@ export default async function VendorWalletPage() {
     redirect("/vendor/apply");
   }
 
-  const [wallets, transactions, vendor] = await Promise.all([
-    listWalletsForUser(session.userId),
-    listWalletTransactionsForUser(session.userId),
-    getVendorForOwner(session.userId),
-  ]);
+  const vendor = await getVendorForOwner(session.userId);
+  if (!vendor) {
+    redirect("/vendor/apply");
+  }
 
+  const snapshot = await getVendorFinanceSnapshot(session.userId, vendor.id);
   const kycApproved = isVendorKycApproved(vendor);
 
   return (
@@ -43,17 +40,10 @@ export default async function VendorWalletPage() {
           {vendor?.kyc_status ? ` (current: ${vendor.kyc_status})` : null}.
         </div>
       ) : null}
-      <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-          My Store
-        </p>
-        <WalletDashboard
-          wallets={wallets}
-          transactions={transactions}
-          title="Vendor wallet"
-          subtitle="Product sales settle in USDT. Withdraw USDT on-chain, or withdraw earnings in MMK if you prefer local currency. MMK deposits are disabled. Sellers must complete KYC before withdrawing."
-        />
-      </div>
+      <VendorFinanceDashboard
+        snapshot={snapshot}
+        kycApproved={kycApproved}
+      />
     </div>
   );
 }

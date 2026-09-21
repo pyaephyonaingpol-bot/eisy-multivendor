@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { VendorStatusBadge } from "@/components/vendors/admin-vendor-list";
 import { getSessionProfile } from "@/lib/auth/session";
+import { formatMoney } from "@/lib/money";
 import { getVendorForOwner } from "@/lib/vendors/queries";
+import { getVendorFinanceSnapshot } from "@/lib/wallets/vendor-finance";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +34,14 @@ export default async function VendorDashboardPage() {
       </div>
     );
   }
+
+  const finance =
+    session && vendor
+      ? await getVendorFinanceSnapshot(session.userId, vendor.id)
+      : null;
+  const commissionPct = finance
+    ? Math.round(finance.commission_rate * 1000) / 10
+    : 10;
 
   const vendorActions = [
     {
@@ -111,6 +121,66 @@ export default async function VendorDashboardPage() {
 
       {vendor.description ? (
         <p className="max-w-2xl text-zinc-600">{vendor.description}</p>
+      ) : null}
+
+      {finance ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Link
+            href="/vendor/wallet"
+            className="rounded-xl border border-zinc-200 bg-white p-4 transition hover:border-zinc-300"
+          >
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+              Custom source net
+            </p>
+            <p className="mt-2 text-xl font-semibold text-zinc-950">
+              {formatMoney(finance.custom.net_profit_usdt, "USDT")}
+            </p>
+            <p className="mt-1 text-sm text-zinc-500">
+              After {commissionPct}% platform fee ·{" "}
+              {finance.custom.order_count} orders
+            </p>
+          </Link>
+          <Link
+            href="/vendor/wallet"
+            className="rounded-xl border border-zinc-200 bg-white p-4 transition hover:border-zinc-300"
+          >
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+              Gross revenue
+            </p>
+            <p className="mt-2 text-xl font-semibold text-zinc-950">
+              {formatMoney(finance.custom.gross_revenue_usdt, "USDT")}
+            </p>
+            <p className="mt-1 text-sm text-zinc-500">Manual products only</p>
+          </Link>
+          <Link
+            href="/vendor/wallet"
+            className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 transition hover:border-amber-300"
+          >
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+              Pending / escrow
+            </p>
+            <p className="mt-2 text-xl font-semibold text-zinc-950">
+              {formatMoney(finance.escrow_usdt, "USDT")}
+            </p>
+            <p className="mt-1 text-sm text-zinc-500">
+              Available {formatMoney(finance.available_usdt, "USDT")}
+            </p>
+          </Link>
+          <Link
+            href="/vendor/wallet"
+            className="rounded-xl border border-rose-200 bg-rose-50/40 p-4 transition hover:border-rose-300"
+          >
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+              Platform commission
+            </p>
+            <p className="mt-2 text-xl font-semibold text-zinc-950">
+              {formatMoney(finance.custom.platform_commission_usdt, "USDT")}
+            </p>
+            <p className="mt-1 text-sm text-zinc-500">
+              Custom-source deductions only
+            </p>
+          </Link>
+        </div>
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

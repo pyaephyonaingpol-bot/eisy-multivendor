@@ -17,6 +17,8 @@ type Props = {
   dropshipHomeHref?: string;
   accountHref?: string;
   accountLabel?: string;
+  walletHref?: string;
+  walletLabel?: string;
   backLabel: string;
 };
 
@@ -99,6 +101,8 @@ export function VendorPortalNav({
   dropshipHomeHref = "/vendor/dropship",
   accountHref = "/vendor/profile",
   accountLabel = "Account",
+  walletHref = "/vendor/wallet",
+  walletLabel = "Wallet",
   backLabel,
 }: Props) {
   const pathname = usePathname() || "/vendor/dashboard";
@@ -163,6 +167,12 @@ export function VendorPortalNav({
       )}
 
       <div className="space-y-2 border-t border-zinc-200 pt-3 md:pt-2">
+        <Link
+          href={walletHref}
+          className="block whitespace-nowrap rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-zinc-500 hover:text-zinc-950 md:rounded-none md:border-0 md:bg-transparent md:px-0 md:py-0"
+        >
+          {walletLabel}
+        </Link>
         <Link
           href={accountHref}
           className="inline-flex whitespace-nowrap rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-zinc-500 hover:text-zinc-950 md:rounded-none md:border-0 md:bg-transparent md:px-0 md:py-0"

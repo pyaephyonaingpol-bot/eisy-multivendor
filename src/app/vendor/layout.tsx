@@ -53,6 +53,8 @@ export default async function VendorLayout({
           dropshipHomeHref="/vendor/dropship"
           accountHref="/vendor/profile"
           accountLabel={t.vendorNav.profile}
+          walletHref="/vendor/wallet"
+          walletLabel={t.vendorNav.wallet}
           backLabel={t.vendorNav.backToStorefront}
         />
       </aside>

@@ -9,7 +9,7 @@ type RegionalShippingEstimateProps = {
 
 function daysLabel(min: number | null, max: number | null) {
   if (min == null && max == null) {
-    return "Estimate pending";
+    return null;
   }
   if (min != null && max != null) {
     return min === max ? `${min} days` : `${min}–${max} days`;
@@ -17,6 +17,10 @@ function daysLabel(min: number | null, max: number | null) {
   return `${min ?? max} days`;
 }
 
+/**
+ * Buyer-facing shipping summary for non-CJ listings.
+ * Intentionally omits warehouse, provider, and catalog-routing details.
+ */
 export function RegionalShippingEstimate({
   route,
   countryCode,
@@ -25,37 +29,29 @@ export function RegionalShippingEstimate({
   if (!route) {
     return (
       <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-        Set your shipping country in the header to see regional supplier routing.
+        Shipping options appear at checkout for your delivery address.
       </div>
     );
   }
 
   const shippingCost = Number(route.shipping_cost_usdt ?? 0);
+  const eta = daysLabel(route.shipping_days_min, route.shipping_days_max);
+  const destination = regionName || countryCode;
 
   return (
-    <div className="space-y-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="font-medium text-zinc-950">Ships to {regionName}</p>
-        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 ring-1 ring-inset ring-zinc-200">
-          {route.provider_name}
-        </span>
-      </div>
+    <div className="space-y-1 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm">
+      <p className="font-medium text-zinc-950">Shipping</p>
       <p className="text-zinc-600">
-        Warehouse {route.warehouse_country} ·{" "}
-        {daysLabel(route.shipping_days_min, route.shipping_days_max)} · Country{" "}
-        {countryCode}
+        Delivers to {destination}
+        {eta ? ` · ${eta}` : ""}
       </p>
       <p className="text-zinc-600">
-        Regional shipping:{" "}
+        Estimated shipping:{" "}
         <span className="font-medium text-zinc-950">
           {shippingCost <= 0
-            ? "Included / free estimate"
+            ? "Calculated at checkout"
             : formatMoney(shippingCost, MARKETPLACE_CURRENCY)}
         </span>
-      </p>
-      <p className="text-xs text-zinc-500">
-        Catalog routing prefers nearby CJ Dropshipping, DSers, Print-on-Demand, or
-        internal EISY stock for your region. Checkout remains USDT-only.
       </p>
     </div>
   );

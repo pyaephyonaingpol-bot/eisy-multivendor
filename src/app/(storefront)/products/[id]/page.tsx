@@ -11,17 +11,12 @@ import {
   getBuyerSourcingContext,
   resolveProductSupplierRoute,
 } from "@/lib/sourcing/queries";
-import type { ProductType } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
 
 type ProductDetailPageProps = {
   params: Promise<{ id: string }>;
 };
-
-function typeLabel(type: ProductType) {
-  return type === "digital" ? "Digital" : "Physical";
-}
 
 export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
   const { id } = await params;
@@ -85,34 +80,11 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
 
         <div className="space-y-5">
           <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 ring-1 ring-inset ring-zinc-200">
-                {typeLabel(productType)}
-              </span>
-              {product.is_dropship ? (
-                <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-inset ring-emerald-200">
-                  Dropship listing
-                </span>
-              ) : null}
-              {product.sku ? (
-                <span className="text-xs text-zinc-500">SKU {product.sku}</span>
-              ) : null}
-            </div>
             <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
               {product.name}
             </h1>
             {product.vendor ? (
-              <div className="space-y-1">
-                <SoldByBadge vendor={product.vendor} size="md" />
-                {product.is_dropship && product.source_vendor ? (
-                  <p className="text-sm text-zinc-500">
-                    Fulfilled by{" "}
-                    <span className="font-medium text-zinc-800">
-                      {product.source_vendor.name}
-                    </span>
-                  </p>
-                ) : null}
-              </div>
+              <SoldByBadge vendor={product.vendor} size="md" />
             ) : null}
           </div>
 
@@ -131,7 +103,9 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
                   ? `Digital download · ${product.download_label}`
                   : "Digital download"
                 : availableStock > 0
-                  ? `${Number.isFinite(availableStock) ? availableStock : "In"} in stock${product.is_dropship ? " (supplier)" : ""}`
+                  ? Number.isFinite(availableStock)
+                    ? `${availableStock} in stock`
+                    : "In stock"
                   : "Out of stock"}
             </p>
           </div>

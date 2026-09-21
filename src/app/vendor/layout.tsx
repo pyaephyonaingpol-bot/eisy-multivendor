@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { VendorPortalNav } from "@/components/vendors/vendor-portal-nav";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
@@ -12,12 +11,12 @@ export default async function VendorLayout({
   const locale = await getRequestLocale();
   const t = getDictionary(locale);
 
+  // Vendor management — storefront ops only (never dropship routes).
   const vendorLinks = [
     { href: "/vendor/products", label: t.vendorNav.product },
     { href: "/vendor/settings", label: t.vendorNav.store },
     { href: "/vendor/orders", label: t.vendorNav.orders },
     { href: "/vendor/tracking", label: t.vendorNav.tracking },
-    { href: "/vendor/support?channel=manual", label: "Support" },
   ];
 
   const profileLinks = [
@@ -25,18 +24,17 @@ export default async function VendorLayout({
     { href: "/vendor/profile/email", label: t.vendorNav.email },
     { href: "/vendor/profile/phone", label: t.vendorNav.phone },
     { href: "/vendor/profile/address", label: t.vendorNav.address },
+    { href: "/vendor/wallet", label: t.vendorNav.wallet },
   ];
 
-  // Dropshipper section: CJ orders, tracking, catalog, imported products, support.
+  // Dropshipper management — CJ workspace only (never vendor store routes).
   const dropshipLinks = [
-    { href: "/vendor/dropship/orders", label: "CJ orders" },
-    { href: "/vendor/dropship/tracking", label: "CJ tracking" },
+    { href: "/vendor/dropship/orders", label: t.vendorNav.dropshipOrders },
     { href: "/vendor/sourcing", label: t.vendorNav.catalog },
     {
       href: "/vendor/dropship/imported",
       label: t.vendorNav.importedProducts,
     },
-    { href: "/vendor/support?channel=cj", label: "CJ support" },
   ];
 
   return (
@@ -58,32 +56,12 @@ export default async function VendorLayout({
           vendorLinks={vendorLinks}
           profileLinks={profileLinks}
           dropshipLinks={dropshipLinks}
+          vendorHomeHref="/vendor/dashboard"
+          dropshipHomeHref="/vendor/dropship"
           backLabel={t.vendorNav.backToStorefront}
         />
       </aside>
-      <section className="min-w-0 flex-1 space-y-4">
-        <div className="flex flex-wrap gap-2 text-xs md:hidden">
-          <Link
-            href="/vendor/products"
-            className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-zinc-700"
-          >
-            {t.vendorNav.vendorSection}
-          </Link>
-          <Link
-            href="/vendor/profile"
-            className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-zinc-600"
-          >
-            {t.vendorNav.profileSection}
-          </Link>
-          <Link
-            href="/vendor/dropship"
-            className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-sky-900"
-          >
-            {t.vendorNav.dropshipSection}
-          </Link>
-        </div>
-        {children}
-      </section>
+      <section className="min-w-0 flex-1 space-y-4">{children}</section>
     </div>
   );
 }

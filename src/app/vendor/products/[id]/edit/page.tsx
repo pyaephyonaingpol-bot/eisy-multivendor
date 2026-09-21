@@ -39,6 +39,12 @@ export default async function EditVendorProductPage({
   }
 
   const isCj = product.catalog_kind === "cj_import" || catalog === "cj";
+
+  // Independent Vendor edit URL must never serve CJ imports.
+  if (isCj && catalog !== "cj") {
+    redirect(`/vendor/products/${id}/edit?catalog=cj`);
+  }
+
   const backHref = isCj ? "/vendor/dropship/imported" : "/vendor/products";
   const backLabel = isCj ? "Back to CJ products" : "Back to products";
 
@@ -74,7 +80,7 @@ export default async function EditVendorProductPage({
             isCj ? "text-sky-800" : "text-zinc-500"
           }`}
         >
-          {isCj ? "CJ Dropshipping import" : "Manual catalog"}
+          {isCj ? "CJ Dropshipping import" : "Independent Vendor"}
         </p>
         <h1 className="text-3xl font-semibold tracking-tight">
           {isCj ? "Edit CJ product" : "Edit product"}
@@ -90,8 +96,8 @@ export default async function EditVendorProductPage({
 
       {isCj ? (
         <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
-          This listing belongs to the <strong>CJ import</strong> catalog. It
-          will not appear under Vendor → Products.
+          This listing belongs to the <strong>CJ import</strong> catalog. Use
+          the CJ Dropshipping portal to manage it.
         </div>
       ) : null}
 

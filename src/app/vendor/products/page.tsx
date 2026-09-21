@@ -67,50 +67,33 @@ export default async function VendorProductsPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-            Vendor · Manual catalog
+            Independent Vendor
           </p>
           <h1 className="text-2xl font-semibold tracking-tight">Your products</h1>
           <p className="max-w-2xl text-zinc-600">
-            Manually sourced listings for <strong>{vendor.name}</strong>. CJ
-            Dropshipping imports live under Dropshipper → CJ products — they are
-            not mixed into this list.
+            Manually sourced listings for <strong>{vendor.name}</strong>.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/vendor/dropship/imported"
-            className="inline-flex rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-950 hover:bg-sky-100"
-          >
-            CJ products
-          </Link>
-          <Link
-            href="/vendor/products/new"
-            className="inline-flex rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
-          >
-            Add product
-          </Link>
-        </div>
+        <Link
+          href="/vendor/products/new"
+          className="inline-flex rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+        >
+          Add product
+        </Link>
       </div>
 
       {products.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-10 text-center">
-          <p className="text-zinc-700">No manual products yet.</p>
+          <p className="text-zinc-700">No products yet.</p>
           <p className="mt-1 text-sm text-zinc-500">
-            Add a physical or digital item you source yourself. Import from CJ
-            Dropshipping via the Dropshipper workspace.
+            Add a physical or digital item you source yourself.
           </p>
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          <div className="mt-4">
             <Link
               href="/vendor/products/new"
               className="inline-flex rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
             >
               Add product
-            </Link>
-            <Link
-              href="/vendor/sourcing"
-              className="inline-flex rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-950 hover:bg-sky-100"
-            >
-              Browse CJ catalog
             </Link>
           </div>
         </div>
@@ -144,9 +127,6 @@ export default async function VendorProductsPage() {
                       <p className="truncate font-medium text-zinc-950">
                         {product.name}
                       </p>
-                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-600">
-                        Manual
-                      </span>
                       <span
                         className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ring-1 ring-inset ${statusClassName(product.status)}`}
                       >

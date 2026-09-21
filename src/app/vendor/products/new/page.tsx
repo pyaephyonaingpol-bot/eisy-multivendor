@@ -30,13 +30,12 @@ export default async function NewVendorProductPage() {
     <section className="space-y-6">
       <div className="space-y-2">
         <p className="text-sm font-medium uppercase tracking-wide text-zinc-500">
-          Manual catalog
+          Independent Vendor
         </p>
         <h1 className="text-3xl font-semibold tracking-tight">Add product</h1>
         <p className="max-w-xl text-zinc-600">
           Create a manually sourced physical or digital item for{" "}
-          <strong>{vendor.name}</strong>. CJ Dropshipping imports use Dropshipper
-          → CJ catalog and stay in a separate product list.
+          <strong>{vendor.name}</strong>.
         </p>
       </div>
 

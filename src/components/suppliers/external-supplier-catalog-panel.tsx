@@ -147,11 +147,11 @@ export function ExternalSupplierCatalogPanel({
       ) : null}
       {belowMin && !atLimit ? (
         <p className="text-sm text-amber-800">
-          You have {quota?.activeItemCount} active item
-          {(quota?.activeItemCount ?? 0) === 1 ? "" : "s"}. Dropshippers are
-          billed for at least {minActive} active items (
-          {minActive * (quota?.itemFeeUsdt ?? 1)} USDT/mo). Keep importing to reach
-          the fee floor.
+          You have {quota?.activeItemCount} active CJ import
+          {(quota?.activeItemCount ?? 0) === 1 ? "" : "s"}. CJ Dropshipping is
+          billed for at least {minActive} active CJ items (
+          {minActive * (quota?.itemFeeUsdt ?? 1)} USDT/mo). Manual/custom
+          products are exempt — keep importing CJ SKUs to clear the fee floor.
         </p>
       ) : null}
 

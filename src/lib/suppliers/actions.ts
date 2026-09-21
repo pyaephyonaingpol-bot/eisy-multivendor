@@ -752,16 +752,18 @@ export async function importExternalSupplierProductAction(
   const catalogBefore = Number(quota.catalog_item_count ?? 0);
   const maxImports = Number(quota.max_import_items ?? 100);
 
-  // When quota RPCs are unavailable, enforce a local active-catalog cap of 100.
+  // When quota RPCs are unavailable, enforce a local CJ-import catalog cap.
+  // Manual / custom-sourced products never consume CJ import quota.
   if (!quotaSnapshot) {
     const { count } = await supabase
       .from("products")
       .select("id", { count: "exact", head: true })
       .eq("vendor_id", gate.vendor.id)
+      .eq("catalog_kind", "cj_import")
       .neq("status", "archived");
     if ((count ?? 0) >= maxImports) {
       return {
-        error: `Import limit reached (${count}/${maxImports}). Archive listings or upgrade your plan.`,
+        error: `CJ import limit reached (${count}/${maxImports}). Archive CJ listings or upgrade your plan. Manual products are unlimited.`,
       };
     }
   }
@@ -919,10 +921,12 @@ export async function importExternalSupplierProductAction(
   const priceNote = oneClick
     ? ` Listed at ${sellPrice.toFixed(2)} USDT (${Math.round((ONE_CLICK_IMPORT_MARKUP - 1) * 100)}% markup).`
     : ` Listed at ${sellPrice.toFixed(2)} USDT after preview review.`;
-  const quotaNote =
-    activeAfter < minActive
-      ? ` Active catalog ${activeAfter}/${minActive} toward the ${minActive}-item fee floor (${(minActive * itemFee).toFixed(0)} USDT/mo). Keep importing until you reach ${minActive} active items.`
-      : ` Catalog ${catalogAfter}/${maxImports} import slots used.`;
+  const isCjImport = kind === "cj_dropshipping";
+  const quotaNote = isCjImport
+    ? activeAfter < minActive
+      ? ` Active CJ catalog ${activeAfter}/${minActive} toward the ${minActive}-item CJ fee floor (${(minActive * itemFee).toFixed(0)} USDT/mo). Manual/custom products are exempt.`
+      : ` CJ catalog ${catalogAfter}/${maxImports} import slots used. Manual/custom products do not count.`
+    : ` Manual/custom listings are not subject to CJ import fees or fee floors.`;
 
   return {
     success: `Imported “${listing.name}” from ${platform} into your store.${priceNote}${quotaNote}`,

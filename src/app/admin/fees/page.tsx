@@ -66,13 +66,16 @@ export default async function AdminFeesPage() {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Dropship fees</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          CJ Dropshipping fees
+        </h1>
         <p className="max-w-2xl text-zinc-600">
-          Inventory fee: {formatMoney(itemFee, "USDT")} per active item (minimum{" "}
-          {minItems} items / {formatMoney(itemFee * minItems, "USDT")}/mo).
-          Platform commission: {commissionPct}% on completed dropship
-          transactions. A Vercel Cron job runs on the 1st of each month at 01:00
-          UTC; you can also trigger billing manually below.
+          CJ inventory fee: {formatMoney(itemFee, "USDT")} per active CJ import
+          (minimum {minItems} items / {formatMoney(itemFee * minItems, "USDT")}
+          /mo). Manual / custom-sourced products are exempt. Platform commission:{" "}
+          {commissionPct}% on completed CJ dropship resales. A Vercel Cron job
+          runs on the 1st of each month at 01:00 UTC; you can also trigger
+          billing manually below.
         </p>
       </div>
 

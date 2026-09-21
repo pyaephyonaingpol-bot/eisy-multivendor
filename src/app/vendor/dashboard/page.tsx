@@ -162,7 +162,7 @@ export default async function VendorDashboardPage() {
               href="/vendor/fees"
               className="mt-3 inline-flex text-sm font-medium underline"
             >
-              View dropship fees
+              View CJ Dropshipping fees
             </Link>
           </div>
           <div className="rounded-xl border border-zinc-200 bg-white p-4">

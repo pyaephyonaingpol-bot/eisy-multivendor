@@ -441,7 +441,7 @@ export function SupplierProductPreviewModal({
                   {quota.activeItemCount} active / {quota.catalogItemCount} listed). Cap:{" "}
                   {quota.maxImportItems} imports.
                   {!quota.meetsMinimum
-                    ? ` Import is allowed below ${quota.minActiveItems}; keep going to clear the fee floor.`
+                    ? ` CJ import is allowed below ${quota.minActiveItems}; keep going to clear the CJ fee floor. Manual products are exempt.`
                     : ""}
                 </p>
                 <div className="flex flex-wrap gap-2">

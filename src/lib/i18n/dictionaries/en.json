@@ -73,7 +73,7 @@
     "searchFailed": "Search failed.",
     "catalogUnreachable": "Could not reach supplier catalog API.",
     "sourceTabsLabel": "Supplier source",
-    "importSuccess": "Imported into your store (product {id}…). Keep building toward {min} active items for the fee floor.",
+    "importSuccess": "Imported into your store (product {id}…). CJ imports count toward the {min}-item CJ fee floor; manual/custom products do not.",
     "fastStrategiesTitle": "Fast shipping strategies",
     "fastStrategiesBody": "Prefer regional warehouses (US / EU / SEA), filter for fast dispatch (≤7 days), and favor carriers such as DHL, FedEx, or ePacket when the supplier exposes them.",
     "manageCredentials": "Manage supplier credentials",

@@ -77,9 +77,11 @@ export default async function VendorFeesPage() {
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">Fees & payouts</h1>
         <p className="max-w-2xl text-zinc-600">
-          Dropshippers pay 1 USDT per active listing each month (minimum 10 USDT),
-          plus a {commissionPct}% platform commission on completed dropship sales.
-          Payouts settle in USDT. Withdraw USDT or MMK from your{" "}
+          CJ Dropshipping imports pay 1 USDT per active CJ listing each month
+          (minimum 10 USDT), plus a {commissionPct}% platform commission on
+          completed CJ dropship resales. Manual / custom-sourced products and
+          orders are never billed inventory fees or fee floors. Payouts settle
+          in USDT. Withdraw USDT or MMK from your{" "}
           <Link href="/vendor/wallet" className="underline">
             wallet
           </Link>
@@ -124,10 +126,10 @@ export default async function VendorFeesPage() {
             ) : (
               <p className="text-sm text-zinc-500">
                 {!preview?.is_dropshipper
-                  ? "No dropship listings yet — import products to start billing."
+                  ? "No CJ imports yet — fees apply only to CJ Dropshipping listings. Manual products stay free of inventory fees."
                   : alreadyPaid
-                    ? "This month’s inventory fee is paid."
-                    : "No inventory fee due (no active dropship items)."}
+                    ? "This month’s CJ inventory fee is paid."
+                    : "No CJ inventory fee due (no active CJ imports)."}
               </p>
             )}
           </div>

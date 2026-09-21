@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { SitePortalFooter } from "@/components/layout/site-portal-footer";
+import { VendorBottomNav } from "@/components/vendors/vendor-bottom-nav";
 import { VendorPortalNav } from "@/components/vendors/vendor-portal-nav";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { getRequestLocale } from "@/lib/i18n/locale";
@@ -39,8 +40,8 @@ export default async function VendorLayout({
 
   return (
     <>
-      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 px-4 py-6 md:flex-row md:gap-8 md:py-8">
-        <aside className="w-full shrink-0 space-y-3 md:w-56 md:space-y-4">
+      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 px-4 py-6 pb-24 md:flex-row md:gap-8 md:py-8 md:pb-28">
+        <aside className="hidden w-full shrink-0 space-y-3 md:block md:w-56 md:space-y-4">
           <div className="flex items-center justify-between gap-2">
             <div>
               <p className="text-sm font-semibold text-zinc-950">
@@ -70,14 +71,28 @@ export default async function VendorLayout({
             />
           </Suspense>
         </aside>
+        <div className="flex items-center justify-between gap-2 md:hidden">
+          <div>
+            <p className="text-sm font-semibold text-zinc-950">
+              {t.vendorNav.title}
+            </p>
+            <p className="text-xs text-zinc-500">Quick actions below</p>
+          </div>
+          <LanguageSwitcher compact />
+        </div>
         <section className="min-w-0 flex-1 space-y-4">{children}</section>
       </div>
+      <div className="pb-20 sm:pb-24">
+        <Suspense fallback={null}>
+          <SitePortalFooter
+            brandTitle="EISY Seller"
+            brandDescription="Switch portals anytime — buyer shop, independent vendor, CJ dropshipping, or admin."
+            shopLinks={false}
+          />
+        </Suspense>
+      </div>
       <Suspense fallback={null}>
-        <SitePortalFooter
-          brandTitle="EISY Seller"
-          brandDescription="Switch portals anytime — buyer shop, independent vendor, CJ dropshipping, or admin."
-          shopLinks={false}
-        />
+        <VendorBottomNav />
       </Suspense>
     </>
   );

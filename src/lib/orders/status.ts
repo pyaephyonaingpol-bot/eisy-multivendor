@@ -32,7 +32,19 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   refunded: "Refunded",
 };
 
-export function orderStatusLabel(status: OrderStatus) {
+export function orderStatusLabel(
+  status: OrderStatus,
+  syncError?: string | null,
+) {
+  if (
+    (status === "fulfillment_failed" || status === "out_of_stock") &&
+    syncError &&
+    (/does not ship|shipping unavailable|no available shipping/i.test(
+      syncError,
+    ))
+  ) {
+    return "Shipping Unavailable";
+  }
   return ORDER_STATUS_LABELS[status] ?? status;
 }
 

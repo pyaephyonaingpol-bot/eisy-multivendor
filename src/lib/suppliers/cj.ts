@@ -1407,6 +1407,126 @@ export async function checkCjFulfillmentStock(
   };
 }
 
+export type CjFreightMethod = {
+  logisticName: string;
+  logisticAge: string | null;
+  freightAmount: number | null;
+  currency: string;
+  raw: Record<string, unknown>;
+};
+
+export type CjFreightCalculateResult = {
+  ok: boolean;
+  methods: CjFreightMethod[];
+  raw: unknown;
+  error?: string;
+};
+
+/**
+ * Live CJ freight calculation for a destination country.
+ * Empty `methods` means CJ has no shipping option to that country.
+ */
+export async function freightCalculateCjShipping(
+  args: {
+    endCountryCode: string;
+    startCountryCode?: string;
+    zip?: string | null;
+    products: Array<{ vid: string; quantity: number }>;
+  },
+  credentials?: SupplierCredentials | null,
+): Promise<CjFreightCalculateResult> {
+  if (!useLiveSupplierApi("cj_dropshipping", credentials)) {
+    return { ok: true, methods: [], raw: { mock: true, skipped: true } };
+  }
+
+  const endCountryCode = args.endCountryCode.trim().toUpperCase();
+  if (!endCountryCode || args.products.length === 0) {
+    return {
+      ok: false,
+      methods: [],
+      raw: {},
+      error: "Destination country and product variants are required.",
+    };
+  }
+
+  const products = args.products
+    .map((p) => ({
+      vid: String(p.vid ?? "").trim(),
+      quantity: Math.max(1, Math.floor(Number(p.quantity) || 1)),
+    }))
+    .filter((p) => p.vid.length > 0);
+
+  if (products.length === 0) {
+    return {
+      ok: false,
+      methods: [],
+      raw: {},
+      error: "Missing CJ variant id (vid) for freight calculation.",
+    };
+  }
+
+  try {
+    const json = await cjFetch("/logistic/freightCalculate", {
+      method: "POST",
+      credentials,
+      body: {
+        startCountryCode: (args.startCountryCode ?? "CN").trim().toUpperCase() || "CN",
+        endCountryCode,
+        zip: args.zip?.trim() || undefined,
+        products,
+      },
+    });
+
+    const data = json.data ?? json.result ?? json.list ?? json;
+    const rows = Array.isArray(data)
+      ? data
+      : Array.isArray(asRecord(data)?.list)
+        ? (asRecord(data)?.list as unknown[])
+        : Array.isArray(asRecord(data)?.freightDetailList)
+          ? (asRecord(data)?.freightDetailList as unknown[])
+          : Array.isArray(asRecord(data)?.logisticList)
+            ? (asRecord(data)?.logisticList as unknown[])
+            : [];
+
+    const methods: CjFreightMethod[] = [];
+    for (const row of rows) {
+      const rec = asRecord(row);
+      if (!rec) continue;
+      const name = String(
+        rec.logisticName ??
+          rec.logisticsName ??
+          rec.logisticCompanyName ??
+          rec.name ??
+          "",
+      ).trim();
+      if (!name && rec.logisticId == null && rec.logisticsId == null) continue;
+      const amountRaw =
+        rec.freight ??
+        rec.freightAmount ??
+        rec.totalPostage ??
+        rec.price ??
+        rec.logisticPrice;
+      const amount =
+        amountRaw == null || amountRaw === ""
+          ? null
+          : Number(amountRaw);
+      methods.push({
+        logisticName: name || `Method ${String(rec.logisticId ?? rec.logisticsId)}`,
+        logisticAge: rec.logisticAge != null ? String(rec.logisticAge) : null,
+        freightAmount: Number.isFinite(amount as number) ? (amount as number) : null,
+        currency: String(rec.currency ?? "USD"),
+        raw: rec,
+      });
+    }
+
+    return { ok: true, methods, raw: json };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "CJ freight calculation failed.";
+    return { ok: false, methods: [], raw: {}, error: message };
+  }
+}
+
 export async function createCjOrder(
   request: SupplierFulfillmentRequest,
   credentials?: SupplierCredentials | null,
@@ -1436,6 +1556,34 @@ export async function createCjOrder(
       status: "fulfillment_failed",
       raw: {},
       error: "Missing CJ variant id (vid) on one or more lines.",
+    };
+  }
+
+  // Destination must have at least one CJ shipping method before createOrder.
+  const freight = await freightCalculateCjShipping(
+    {
+      endCountryCode: request.shipTo.countryCode,
+      zip: request.shipTo.postalCode,
+      products: products.map((p) => ({
+        vid: String(p.vid),
+        quantity: p.quantity,
+      })),
+    },
+    credentials,
+  );
+  if (
+    useLiveSupplierApi("cj_dropshipping", credentials) &&
+    (!freight.ok || freight.methods.length === 0)
+  ) {
+    return {
+      ok: false,
+      supplierOrderRef: null,
+      status: "shipping_unavailable",
+      raw: { freight },
+      error:
+        freight.error?.includes("ship")
+          ? freight.error
+          : `Shipping Unavailable — CJ does not ship to this region (${request.shipTo.countryCode.toUpperCase()}).`,
     };
   }
 

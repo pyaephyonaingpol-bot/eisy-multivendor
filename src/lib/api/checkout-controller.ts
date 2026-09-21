@@ -143,6 +143,18 @@ export async function createCheckout(
     return { ok: false, error: cjStock.error, status: 409 };
   }
 
+  const { assertCjShipsToDestinationForCartItems } = await import(
+    "@/lib/suppliers/cj-shipping"
+  );
+  const cjShip = await assertCjShipsToDestinationForCartItems(
+    parsedItems,
+    shipCountry,
+    { zip: shippingAddress?.postal_code },
+  );
+  if (!cjShip.ok) {
+    return { ok: false, error: cjShip.error, status: 409 };
+  }
+
   if (paymentMethod === "trc20") {
     try {
       const deposit = await syncUsdtTrc20SettingsFromEnv();

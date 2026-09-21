@@ -320,6 +320,14 @@ export async function processSupplierFulfillmentJobs(limit = 20): Promise<{
             ? "out_of_stock"
             : "fulfillment_failed";
 
+        const issueError =
+          outcome.status === "shipping_unavailable" ||
+          (outcome.error ?? "").toLowerCase().includes("does not ship") ||
+          (outcome.error ?? "").toLowerCase().includes("shipping unavailable")
+            ? (outcome.error ??
+              "Shipping Unavailable — CJ does not ship to this region")
+            : (outcome.error ?? "Supplier create order failed");
+
         // Flag the order, write vendor/admin alerts, and mark the job failed.
         const { error: markError } = await supabase.rpc(
           "mark_order_supplier_stock_issue",
@@ -327,8 +335,15 @@ export async function processSupplierFulfillmentJobs(limit = 20): Promise<{
             p_order_id: job.order_id,
             p_job_id: job.id,
             p_issue: issue,
-            p_error: outcome.error ?? "Supplier create order failed",
-            p_payload: { ...outcome.raw, adapter_kind: kind, issue },
+            p_error: issueError,
+            p_payload: {
+              ...outcome.raw,
+              adapter_kind: kind,
+              issue,
+              shipping_unavailable:
+                outcome.status === "shipping_unavailable" ||
+                issueError.toLowerCase().includes("ship"),
+            },
           },
         );
 
@@ -346,9 +361,7 @@ export async function processSupplierFulfillmentJobs(limit = 20): Promise<{
             .update({
               status: issue,
               fulfillment_sync_status: "error",
-              fulfillment_sync_error: (
-                outcome.error ?? "Supplier fulfillment failed"
-              ).slice(0, 500),
+              fulfillment_sync_error: issueError.slice(0, 500),
               updated_at: new Date().toISOString(),
             })
             .eq("id", job.order_id);

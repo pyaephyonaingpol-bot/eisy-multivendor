@@ -482,7 +482,8 @@ export async function importExternalSupplierProductAction(
     }
 
     if (existingImport?.product_id) {
-      const updatePayload = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- price_usdt is drifted
+      const updatePayload: any = {
         name: listing.name,
         description: listing.description,
         ...productPriceFields(sellPrice, remote.compareAtPriceUsdt),
@@ -555,7 +556,8 @@ export async function importExternalSupplierProductAction(
       .maybeSingle();
 
     if (existingBySku?.id) {
-      const updatePayload = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- price_usdt is drifted
+      const updatePayload: any = {
         name: listing.name,
         description: listing.description,
         ...productPriceFields(sellPrice, remote.compareAtPriceUsdt),
@@ -660,7 +662,8 @@ export async function importExternalSupplierProductAction(
   );
   const slug = `${slugBase}-${Date.now().toString(36).slice(-5)}`;
 
-  const insertPayload = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- price_usdt is drifted
+  const insertPayload: any = {
     vendor_id: gate.vendor.id,
     name: listing.name,
     slug,

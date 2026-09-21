@@ -288,7 +288,8 @@ export async function createProduct(
     return { error: imageResult.error };
   }
 
-  const insertPayload = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- price_usdt is drifted
+  const insertPayload: any = {
     vendor_id: vendor.id,
     category_id: parsed.categoryId,
     name: parsed.name,
@@ -392,7 +393,8 @@ export async function updateProduct(
     return { error: imageResult.error };
   }
 
-  const updatePayload = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- price_usdt is drifted
+  const updatePayload: any = {
     category_id: parsed.categoryId,
     name: parsed.name,
     slug: parsed.slug,

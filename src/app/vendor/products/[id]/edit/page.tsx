@@ -38,13 +38,12 @@ export default async function EditVendorProductPage({
     notFound();
   }
 
-  const isCj = product.catalog_kind === "cj_import" || catalog === "cj";
-
-  // Independent Vendor edit URL must never serve CJ imports.
-  if (isCj && catalog !== "cj") {
-    redirect(`/vendor/products/${id}/edit?catalog=cj`);
+  // Bare /vendor/products/[id]/edit is Independent Vendor only — bounce CJ imports.
+  if (product.catalog_kind === "cj_import" && catalog !== "cj") {
+    redirect("/vendor/dropship/imported");
   }
 
+  const isCj = product.catalog_kind === "cj_import" || catalog === "cj";
   const backHref = isCj ? "/vendor/dropship/imported" : "/vendor/products";
   const backLabel = isCj ? "Back to CJ products" : "Back to products";
 

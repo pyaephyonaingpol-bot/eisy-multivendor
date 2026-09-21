@@ -18,7 +18,15 @@ function normalizeOrder(row: Order): Order {
       .fulfillment_channel === "cj"
       ? "cj"
       : "manual";
-  return { ...row, fulfillment_channel: channel };
+  const sellerVendorId =
+    row.seller_vendor_id ??
+    (row as Order & { seller_vendor_id?: string | null }).seller_vendor_id ??
+    row.vendor_id;
+  return {
+    ...row,
+    fulfillment_channel: channel,
+    seller_vendor_id: sellerVendorId,
+  };
 }
 
 export type VendorOrderRow = Order & {

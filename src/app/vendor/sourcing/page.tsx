@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { UnifiedSupplierSourcingCatalog } from "@/components/suppliers/unified-supplier-sourcing-catalog";
+import { DeleteProductButton } from "@/components/vendors/delete-product-button";
 import { ShippingRegionsForm } from "@/components/vendors/shipping-regions-form";
 import { getSessionProfile, canAccessVendor } from "@/lib/auth/session";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
@@ -144,12 +145,21 @@ export default async function VendorSourcingIndexPage() {
                   CJ import · {product.status}
                 </p>
               </div>
-              <Link
-                href={`/vendor/sourcing/${product.id}`}
-                className="inline-flex min-h-11 w-full items-center justify-center font-medium text-sky-950 underline sm:min-h-0 sm:w-auto sm:justify-start"
-              >
-                {t.sourcing.manageRoutes}
-              </Link>
+              <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end">
+                <Link
+                  href={`/vendor/sourcing/${product.id}`}
+                  className="inline-flex min-h-11 w-full items-center justify-center font-medium text-sky-950 underline sm:min-h-0 sm:w-auto sm:justify-start"
+                >
+                  {t.sourcing.manageRoutes}
+                </Link>
+                <DeleteProductButton
+                  productId={product.id}
+                  productName={product.name}
+                  mode="cj_import"
+                  label="Remove"
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-sm font-semibold text-rose-900 hover:bg-rose-100 disabled:opacity-60 sm:min-h-0 sm:w-auto"
+                />
+              </div>
             </li>
           ))}
         </ul>

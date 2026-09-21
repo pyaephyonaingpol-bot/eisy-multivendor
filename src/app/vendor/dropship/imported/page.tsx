@@ -19,9 +19,11 @@ export default async function DropshipImportedProductsPage() {
     return (
       <div className="space-y-4">
         <p className="text-xs font-semibold uppercase tracking-wider text-sky-800">
-          Dropshipper · CJ
+          CJ Dropshipping Portal
         </p>
-        <h1 className="text-2xl font-semibold tracking-tight">CJ products</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Imported products
+        </h1>
         <p className="text-zinc-600">
           Apply as a vendor before managing CJ Dropshipping imports.
         </p>
@@ -39,21 +41,23 @@ export default async function DropshipImportedProductsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-sky-800">
-            Dropshipper · CJ catalog
+            CJ Dropshipping Portal
           </p>
-          <h1 className="text-2xl font-semibold tracking-tight">CJ products</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Imported products
+          </h1>
           <p className="max-w-2xl break-words text-zinc-600">
-            Products imported from CJ Dropshipping into{" "}
-            <strong>{vendor.name}</strong>. Manual vendor listings stay under
-            Vendor → Products and are never mixed here.
+            CJ Dropshipping items listed in <strong>{vendor.name}</strong>.
+            Remove anything you no longer want to sell — it leaves your store
+            catalog and CJ import registry.
           </p>
         </div>
         <div className="grid w-full max-w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
           <Link
-            href="/vendor/products"
+            href="/vendor/dropship"
             className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 sm:min-h-0 sm:w-auto"
           >
-            Manual products
+            Portal home
           </Link>
           <Link
             href="/vendor/sourcing"
@@ -119,13 +123,14 @@ export default async function DropshipImportedProductsPage() {
                     href={`/vendor/products/${product.id}/edit?catalog=cj`}
                     className="inline-flex min-h-11 w-full max-w-full items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-950 hover:bg-sky-100 sm:min-h-0 sm:w-auto"
                   >
-                    Edit CJ listing
+                    Edit
                   </Link>
                   <DeleteProductButton
                     productId={product.id}
                     productName={product.name}
+                    mode="cj_import"
                     label="Remove"
-                    className="inline-flex min-h-11 w-full max-w-full items-center justify-center rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-sm font-medium text-rose-800 hover:bg-rose-50 disabled:opacity-60 sm:min-h-0 sm:w-auto"
+                    className="inline-flex min-h-11 w-full max-w-full items-center justify-center rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-sm font-semibold text-rose-900 hover:bg-rose-100 disabled:opacity-60 sm:min-h-0 sm:w-auto"
                   />
                 </div>
               </li>

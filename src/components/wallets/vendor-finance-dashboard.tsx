@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useState } from "react";
 import {
   UsdtDepositForm,
   WalletWithdrawForm,
@@ -9,14 +9,14 @@ import {
 import { formatMoney } from "@/lib/money";
 import type { VendorFinanceSnapshot } from "@/lib/wallets/vendor-finance";
 
-const SECTIONS = [
-  { id: "balances", label: "Balances" },
-  { id: "profits", label: "Profits" },
-  { id: "custom", label: "Custom source" },
-  { id: "dropship", label: "Dropship (CJ)" },
-  { id: "subscription", label: "Subscriptions" },
-  { id: "withdrawals", label: "Withdrawals" },
-] as const;
+type WalletTab = "custom" | "dropship" | "withdrawals" | "deposits";
+
+const TABS: { id: WalletTab; label: string; short: string }[] = [
+  { id: "custom", label: "Independent Vendor", short: "Custom" },
+  { id: "dropship", label: "CJ Dropshipping", short: "CJ" },
+  { id: "withdrawals", label: "Withdrawals", short: "Withdraw" },
+  { id: "deposits", label: "Deposits", short: "Deposit" },
+];
 
 function statusClass(status: string) {
   switch (status) {
@@ -69,113 +69,44 @@ function formatMonth(value: string) {
   });
 }
 
-function MetricCard({
+function Stat({
   label,
   value,
   hint,
-  tone = "default",
 }: {
   label: string;
   value: string;
   hint?: string;
-  tone?: "default" | "amber" | "emerald" | "sky" | "rose";
 }) {
-  const toneClass =
-    tone === "amber"
-      ? "border-amber-200 bg-amber-50/60"
-      : tone === "emerald"
-        ? "border-emerald-200 bg-emerald-50/50"
-        : tone === "sky"
-          ? "border-sky-200 bg-sky-50/60"
-          : tone === "rose"
-            ? "border-rose-200 bg-rose-50/50"
-            : "border-zinc-200 bg-white";
-
   return (
-    <div className={`rounded-xl border p-4 ${toneClass}`}>
-      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+    <div className="min-w-0 rounded-xl border border-zinc-200 bg-white px-3 py-3 sm:px-4">
+      <p className="truncate text-[11px] font-medium uppercase tracking-wide text-zinc-500">
         {label}
       </p>
-      <p className="mt-2 text-2xl font-semibold text-zinc-950">{value}</p>
-      {hint ? <p className="mt-1 text-sm text-zinc-500">{hint}</p> : null}
+      <p className="mt-1 truncate text-base font-semibold text-zinc-950 sm:text-lg">
+        {value}
+      </p>
+      {hint ? (
+        <p className="mt-0.5 truncate text-xs text-zinc-500">{hint}</p>
+      ) : null}
     </div>
   );
 }
 
-function Section({
-  id,
-  title,
-  description,
-  accent = "zinc",
-  children,
+function DetailCard({
+  label,
+  value,
+  hint,
 }: {
-  id: string;
-  title: string;
-  description: string;
-  accent?: "zinc" | "sky";
-  children: ReactNode;
+  label: string;
+  value: string;
+  hint?: string;
 }) {
   return (
-    <section
-      id={id}
-      className={`scroll-mt-6 space-y-4 rounded-2xl border p-5 ${
-        accent === "sky"
-          ? "border-sky-200 bg-sky-50/30"
-          : "border-zinc-200 bg-white"
-      }`}
-    >
-      <div className="space-y-1">
-        <h2
-          className={`text-lg font-semibold tracking-tight ${
-            accent === "sky" ? "text-sky-950" : "text-zinc-950"
-          }`}
-        >
-          {title}
-        </h2>
-        <p className="max-w-2xl text-sm text-zinc-600">{description}</p>
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function IncomeCards({
-  summary,
-  accent,
-}: {
-  summary: VendorFinanceSnapshot["custom"];
-  accent: "zinc" | "sky";
-}) {
-  const pct = Math.round(summary.commission_rate * 1000) / 10;
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <MetricCard
-        label="Gross revenue"
-        value={formatMoney(summary.gross_revenue_usdt, "USDT")}
-        hint={`${summary.order_count} paid order${summary.order_count === 1 ? "" : "s"}`}
-      />
-      <MetricCard
-        label="Product cost"
-        value={formatMoney(summary.product_cost_usdt, "USDT")}
-        hint={
-          accent === "sky"
-            ? "CJ / supplier cost on resales"
-            : "Not applied on direct custom sales"
-        }
-        tone={accent === "sky" ? "sky" : "default"}
-      />
-      <MetricCard
-        label="Platform commission"
-        value={formatMoney(summary.platform_commission_usdt, "USDT")}
-        hint={`Universal ${pct}% of GMV`}
-        tone="rose"
-      />
-      <MetricCard
-        label="Net profit"
-        value={formatMoney(summary.net_profit_usdt, "USDT")}
-        hint="Gross − cost − commission"
-        tone="emerald"
-      />
+    <div className="rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-3 sm:px-4">
+      <p className="text-xs font-medium text-zinc-500">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-zinc-950">{value}</p>
+      {hint ? <p className="mt-0.5 text-xs text-zinc-500">{hint}</p> : null}
     </div>
   );
 }
@@ -189,7 +120,7 @@ function TxList({
 }) {
   if (rows.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-8 text-center text-sm text-zinc-500">
+      <p className="rounded-xl border border-dashed border-zinc-300 bg-white px-4 py-6 text-center text-sm text-zinc-500">
         {empty}
       </p>
     );
@@ -200,28 +131,25 @@ function TxList({
       {rows.map((tx) => (
         <li
           key={tx.id}
-          className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm"
+          className="flex flex-wrap items-center justify-between gap-2 px-3 py-3 text-sm sm:px-4"
         >
           <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="font-medium capitalize text-zinc-950">
+              <p className="font-medium text-zinc-950">
                 {formatTxType(tx.tx_type)}
               </p>
               <span
-                className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${statusClass(tx.status)}`}
+                className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset ${statusClass(tx.status)}`}
               >
                 {tx.status}
               </span>
             </div>
-            <p className="text-zinc-500">
-              {tx.destination
-                ? tx.destination
-                : tx.reference
-                  ? `Ref: ${tx.reference}`
-                  : tx.note || "—"}
+            <p className="truncate text-xs text-zinc-500">
+              {tx.destination ||
+                (tx.reference ? `Ref: ${tx.reference}` : tx.note || "—")}
             </p>
           </div>
-          <p className="font-medium text-zinc-950">
+          <p className="shrink-0 font-medium text-zinc-950">
             {formatMoney(tx.amount, tx.currency)}
           </p>
         </li>
@@ -237,349 +165,323 @@ export function VendorFinanceDashboard({
   snapshot: VendorFinanceSnapshot;
   kycApproved: boolean;
 }) {
+  const [tab, setTab] = useState<WalletTab>("custom");
   const usdt = snapshot.wallets.find((wallet) => wallet.currency === "USDT");
   const mmk = snapshot.wallets.find((wallet) => wallet.currency === "MMK");
   const commissionPct = Math.round(snapshot.commission_rate * 1000) / 10;
+  const depositTxs = snapshot.transactions.filter(
+    (tx) => tx.tx_type === "deposit",
+  );
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-2">
+    <div className="space-y-5 sm:space-y-6">
+      <div className="space-y-1.5">
         <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
           Wallet
         </p>
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-950 sm:text-2xl">
           Wallet & earnings
         </h1>
-        <p className="max-w-2xl text-zinc-600">
-          Standalone finance view with separate Custom Source, Dropship (CJ),
-          subscription, and withdrawal streams — no mixed totals.
+        <p className="max-w-xl text-sm text-zinc-600">
+          Compact balances up top. Open a tab for Custom Source, CJ, withdrawals,
+          or deposits — details stay hidden until you need them.
         </p>
       </div>
 
-      <nav
-        className="flex flex-wrap gap-2"
-        aria-label="Wallet sections"
-      >
-        {SECTIONS.map((item) => (
-          <a
-            key={item.id}
-            href={`#${item.id}`}
-            className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${
-              item.id === "dropship" || item.id === "subscription"
-                ? "border-sky-200 bg-sky-50 text-sky-950 hover:border-sky-300"
-                : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:text-zinc-950"
-            }`}
-          >
-            {item.label}
-          </a>
-        ))}
-      </nav>
+      {/* Compact summary — always visible */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+        <Stat
+          label="Available"
+          value={formatMoney(snapshot.available_usdt, "USDT")}
+          hint={`MMK ${formatMoney(snapshot.available_mmk, "MMK")}`}
+        />
+        <Stat
+          label="Escrow"
+          value={formatMoney(snapshot.escrow_usdt, "USDT")}
+          hint="Held until delivered"
+        />
+        <Stat
+          label="Pending"
+          value={formatMoney(snapshot.pending_usdt, "USDT")}
+          hint="Withdrawals in review"
+        />
+        <Stat
+          label="Net profit"
+          value={formatMoney(snapshot.totals.net_profit_usdt, "USDT")}
+          hint={`After ${commissionPct}% fee`}
+        />
+      </div>
 
-      <Section
-        id="balances"
-        title="Balances & escrow"
-        description="Live wallet balances. Escrow stays locked until delivery is confirmed."
+      {/* Mobile-friendly tab bar */}
+      <div
+        className="-mx-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        role="tablist"
+        aria-label="Wallet streams"
       >
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard
-            label="USDT available"
-            value={formatMoney(snapshot.available_usdt, "USDT")}
-            hint={`MMK: ${formatMoney(snapshot.available_mmk, "MMK")}`}
-            tone="emerald"
-          />
-          <MetricCard
-            label="Pending / escrow"
-            value={formatMoney(snapshot.escrow_usdt, "USDT")}
-            hint={`Withdrawal pending: ${formatMoney(snapshot.pending_usdt, "USDT")}`}
-            tone="amber"
-          />
-          <MetricCard
-            label="Platform commission"
-            value={formatMoney(
-              snapshot.totals.platform_commission_usdt,
-              "USDT",
-            )}
-            hint={`Universal ${commissionPct}% across paid sales`}
-            tone="rose"
-          />
-          <MetricCard
-            label="CJ subscriptions paid"
-            value={formatMoney(snapshot.subscriptions.paid_usdt, "USDT")}
-            hint={`${snapshot.subscriptions.invoice_count} invoice${snapshot.subscriptions.invoice_count === 1 ? "" : "s"}`}
-            tone="sky"
-          />
-        </div>
-      </Section>
-
-      <Section
-        id="profits"
-        title="Net profit vs gross revenue"
-        description="Combined profit picture with streams still broken out below so Custom Source and CJ never mix in the detail sections."
-      >
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard
-            label="Gross revenue"
-            value={formatMoney(snapshot.totals.gross_revenue_usdt, "USDT")}
-            hint={`${snapshot.totals.order_count} paid orders total`}
-          />
-          <MetricCard
-            label="Product cost"
-            value={formatMoney(snapshot.totals.product_cost_usdt, "USDT")}
-            hint="Primarily CJ supplier cost"
-            tone="sky"
-          />
-          <MetricCard
-            label="Platform commission"
-            value={formatMoney(
-              snapshot.totals.platform_commission_usdt,
-              "USDT",
-            )}
-            hint={`${commissionPct}% universal rate`}
-            tone="rose"
-          />
-          <MetricCard
-            label="Net profit"
-            value={formatMoney(snapshot.totals.net_profit_usdt, "USDT")}
-            hint="Gross − cost − commission"
-            tone="emerald"
-          />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <a
-            href="#custom"
-            className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 transition hover:border-zinc-300"
-          >
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Custom source net
-            </p>
-            <p className="mt-2 text-xl font-semibold text-zinc-950">
-              {formatMoney(snapshot.custom.net_profit_usdt, "USDT")}
-            </p>
-            <p className="mt-1 text-sm text-zinc-500">
-              Gross {formatMoney(snapshot.custom.gross_revenue_usdt, "USDT")}
-            </p>
-          </a>
-          <a
-            href="#dropship"
-            className="rounded-xl border border-sky-200 bg-sky-50/60 p-4 transition hover:border-sky-300"
-          >
-            <p className="text-xs font-semibold uppercase tracking-wide text-sky-800/80">
-              Dropship (CJ) net
-            </p>
-            <p className="mt-2 text-xl font-semibold text-zinc-950">
-              {formatMoney(snapshot.dropship.net_profit_usdt, "USDT")}
-            </p>
-            <p className="mt-1 text-sm text-zinc-500">
-              Cost {formatMoney(snapshot.dropship.product_cost_usdt, "USDT")}
-            </p>
-          </a>
-        </div>
-      </Section>
-
-      <Section
-        id="custom"
-        title="Custom source income & profits"
-        description="Manually sourced products only. Universal 10% platform commission applies; CJ inventory subscriptions do not."
-      >
-        <IncomeCards summary={snapshot.custom} accent="zinc" />
-      </Section>
-
-      <Section
-        id="dropship"
-        title="Dropship income & profits (CJ)"
-        description="CJ Dropshipping orders only — revenue, supplier product cost, platform commission, and net. Custom-source sales are excluded."
-        accent="sky"
-      >
-        <IncomeCards summary={snapshot.dropship} accent="sky" />
-        <p className="text-sm text-zinc-600">
-          Manage CJ catalog in the{" "}
-          <Link href="/vendor/dropship" className="font-medium underline">
-            CJ Dropshipping portal
-          </Link>
-          .
-        </p>
-      </Section>
-
-      <Section
-        id="subscription"
-        title="Subscription expenses (CJ)"
-        description="Monthly inventory subscription fees for the CJ Dropshipping portal only. Manual products are never billed here."
-        accent="sky"
-      >
-        <div className="grid gap-4 sm:grid-cols-3">
-          <MetricCard
-            label="Paid"
-            value={formatMoney(snapshot.subscriptions.paid_usdt, "USDT")}
-            tone="emerald"
-          />
-          <MetricCard
-            label="Pending"
-            value={formatMoney(snapshot.subscriptions.pending_usdt, "USDT")}
-            tone="amber"
-          />
-          <MetricCard
-            label="Failed"
-            value={formatMoney(snapshot.subscriptions.failed_usdt, "USDT")}
-            tone="rose"
-          />
-        </div>
-
-        {snapshot.subscriptions.invoices.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-zinc-300 bg-white px-4 py-8 text-center text-sm text-zinc-500">
-            No CJ subscription invoices yet.
-          </p>
-        ) : (
-          <ul className="divide-y divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 bg-white">
-            {snapshot.subscriptions.invoices.map((invoice) => (
-              <li
-                key={invoice.id}
-                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm"
+        <div className="flex min-w-max gap-1.5 rounded-xl border border-zinc-200 bg-zinc-100/90 p-1 sm:min-w-0 sm:flex-wrap">
+          {TABS.map((item) => {
+            const active = tab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setTab(item.id)}
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition sm:flex-1 ${
+                  active
+                    ? item.id === "dropship"
+                      ? "bg-sky-600 text-white shadow-sm"
+                      : "bg-zinc-950 text-white shadow-sm"
+                    : "text-zinc-600 hover:bg-white hover:text-zinc-950"
+                }`}
               >
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium text-zinc-950">
-                      {formatMonth(invoice.billing_month)}
-                    </p>
-                    <span
-                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${statusClass(invoice.status)}`}
-                    >
-                      {invoice.status}
-                    </span>
-                  </div>
-                  <p className="text-zinc-500">
-                    {invoice.billable_item_count} billable items ·{" "}
-                    {formatMoney(invoice.unit_fee_usdt, "USDT")} / item
-                  </p>
-                </div>
-                <p className="font-medium text-zinc-950">
-                  {formatMoney(invoice.amount_usdt, "USDT")}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <div className="space-y-3">
-          <h3 className="text-base font-semibold tracking-tight">
-            Subscription ledger
-          </h3>
-          <TxList
-            rows={snapshot.inventory_fee_txs}
-            empty="No CJ subscription wallet charges yet."
-          />
+                <span className="sm:hidden">{item.short}</span>
+                <span className="hidden sm:inline">{item.label}</span>
+              </button>
+            );
+          })}
         </div>
+      </div>
 
-        <p className="text-sm text-zinc-600">
-          Pay or review fees in{" "}
-          <Link href="/vendor/fees" className="font-medium underline">
-            Dropship fees
-          </Link>
-          .
-        </p>
-      </Section>
-
-      <Section
-        id="withdrawals"
-        title="Withdrawals & balances"
-        description="Deposit USDT, request withdrawals, and review escrow releases. Only available balance can be withdrawn."
+      {/* Only the active tab’s details */}
+      <div
+        role="tabpanel"
+        className="rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5"
       >
-        {!kycApproved ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            Withdrawals stay locked until KYC is approved.{" "}
-            <Link href="/vendor/kyc" className="font-medium underline">
-              Submit or check KYC
-            </Link>
-            .
+        {tab === "custom" ? (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-base font-semibold text-zinc-950">
+                Independent Vendor · Custom Source
+              </h2>
+              <p className="mt-1 text-sm text-zinc-600">
+                Manual / custom-sourced income only. Universal {commissionPct}%
+                platform commission. No CJ subscription fees.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+              <DetailCard
+                label="Gross revenue"
+                value={formatMoney(snapshot.custom.gross_revenue_usdt, "USDT")}
+                hint={`${snapshot.custom.order_count} orders`}
+              />
+              <DetailCard
+                label="Platform fee"
+                value={formatMoney(
+                  snapshot.custom.platform_commission_usdt,
+                  "USDT",
+                )}
+                hint={`${commissionPct}% of GMV`}
+              />
+              <DetailCard
+                label="Product cost"
+                value={formatMoney(snapshot.custom.product_cost_usdt, "USDT")}
+                hint="Direct sales"
+              />
+              <DetailCard
+                label="Net profit"
+                value={formatMoney(snapshot.custom.net_profit_usdt, "USDT")}
+                hint="Gross − fee"
+              />
+            </div>
           </div>
         ) : null}
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard
-            label="USDT available"
-            value={formatMoney(snapshot.available_usdt, "USDT")}
-            tone="emerald"
-          />
-          <MetricCard
-            label="USDT pending"
-            value={formatMoney(snapshot.pending_usdt, "USDT")}
-            hint="Withdrawal requests awaiting review"
-            tone="amber"
-          />
-          <MetricCard
-            label="USDT escrow"
-            value={formatMoney(snapshot.escrow_usdt, "USDT")}
-            hint="Held until order delivered"
-            tone="amber"
-          />
-          <MetricCard
-            label="MMK available"
-            value={formatMoney(snapshot.available_mmk, "MMK")}
-            hint="Withdraw-only · no MMK deposits"
-          />
-        </div>
+        {tab === "dropship" ? (
+          <div className="space-y-5">
+            <div>
+              <h2 className="text-base font-semibold text-sky-950">
+                CJ Dropshipping income
+              </h2>
+              <p className="mt-1 text-sm text-zinc-600">
+                CJ orders only — revenue, supplier cost, {commissionPct}%
+                commission, and net. Custom-source sales are excluded.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+              <DetailCard
+                label="Gross revenue"
+                value={formatMoney(
+                  snapshot.dropship.gross_revenue_usdt,
+                  "USDT",
+                )}
+                hint={`${snapshot.dropship.order_count} CJ orders`}
+              />
+              <DetailCard
+                label="Product cost"
+                value={formatMoney(
+                  snapshot.dropship.product_cost_usdt,
+                  "USDT",
+                )}
+                hint="Supplier cost"
+              />
+              <DetailCard
+                label="Platform fee"
+                value={formatMoney(
+                  snapshot.dropship.platform_commission_usdt,
+                  "USDT",
+                )}
+                hint={`${commissionPct}% of GMV`}
+              />
+              <DetailCard
+                label="Net profit"
+                value={formatMoney(snapshot.dropship.net_profit_usdt, "USDT")}
+                hint="After cost + fee"
+              />
+            </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <MetricCard
-            label="Withdrawals completed"
-            value={formatMoney(snapshot.withdrawals.completed_usdt, "USDT")}
-            tone="emerald"
-          />
-          <MetricCard
-            label="Withdrawals pending"
-            value={formatMoney(snapshot.withdrawals.pending_usdt, "USDT")}
-            tone="amber"
-          />
-          <MetricCard
-            label="Withdrawals rejected"
-            value={formatMoney(snapshot.withdrawals.rejected_usdt, "USDT")}
-            tone="rose"
-          />
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          <UsdtDepositForm />
-          <WalletWithdrawForm
-            currency="USDT"
-            available={usdt?.available_balance ?? 0}
-          />
-          <div className="lg:col-span-2">
-            <WalletWithdrawForm
-              currency="MMK"
-              available={mmk?.available_balance ?? 0}
-            />
+            <div className="space-y-3 border-t border-sky-100 pt-4">
+              <div className="flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-sky-950">
+                    Subscription expenses
+                  </h3>
+                  <p className="text-xs text-zinc-500">
+                    Monthly CJ inventory fees only
+                  </p>
+                </div>
+                <Link
+                  href="/vendor/fees"
+                  className="text-xs font-medium text-sky-900 underline"
+                >
+                  Manage fees
+                </Link>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <DetailCard
+                  label="Paid"
+                  value={formatMoney(snapshot.subscriptions.paid_usdt, "USDT")}
+                />
+                <DetailCard
+                  label="Pending"
+                  value={formatMoney(
+                    snapshot.subscriptions.pending_usdt,
+                    "USDT",
+                  )}
+                />
+                <DetailCard
+                  label="Failed"
+                  value={formatMoney(
+                    snapshot.subscriptions.failed_usdt,
+                    "USDT",
+                  )}
+                />
+              </div>
+              {snapshot.subscriptions.invoices.length === 0 ? (
+                <p className="text-center text-sm text-zinc-500">
+                  No CJ subscription invoices yet.
+                </p>
+              ) : (
+                <ul className="divide-y divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200">
+                  {snapshot.subscriptions.invoices.slice(0, 6).map((invoice) => (
+                    <li
+                      key={invoice.id}
+                      className="flex items-center justify-between gap-2 px-3 py-2.5 text-sm"
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="font-medium text-zinc-950">
+                          {formatMonth(invoice.billing_month)}
+                        </span>
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset ${statusClass(invoice.status)}`}
+                        >
+                          {invoice.status}
+                        </span>
+                      </div>
+                      <span className="font-medium text-zinc-950">
+                        {formatMoney(invoice.amount_usdt, "USDT")}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
-        </div>
+        ) : null}
 
-        <div className="space-y-3">
-          <h3 className="text-base font-semibold tracking-tight">
-            Withdrawal history
-          </h3>
-          <TxList
-            rows={snapshot.withdrawals.history}
-            empty="No withdrawals yet."
-          />
-        </div>
+        {tab === "withdrawals" ? (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-base font-semibold text-zinc-950">
+                Withdrawals
+              </h2>
+              <p className="mt-1 text-sm text-zinc-600">
+                Request payouts from available balance. Escrow unlocks after
+                delivery confirmation.
+              </p>
+            </div>
 
-        <div className="space-y-3">
-          <h3 className="text-base font-semibold tracking-tight">
-            Escrow activity
-          </h3>
-          <TxList
-            rows={snapshot.escrow_txs}
-            empty="No escrow holds or releases yet."
-          />
-        </div>
-      </Section>
+            {!kycApproved ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-950">
+                Withdrawals locked until KYC is approved.{" "}
+                <Link href="/vendor/kyc" className="font-medium underline">
+                  Check KYC
+                </Link>
+              </div>
+            ) : null}
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold tracking-tight">
-          Recent wallet activity
-        </h2>
-        <TxList
-          rows={snapshot.transactions.slice(0, 25)}
-          empty="No wallet transactions yet."
-        />
-      </section>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+              <DetailCard
+                label="Completed"
+                value={formatMoney(
+                  snapshot.withdrawals.completed_usdt,
+                  "USDT",
+                )}
+              />
+              <DetailCard
+                label="Pending"
+                value={formatMoney(snapshot.withdrawals.pending_usdt, "USDT")}
+              />
+              <DetailCard
+                label="Rejected"
+                value={formatMoney(snapshot.withdrawals.rejected_usdt, "USDT")}
+              />
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <WalletWithdrawForm
+                currency="USDT"
+                available={usdt?.available_balance ?? 0}
+              />
+              <WalletWithdrawForm
+                currency="MMK"
+                available={mmk?.available_balance ?? 0}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-zinc-950">
+                Withdrawal history
+              </h3>
+              <TxList
+                rows={snapshot.withdrawals.history}
+                empty="No withdrawals yet."
+              />
+            </div>
+          </div>
+        ) : null}
+
+        {tab === "deposits" ? (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-base font-semibold text-zinc-950">
+                Deposits
+              </h2>
+              <p className="mt-1 text-sm text-zinc-600">
+                Top up USDT for checkout. MMK deposits are not accepted.
+              </p>
+            </div>
+            <UsdtDepositForm />
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-zinc-950">
+                Deposit history
+              </h3>
+              <TxList rows={depositTxs} empty="No deposits yet." />
+            </div>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

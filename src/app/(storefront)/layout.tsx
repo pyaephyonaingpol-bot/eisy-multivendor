@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { BuyerBottomNav } from "@/components/storefront/buyer-bottom-nav";
 import { BuyerMarketHeader } from "@/components/storefront/buyer-market-header";
 import { CartDrawer } from "@/components/storefront/cart-drawer";
@@ -22,7 +23,9 @@ export default function StorefrontLayout({
       <div className="pb-20 sm:pb-24">
         <StorefrontFooter />
       </div>
-      <BuyerBottomNav />
+      <Suspense fallback={null}>
+        <BuyerBottomNav />
+      </Suspense>
       <CartDrawer />
     </CartProvider>
   );

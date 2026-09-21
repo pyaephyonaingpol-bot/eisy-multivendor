@@ -111,29 +111,26 @@ export default async function EditVendorProductPage({
         categories={categoryOptions}
         product={product}
         sourcingRegions={sourcingRegions}
+        showLogistics={isCj}
       />
 
-      {!isCj ? (
+      {isCj ? (
         <p className="text-sm text-zinc-600">
           <Link
             href={`/vendor/sourcing/${product.id}`}
-            className="font-medium text-zinc-950 underline"
+            className="font-medium text-sky-950 underline"
           >
-            Manage regional supplier routes
+            Manage CJ regional routes &amp; shipping
           </Link>
-          {" "}
-          (optional warehouse / multi-supplier routing for manual SKUs)
-        </p>
-      ) : (
-        <p className="text-sm text-zinc-600">
+          {" · "}
           <Link
             href="/vendor/sourcing"
             className="font-medium text-sky-950 underline"
           >
-            Browse more CJ catalog products
+            Browse CJ catalog
           </Link>
         </p>
-      )}
+      ) : null}
 
       <p className="text-sm text-zinc-500">
         <Link href={backHref} className="underline">

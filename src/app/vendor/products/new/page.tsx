@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { ProductCreateForm } from "@/components/vendors/product-create-form";
 import { getSessionProfile } from "@/lib/auth/session";
 import { listActiveCategories } from "@/lib/categories/queries";
-import { listSourcingRegions } from "@/lib/sourcing/queries";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 
 export const dynamic = "force-dynamic";
@@ -21,10 +20,7 @@ export default async function NewVendorProductPage() {
     redirect("/vendor/apply");
   }
 
-  const [categories, sourcingRegions] = await Promise.all([
-    listActiveCategories(),
-    listSourcingRegions(),
-  ]);
+  const categories = await listActiveCategories();
 
   return (
     <section className="space-y-6">
@@ -35,7 +31,8 @@ export default async function NewVendorProductPage() {
         <h1 className="text-3xl font-semibold tracking-tight">Add product</h1>
         <p className="max-w-xl text-zinc-600">
           Create a manually sourced physical or digital item for{" "}
-          <strong>{vendor.name}</strong>.
+          <strong>{vendor.name}</strong>. Shipping fees and regional routes are
+          not part of this workflow — use the CJ Dropshipping portal for those.
         </p>
       </div>
 
@@ -46,10 +43,7 @@ export default async function NewVendorProductPage() {
         </div>
       ) : null}
 
-      <ProductCreateForm
-        categories={categories}
-        sourcingRegions={sourcingRegions}
-      />
+      <ProductCreateForm categories={categories} />
 
       <p className="text-sm text-zinc-500">
         <Link href="/vendor/products" className="underline">

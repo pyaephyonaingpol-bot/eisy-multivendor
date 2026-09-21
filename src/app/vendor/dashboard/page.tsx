@@ -52,7 +52,7 @@ export default async function VendorDashboardPage() {
     {
       href: "/vendor/settings",
       title: "Store",
-      body: "Store branding, shipping regions, and public storefront settings.",
+      body: "Store branding and public storefront settings.",
     },
     {
       href: "/vendor/orders",

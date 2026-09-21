@@ -6,12 +6,13 @@ export const dynamic = "force-dynamic";
 type Body = {
   country?: string;
   zip?: string | null;
+  includeAvailability?: boolean;
   items?: Array<{ product_id?: string; productId?: string; quantity?: number }>;
 };
 
 /**
- * Real-time CJ freight check for cart/browse destination country.
- * Returns available methods or a clear unsupported-country error.
+ * Real-time CJ freight + availability check for cart/browse destination country.
+ * Returns available methods/costs or a clear unsupported-country error.
  */
 export async function POST(request: Request) {
   let body: Body;
@@ -19,7 +20,11 @@ export async function POST(request: Request) {
     body = (await request.json()) as Body;
   } catch {
     return NextResponse.json(
-      { ok: false, error: "Invalid JSON body." },
+      {
+        ok: false,
+        error: "Invalid JSON body.",
+        availability: { status: "unknown", available: null, message: null },
+      },
       { status: 400 },
     );
   }
@@ -27,7 +32,11 @@ export async function POST(request: Request) {
   const country = String(body.country ?? "").trim().toUpperCase();
   if (!country) {
     return NextResponse.json(
-      { ok: false, error: "Country code is required." },
+      {
+        ok: false,
+        error: "Country code is required.",
+        availability: { status: "unknown", available: null, message: null },
+      },
       { status: 400 },
     );
   }
@@ -46,12 +55,14 @@ export async function POST(request: Request) {
       hasCjItems: false,
       methods: [],
       countryCode: country,
+      availability: { status: "skipped", available: null, message: null },
     });
   }
 
   try {
     const quote = await quoteCjShippingForCartItems(items, country, {
       zip: body.zip ?? null,
+      includeAvailability: body.includeAvailability !== false,
     });
     return NextResponse.json(quote, { status: quote.ok ? 200 : 409 });
   } catch (error) {
@@ -59,8 +70,17 @@ export async function POST(request: Request) {
       {
         ok: false,
         hasCjItems: true,
+        skipped: false,
         methods: [],
         countryCode: country,
+        availability: {
+          status: "unknown",
+          available: null,
+          message:
+            error instanceof Error
+              ? error.message
+              : "Could not verify CJ availability for this location.",
+        },
         error:
           error instanceof Error
             ? error.message

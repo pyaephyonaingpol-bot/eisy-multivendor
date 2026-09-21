@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 import { ImportToMyStorePanel } from "@/components/storefront/import-to-my-store-panel";
 import { ProductSpecificationsTable } from "@/components/storefront/product-specifications-table";
-import { RegionalShippingEstimate } from "@/components/storefront/regional-shipping-estimate";
+import { CjLiveShippingEstimate } from "@/components/storefront/cj-live-shipping-estimate";
 import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
 import { getPublicProductById } from "@/lib/products/queries";
 import {
@@ -146,10 +146,15 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
           ) : null}
 
           {productType === "physical" ? (
-            <RegionalShippingEstimate
+            <CjLiveShippingEstimate
+              productId={product.id}
               route={supplierRoute}
               countryCode={sourcing.countryCode}
               regionName={sourcing.regionName}
+              enableLiveCj={
+                product.catalog_kind === "cj_import" ||
+                Boolean(product.is_dropship)
+              }
             />
           ) : null}
 

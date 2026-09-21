@@ -2,6 +2,7 @@ import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/admin";
 import { freightCalculateCjShipping } from "@/lib/suppliers/cj";
+import { verifyCjLiveVariantStock } from "@/lib/suppliers/cj-live-stock";
 import { loadPlatformSupplierContext } from "@/lib/suppliers/platform-credentials";
 import {
   useLiveSupplierApi,
@@ -26,6 +27,12 @@ export type CjShippingQuoteMethod = {
   currency: string;
 };
 
+export type CjAvailabilityQuote = {
+  status: "in_stock" | "out_of_stock" | "unknown" | "skipped";
+  available: number | null;
+  message: string | null;
+};
+
 export type CjShippingQuoteResult =
   | {
       ok: true;
@@ -33,6 +40,7 @@ export type CjShippingQuoteResult =
       hasCjItems: boolean;
       methods: CjShippingQuoteMethod[];
       countryCode: string;
+      availability: CjAvailabilityQuote;
     }
   | {
       ok: false;
@@ -41,6 +49,7 @@ export type CjShippingQuoteResult =
       methods: CjShippingQuoteMethod[];
       countryCode: string;
       error: string;
+      availability: CjAvailabilityQuote;
     };
 
 type CjCartLine = {
@@ -49,6 +58,15 @@ type CjCartLine = {
   quantity: number;
   vid: string;
   warehouseCountry: string | null;
+  externalProductId: string | null;
+  externalVariantId: string | null;
+  externalSku: string | null;
+};
+
+const SKIPPED_AVAILABILITY: CjAvailabilityQuote = {
+  status: "skipped",
+  available: null,
+  message: null,
 };
 
 async function resolveCjCartLines(
@@ -125,23 +143,105 @@ async function resolveCjCartLines(
       quantity: Math.max(1, quantity),
       vid,
       warehouseCountry: product.origin_country_code ?? "CN",
+      externalProductId: imported?.external_product_id
+        ? String(imported.external_product_id)
+        : null,
+      externalVariantId: imported?.external_variant_id
+        ? String(imported.external_variant_id)
+        : null,
+      externalSku: imported?.external_sku
+        ? String(imported.external_sku)
+        : product.sku
+          ? String(product.sku)
+          : null,
     });
   }
 
   return lines;
 }
 
+async function quoteCjAvailability(
+  lines: CjCartLine[],
+  credentials: SupplierCredentials | null,
+): Promise<CjAvailabilityQuote> {
+  if (lines.length === 0) return SKIPPED_AVAILABILITY;
+
+  let lowestAvailable: number | null = null;
+  let sawLive = false;
+
+  for (const line of lines) {
+    const result = await verifyCjLiveVariantStock(
+      {
+        productId: line.productId,
+        productName: line.productName,
+        externalProductId: line.externalProductId,
+        externalVariantId: line.externalVariantId,
+        externalSku: line.externalSku ?? line.vid,
+        quantity: line.quantity,
+      },
+      credentials,
+    );
+
+    if ("skipped" in result && result.skipped) {
+      continue;
+    }
+
+    sawLive = true;
+
+    if (!result.ok) {
+      return {
+        status: "out_of_stock",
+        available: result.available,
+        message: result.error,
+      };
+    }
+
+    if (result.available != null) {
+      lowestAvailable =
+        lowestAvailable == null
+          ? result.available
+          : Math.min(lowestAvailable, result.available);
+    }
+  }
+
+  if (!sawLive) {
+    return SKIPPED_AVAILABILITY;
+  }
+
+  if (lowestAvailable == null) {
+    return {
+      status: "unknown",
+      available: null,
+      message: "Live CJ inventory could not be confirmed for this listing.",
+    };
+  }
+
+  return {
+    status: lowestAvailable > 0 ? "in_stock" : "out_of_stock",
+    available: lowestAvailable,
+    message:
+      lowestAvailable > 0
+        ? null
+        : "This product is currently out of stock at CJ Dropshipping.",
+  };
+}
+
 /**
- * Live freight quote for CJ cart lines to a destination country.
- * Used by checkout UI and API. Empty methods ⇒ destination unsupported.
+ * Live freight + availability quote for CJ cart/browse lines to a destination.
+ * Used by product browsing, checkout UI, and API. Empty methods ⇒ unsupported country.
  */
 export async function quoteCjShippingForCartItems(
   items: CjShippingCartItem[],
   countryCode: string,
-  options?: { zip?: string | null; credentials?: SupplierCredentials | null },
+  options?: {
+    zip?: string | null;
+    credentials?: SupplierCredentials | null;
+    includeAvailability?: boolean;
+  },
 ): Promise<CjShippingQuoteResult> {
   const normalizedCountry = countryCode.trim().toUpperCase() || "MM";
   const lines = await resolveCjCartLines(items);
+  const includeAvailability = options?.includeAvailability !== false;
 
   if (lines.length === 0) {
     return {
@@ -150,6 +250,7 @@ export async function quoteCjShippingForCartItems(
       hasCjItems: false,
       methods: [],
       countryCode: normalizedCountry,
+      availability: SKIPPED_AVAILABILITY,
     };
   }
 
@@ -167,6 +268,7 @@ export async function quoteCjShippingForCartItems(
       hasCjItems: true,
       methods: [],
       countryCode: normalizedCountry,
+      availability: SKIPPED_AVAILABILITY,
     };
   }
 
@@ -174,18 +276,23 @@ export async function quoteCjShippingForCartItems(
     lines.find((line) => line.warehouseCountry)?.warehouseCountry?.trim() ||
     "CN";
 
-  const freight = await freightCalculateCjShipping(
-    {
-      startCountryCode: startCountry,
-      endCountryCode: normalizedCountry,
-      zip: options?.zip,
-      products: lines.map((line) => ({
-        vid: line.vid,
-        quantity: line.quantity,
-      })),
-    },
-    creds,
-  );
+  const [freight, availability] = await Promise.all([
+    freightCalculateCjShipping(
+      {
+        startCountryCode: startCountry,
+        endCountryCode: normalizedCountry,
+        zip: options?.zip,
+        products: lines.map((line) => ({
+          vid: line.vid,
+          quantity: line.quantity,
+        })),
+      },
+      creds,
+    ),
+    includeAvailability
+      ? quoteCjAvailability(lines, creds)
+      : Promise.resolve(SKIPPED_AVAILABILITY),
+  ]);
 
   const methods: CjShippingQuoteMethod[] = freight.methods.map((method) => ({
     name: method.logisticName,
@@ -195,17 +302,25 @@ export async function quoteCjShippingForCartItems(
   }));
 
   if (!freight.ok) {
+    const errLower = (freight.error ?? "").toLowerCase();
+    const unsupported =
+      errLower.includes("ship") ||
+      errLower.includes("logistic") ||
+      errLower.includes("country") ||
+      errLower.includes("destination") ||
+      errLower.includes("not support");
     return {
       ok: false,
       skipped: false,
       hasCjItems: true,
       methods,
       countryCode: normalizedCountry,
-      error:
-        freight.error?.toLowerCase().includes("ship") ||
-        freight.error?.toLowerCase().includes("logistic")
-          ? `Sorry, CJ Dropshipping does not ship to your location (${normalizedCountry}). ${freight.error}`
-          : CJ_NO_SHIP_CUSTOMER_MESSAGE,
+      availability,
+      error: unsupported
+        ? `Sorry, CJ Dropshipping does not ship to your location (${normalizedCountry}).${
+            freight.error ? ` ${freight.error}` : ""
+          }`
+        : CJ_NO_SHIP_CUSTOMER_MESSAGE,
     };
   }
 
@@ -216,6 +331,7 @@ export async function quoteCjShippingForCartItems(
       hasCjItems: true,
       methods: [],
       countryCode: normalizedCountry,
+      availability,
       error: CJ_NO_SHIP_CUSTOMER_MESSAGE,
     };
   }
@@ -226,6 +342,7 @@ export async function quoteCjShippingForCartItems(
     hasCjItems: true,
     methods,
     countryCode: normalizedCountry,
+    availability,
   };
 }
 
@@ -237,7 +354,10 @@ export async function assertCjShipsToDestinationForCartItems(
   countryCode: string,
   options?: { zip?: string | null },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const quote = await quoteCjShippingForCartItems(items, countryCode, options);
+  const quote = await quoteCjShippingForCartItems(items, countryCode, {
+    zip: options?.zip,
+    includeAvailability: false,
+  });
   if (!quote.ok) {
     return { ok: false, error: quote.error };
   }

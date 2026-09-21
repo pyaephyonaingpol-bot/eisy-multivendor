@@ -97,7 +97,13 @@ export function CheckoutForm({
             name: string;
             amount: number | null;
             currency: string;
+            days?: string | null;
           }>;
+          availability?: {
+            status?: string;
+            available?: number | null;
+            message?: string | null;
+          };
         };
 
         if (!response.ok || data.ok === false) {
@@ -116,9 +122,15 @@ export function CheckoutForm({
           return;
         }
 
+        const availabilityNote =
+          data.availability?.status === "out_of_stock"
+            ? data.availability.message ??
+              "One or more CJ items are out of stock."
+            : null;
+
         setCjShip({
-          status: "ok",
-          message: null,
+          status: availabilityNote ? "blocked" : "ok",
+          message: availabilityNote,
           methods: data.methods ?? [],
         });
       } catch (error) {

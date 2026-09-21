@@ -66,17 +66,17 @@ export async function StorefrontHeader() {
           )}
         </div>
       </div>
-      <nav className="flex gap-3 overflow-x-auto border-t border-zinc-100 px-4 py-2 text-sm text-zinc-600 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
+      <nav className="flex gap-3 overflow-x-auto border-t border-[var(--market-line)] px-4 py-2 text-sm text-[var(--market-muted)] [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
         {nav.map((item) => (
           <Link
             key={item.href}
             href={item.href}
-            className="snap-start whitespace-nowrap rounded-full bg-zinc-50 px-3 py-1 hover:bg-zinc-100 hover:text-zinc-950"
+            className="snap-start whitespace-nowrap rounded-full bg-[var(--market-surface)] px-3 py-1 hover:text-[var(--market-ink)]"
           >
             {item.label}
           </Link>
         ))}
-        <AdminDashboardLink className="snap-start whitespace-nowrap rounded-full bg-zinc-50 px-3 py-1 hover:bg-zinc-100 hover:text-zinc-950">
+        <AdminDashboardLink className="snap-start whitespace-nowrap rounded-full bg-[var(--market-surface)] px-3 py-1 hover:text-[var(--market-ink)]">
           {t.nav.adminDashboard}
         </AdminDashboardLink>
       </nav>

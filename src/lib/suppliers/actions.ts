@@ -70,6 +70,8 @@ const PRODUCT_SCHEMA_FALLBACK_COLUMNS = [
   "ships_to_region_ids",
   "is_dropship",
   "source_product_id",
+  "price_usdt",
+  "title",
 ] as const;
 
 function stripProductSchemaColumn(
@@ -108,17 +110,31 @@ function applyProductSchemaCacheFallback(
   return { payload, stripped: false };
 }
 
-/** Product write payload; omits null compare_at_price so partial DBs don't choke. */
+/** Sanitize a USDT amount for products.price / products.price_usdt inserts. */
+function sanitizeUsdtPrice(
+  value: number | null | undefined,
+  fallback = 0.01,
+): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) {
+    return Math.round(fallback * 100) / 100;
+  }
+  return Math.round(n * 100) / 100;
+}
+
+/** Product write payload; always sets price + price_usdt (drifted DBs). */
 function productPriceFields(
   sellPrice: number,
   compareAtPriceUsdt: number | null | undefined,
 ) {
+  const price = sanitizeUsdtPrice(sellPrice);
   const fields: {
     price: number;
+    price_usdt: number;
     compare_at_price?: number | null;
-  } = { price: sellPrice };
-  if (compareAtPriceUsdt != null && Number.isFinite(compareAtPriceUsdt)) {
-    fields.compare_at_price = compareAtPriceUsdt;
+  } = { price, price_usdt: price };
+  if (compareAtPriceUsdt != null && Number.isFinite(compareAtPriceUsdt) && compareAtPriceUsdt > 0) {
+    fields.compare_at_price = sanitizeUsdtPrice(compareAtPriceUsdt, price);
   }
   return fields;
 }
@@ -130,13 +146,16 @@ function resolveImportSellPrice(
   const oneClickFlag =
     String(formData.get("one_click") ?? "").trim() === "1" ||
     String(formData.get("one_click") ?? "").trim() === "true";
-  const rawPrice = String(formData.get("price") ?? "").trim();
+  const rawPrice = String(
+    formData.get("price") ?? formData.get("price_usdt") ?? "",
+  ).trim();
   const parsed = rawPrice === "" ? NaN : Number(rawPrice);
+  const safeCost = sanitizeUsdtPrice(supplierCostUsdt);
 
   // Explicit sell price from preview / custom-price forms wins over one-click markup.
   if (Number.isFinite(parsed) && parsed > 0) {
     return {
-      price: Math.round(parsed * 100) / 100,
+      price: sanitizeUsdtPrice(parsed),
       oneClick: oneClickFlag && rawPrice === "",
     };
   }
@@ -146,10 +165,13 @@ function resolveImportSellPrice(
   }
 
   if (oneClickFlag) {
-    const price =
-      Math.round(Math.max(supplierCostUsdt, 0.01) * ONE_CLICK_IMPORT_MARKUP * 100) /
-      100;
+    const price = sanitizeUsdtPrice(safeCost * ONE_CLICK_IMPORT_MARKUP, safeCost);
     return { price, oneClick: true };
+  }
+
+  // Last resort: use supplier cost so NOT NULL price_usdt/price never receive null.
+  if (safeCost > 0) {
+    return { price: safeCost, oneClick: false };
   }
 
   return { error: "Enter a sell price greater than zero." };
@@ -418,10 +440,11 @@ export async function importExternalSupplierProductAction(
     return { error: priced.error };
   }
   const { price: sellPrice, oneClick } = priced;
+  const minCost = sanitizeUsdtPrice(variant.supplierCostUsdt);
 
-  if (sellPrice < variant.supplierCostUsdt) {
+  if (sellPrice + 1e-9 < minCost) {
     return {
-      error: `Sell price must be at least supplier cost (${variant.supplierCostUsdt} USDT).`,
+      error: `Sell price must be at least supplier cost (${minCost} USDT).`,
     };
   }
 

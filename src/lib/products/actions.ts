@@ -44,6 +44,8 @@ const PRODUCT_SCHEMA_FALLBACK_COLUMNS = [
   "ships_to_region_ids",
   "is_dropship",
   "source_product_id",
+  "price_usdt",
+  "title",
 ] as const;
 
 function stripProductSchemaColumn(
@@ -293,6 +295,8 @@ export async function createProduct(
     slug: parsed.slug,
     description: parsed.description || null,
     price: parsed.price,
+    // Drifted DBs require price_usdt NOT NULL; mirror canonical USDT price.
+    price_usdt: parsed.price,
     compare_at_price: parsed.compareAtPrice,
     currency: parsed.currency,
     sku: parsed.sku || null,
@@ -394,6 +398,8 @@ export async function updateProduct(
     slug: parsed.slug,
     description: parsed.description || null,
     price: parsed.price,
+    // Drifted DBs require price_usdt NOT NULL; mirror canonical USDT price.
+    price_usdt: parsed.price,
     compare_at_price: parsed.compareAtPrice,
     currency: parsed.currency,
     sku: parsed.sku || null,

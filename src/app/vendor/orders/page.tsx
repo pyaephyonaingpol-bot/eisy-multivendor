@@ -4,7 +4,7 @@ import { VendorFulfillmentForm } from "@/components/orders/vendor-fulfillment-fo
 import { redirect } from "next/navigation";
 import { getSessionProfile } from "@/lib/auth/session";
 import { formatMoney } from "@/lib/money";
-import { listOrdersForVendor } from "@/lib/orders/queries";
+import { listManualOrdersForVendor } from "@/lib/orders/queries";
 import {
   isSupplierUnavailableStatus,
   payoutStatusBadgeClass,
@@ -43,19 +43,23 @@ export default async function VendorOrdersPage() {
     );
   }
 
-  const orders = await listOrdersForVendor(vendor.id);
+  const orders = await listManualOrdersForVendor(vendor.id);
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-          Vendor
+          Vendor · Manual fulfillment
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
         <p className="text-zinc-600">
-          Fulfillment and store sales for your vendor account. Dropship-routed
-          sales also appear under Dropshipper → Orders. USDT earnings stay in
-          escrow until the order is delivered.
+          Local / custom-sourced orders you fulfill yourself. CJ Dropshipping
+          API orders live under Dropshipper → CJ orders.
+        </p>
+        <p className="text-sm text-zinc-500">
+          <Link href="/vendor/dropship/orders" className="font-medium underline">
+            Open CJ orders
+          </Link>
         </p>
       </div>
 

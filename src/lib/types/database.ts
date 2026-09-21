@@ -13,6 +13,8 @@ export type ProductStatus = "draft" | "active" | "archived";
 export type ProductType = "physical" | "digital";
 /** Vendor catalog workflow: manual listings vs CJ Dropshipping imports. */
 export type ProductCatalogKind = "manual" | "cj_import";
+/** Order / dispute workflow: local custom fulfillment vs CJ API. */
+export type FulfillmentChannel = "manual" | "cj";
 export type OrderStatus =
   | "pending"
   | "paid"
@@ -469,6 +471,12 @@ export type Order = {
   fulfillment_sync_status: FulfillmentSyncStatus;
   fulfillment_synced_at: string | null;
   fulfillment_sync_error: string | null;
+  /**
+   * Workflow partition:
+   * - manual: vendor ships / tracks locally
+   * - cj: CJ Dropshipping API fulfillment + tracking
+   */
+  fulfillment_channel: FulfillmentChannel;
   created_at: string;
   updated_at: string;
 };
@@ -512,6 +520,26 @@ export type Dispute = {
   resolution_note: string | null;
   resolved_by: string | null;
   resolved_at: string | null;
+  /** Mirrors order.fulfillment_channel for CJ vs manual complaint queues. */
+  fulfillment_channel: FulfillmentChannel;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CjOrderFulfillment = {
+  id: string;
+  order_id: string;
+  vendor_id: string | null;
+  seller_vendor_id: string | null;
+  provider_id: string | null;
+  supplier_order_ref: string | null;
+  tracking_number: string | null;
+  tracking_carrier: string | null;
+  tracking_url: string | null;
+  last_sync_status: string | null;
+  last_sync_error: string | null;
+  last_synced_at: string | null;
+  source_payload: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 };
@@ -877,6 +905,13 @@ export type Database = {
             "vendor_id" | "product_id" | "external_product_id"
           >;
         Update: Partial<CjImportedProduct>;
+        Relationships: [];
+      };
+      cj_order_fulfillments: {
+        Row: CjOrderFulfillment;
+        Insert: Partial<CjOrderFulfillment> &
+          Pick<CjOrderFulfillment, "order_id">;
+        Update: Partial<CjOrderFulfillment>;
         Relationships: [];
       };
       supplier_fulfillment_jobs: {

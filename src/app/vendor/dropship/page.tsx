@@ -39,8 +39,13 @@ export default async function VendorDropshipHubPage() {
   const cards = [
     {
       href: "/vendor/dropship/orders",
-      title: "Orders",
-      body: "Sales from your store that route fulfillment to a supplier.",
+      title: "CJ orders",
+      body: "Orders fulfilled through the CJ Dropshipping API — separate from manual Vendor orders.",
+    },
+    {
+      href: "/vendor/dropship/tracking",
+      title: "CJ tracking",
+      body: "Supplier tracking numbers and sync status from CJ only.",
     },
     {
       href: "/vendor/sourcing",
@@ -50,7 +55,12 @@ export default async function VendorDropshipHubPage() {
     {
       href: "/vendor/dropship/imported",
       title: "CJ products",
-      body: "Manage only CJ Dropshipping imports — kept separate from manual Vendor → Products.",
+      body: "Manage CJ imports — kept separate from manual Vendor → Products.",
+    },
+    {
+      href: "/vendor/support?channel=cj",
+      title: "CJ support",
+      body: "Buyer complaints and disputes for CJ orders only.",
     },
   ] as const;
 
@@ -70,7 +80,7 @@ export default async function VendorDropshipHubPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => (
           <Link
             key={card.href}

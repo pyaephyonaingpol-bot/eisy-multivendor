@@ -19,6 +19,7 @@ type Props = {
     vendor?: string;
     q?: string;
     escrow?: string;
+    channel?: string;
   }>;
 };
 
@@ -34,6 +35,10 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
   const params = await searchParams;
   const vendorId = params.vendor?.trim() || undefined;
   const q = params.q?.trim() || undefined;
+  const channelFilter =
+    params.channel === "cj" || params.channel === "manual"
+      ? params.channel
+      : undefined;
   const escrowFilter = ADMIN_ESCROW_STATUSES.includes(
     params.escrow as AdminEscrowStatus,
   )
@@ -45,6 +50,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
       vendorId,
       q,
       escrowStatus: escrowFilter,
+      fulfillmentChannel: channelFilter,
       limit: 150,
     }),
     listVendorsForOrderFilter(),
@@ -56,15 +62,48 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
 
   const escrowFilters = [
     {
-      href: buildHref({ vendor: vendorId, q }),
+      href: buildHref({ vendor: vendorId, q, channel: channelFilter }),
       label: "All",
       active: !escrowFilter,
     },
     ...ADMIN_ESCROW_STATUSES.map((status) => ({
-      href: buildHref({ vendor: vendorId, q, escrow: status }),
+      href: buildHref({
+        vendor: vendorId,
+        q,
+        escrow: status,
+        channel: channelFilter,
+      }),
       label: adminEscrowStatusLabel(status),
       active: escrowFilter === status,
     })),
+  ];
+
+  const channelFilters = [
+    {
+      href: buildHref({ vendor: vendorId, q, escrow: escrowFilter }),
+      label: "All channels",
+      active: !channelFilter,
+    },
+    {
+      href: buildHref({
+        vendor: vendorId,
+        q,
+        escrow: escrowFilter,
+        channel: "manual",
+      }),
+      label: "Manual / custom",
+      active: channelFilter === "manual",
+    },
+    {
+      href: buildHref({
+        vendor: vendorId,
+        q,
+        escrow: escrowFilter,
+        channel: "cj",
+      }),
+      label: "CJ Dropshipping",
+      active: channelFilter === "cj",
+    },
   ];
 
   return (
@@ -75,9 +114,25 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
         </h1>
         <p className="text-zinc-600">
           Monitor every order with buyer email, store Telegram, assigned USDT
-          deposit address, on-chain TxID, and escrow status. Mark shipped,
-          resolve disputes, or release escrow.
+          deposit address, on-chain TxID, and escrow status. Filter by manual
+          vs CJ Dropshipping fulfillment channels.
         </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2 text-sm">
+        {channelFilters.map((filter) => (
+          <Link
+            key={filter.href}
+            href={filter.href}
+            className={`rounded-full border px-3 py-1 ${
+              filter.active
+                ? "border-zinc-900 bg-zinc-950 text-white"
+                : "border-zinc-200 hover:bg-zinc-50"
+            }`}
+          >
+            {filter.label}
+          </Link>
+        ))}
       </div>
 
       <form
@@ -86,6 +141,9 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
       >
         {escrowFilter ? (
           <input type="hidden" name="escrow" value={escrowFilter} />
+        ) : null}
+        {channelFilter ? (
+          <input type="hidden" name="channel" value={channelFilter} />
         ) : null}
 
         <label className="min-w-[12rem] flex-1 space-y-1 text-sm">
@@ -136,7 +194,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
         >
           Apply
         </button>
-        {(vendorId || q || escrowFilter) && (
+        {(vendorId || q || escrowFilter || channelFilter) && (
           <Link
             href="/admin/orders"
             className="rounded-lg border border-zinc-200 px-4 py-2 text-sm hover:bg-zinc-50"
@@ -174,6 +232,9 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
 
       <p className="text-sm text-zinc-500">
         {orders.length} order{orders.length === 1 ? "" : "s"}
+        {channelFilter
+          ? ` · ${channelFilter === "cj" ? "CJ" : "manual"} channel`
+          : ""}
       </p>
 
       <AdminOrdersTable orders={orders} />
@@ -185,11 +246,13 @@ function buildHref(opts: {
   vendor?: string;
   q?: string;
   escrow?: string;
+  channel?: string;
 }) {
   const params = new URLSearchParams();
   if (opts.vendor) params.set("vendor", opts.vendor);
   if (opts.q) params.set("q", opts.q);
   if (opts.escrow) params.set("escrow", opts.escrow);
+  if (opts.channel) params.set("channel", opts.channel);
   const qs = params.toString();
   return qs ? `/admin/orders?${qs}` : "/admin/orders";
 }

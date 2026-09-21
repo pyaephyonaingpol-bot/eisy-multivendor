@@ -12,15 +12,14 @@ export default async function VendorLayout({
   const locale = await getRequestLocale();
   const t = getDictionary(locale);
 
-  // Main Vendor menu: Product, Store, Orders, Tracking only.
   const vendorLinks = [
     { href: "/vendor/products", label: t.vendorNav.product },
     { href: "/vendor/settings", label: t.vendorNav.store },
     { href: "/vendor/orders", label: t.vendorNav.orders },
     { href: "/vendor/tracking", label: t.vendorNav.tracking },
+    { href: "/vendor/support?channel=manual", label: "Support" },
   ];
 
-  // Profile / settings area: KYC, email, phone, address.
   const profileLinks = [
     { href: "/vendor/kyc", label: t.vendorNav.kycShort },
     { href: "/vendor/profile/email", label: t.vendorNav.email },
@@ -28,14 +27,16 @@ export default async function VendorLayout({
     { href: "/vendor/profile/address", label: t.vendorNav.address },
   ];
 
-  // Dropshipper section: Orders, Catalog, Imported Product List.
+  // Dropshipper section: CJ orders, tracking, catalog, imported products, support.
   const dropshipLinks = [
-    { href: "/vendor/dropship/orders", label: t.vendorNav.dropshipOrders },
+    { href: "/vendor/dropship/orders", label: "CJ orders" },
+    { href: "/vendor/dropship/tracking", label: "CJ tracking" },
     { href: "/vendor/sourcing", label: t.vendorNav.catalog },
     {
       href: "/vendor/dropship/imported",
       label: t.vendorNav.importedProducts,
     },
+    { href: "/vendor/support?channel=cj", label: "CJ support" },
   ];
 
   return (

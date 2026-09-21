@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 type PortalId = "vendor" | "cj";
 type TabId =
@@ -10,17 +10,23 @@ type TabId =
   | "store"
   | "orders"
   | "wallet"
-  | "profile"
+  | "more"
   | "catalog"
-  | "imported"
-  | "tracking";
+  | "imported";
 
 const PORTAL_STORAGE_KEY = "eisy-seller-portal";
 
 type TabDef = {
   id: TabId;
+  href?: string;
+  label: string;
+};
+
+type MoreLink = {
   href: string;
   label: string;
+  description: string;
+  portal?: PortalId;
 };
 
 const VENDOR_TABS: TabDef[] = [
@@ -28,24 +34,93 @@ const VENDOR_TABS: TabDef[] = [
   { id: "store", href: "/vendor/settings", label: "Store" },
   { id: "orders", href: "/vendor/orders", label: "Orders" },
   { id: "wallet", href: "/vendor/wallet?portal=vendor", label: "Wallet" },
-  { id: "profile", href: "/vendor/profile?portal=vendor", label: "Profile" },
+  { id: "more", label: "More" },
 ];
 
-/** CJ Dropshipping bottom bar — Catalog, Imported, Orders, Tracking, Wallet. */
 const CJ_TABS: TabDef[] = [
   { id: "catalog", href: "/vendor/sourcing", label: "Catalog" },
-  {
-    id: "imported",
-    href: "/vendor/dropship/imported",
-    label: "Imported",
-  },
+  { id: "imported", href: "/vendor/dropship/imported", label: "Imported" },
   { id: "orders", href: "/vendor/dropship/orders", label: "Orders" },
+  { id: "wallet", href: "/vendor/wallet?portal=cj", label: "Wallet" },
+  { id: "more", label: "More" },
+];
+
+const VENDOR_MORE_LINKS: MoreLink[] = [
   {
-    id: "tracking",
+    href: "/vendor/tracking",
+    label: "Tracking",
+    description: "Shipments for your custom-source orders",
+  },
+  {
+    href: "/vendor/disputes",
+    label: "Disputes",
+    description: "Open and resolve buyer disputes",
+  },
+  {
+    href: "/vendor/profile?portal=vendor",
+    label: "Profile",
+    description: "Account details and KYC",
+  },
+  {
+    href: "/vendor/dashboard",
+    label: "Portal home",
+    description: "Independent Vendor overview",
+  },
+  {
+    href: "/vendor/dropship",
+    label: "Switch to CJ Dropshipping",
+    description: "CJ catalog, imports, and fulfillment",
+    portal: "cj",
+  },
+  {
+    href: "/",
+    label: "Buyer Marketplace",
+    description: "Shop as a buyer",
+  },
+];
+
+const CJ_MORE_LINKS: MoreLink[] = [
+  {
     href: "/vendor/dropship/tracking",
     label: "Tracking",
+    description: "CJ shipment status and tracking",
   },
-  { id: "wallet", href: "/vendor/wallet?portal=cj", label: "Wallet" },
+  {
+    href: "/vendor/dropship/disputes",
+    label: "Disputes",
+    description: "CJ-related dispute cases",
+  },
+  {
+    href: "/vendor/fees",
+    label: "Fees",
+    description: "Inventory fees and subscriptions",
+  },
+  {
+    href: "/vendor/integrations",
+    label: "Integrations",
+    description: "CJ API connection status",
+  },
+  {
+    href: "/vendor/profile?portal=cj",
+    label: "Profile",
+    description: "Account details and KYC",
+  },
+  {
+    href: "/vendor/dropship",
+    label: "Portal home",
+    description: "CJ Dropshipping overview",
+  },
+  {
+    href: "/vendor/dashboard",
+    label: "Switch to Independent Vendor",
+    description: "Manual store listings and orders",
+    portal: "vendor",
+  },
+  {
+    href: "/",
+    label: "Buyer Marketplace",
+    description: "Shop as a buyer",
+  },
 ];
 
 function isCjExclusivePath(pathname: string) {
@@ -154,18 +229,6 @@ function TabIcon({ id }: { id: TabId }) {
           <path strokeLinecap="round" d="M9 9h6M9 12.5h6" />
         </svg>
       );
-    case "tracking":
-      return (
-        <svg {...common}>
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M3.5 16.5h9.5V7.5H8.2L3.5 11.2v5.3Zm13 0H20.5v-4.2L18.2 9.5H16.5v7Z"
-          />
-          <circle cx="7.5" cy="17.75" r="1.35" />
-          <circle cx="17.25" cy="17.75" r="1.35" />
-        </svg>
-      );
     case "wallet":
       return (
         <svg {...common}>
@@ -181,42 +244,56 @@ function TabIcon({ id }: { id: TabId }) {
           />
         </svg>
       );
-    case "profile":
+    case "more":
       return (
         <svg {...common}>
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 1.75c-3.4 0-6.25 1.7-6.25 3.75V19h12.5v-1.5c0-2.05-2.85-3.75-6.25-3.75Z"
-          />
+          <circle cx="6.5" cy="12" r="1.35" fill="currentColor" stroke="none" />
+          <circle cx="12" cy="12" r="1.35" fill="currentColor" stroke="none" />
+          <circle cx="17.5" cy="12" r="1.35" fill="currentColor" stroke="none" />
         </svg>
       );
   }
 }
 
+function isMoreMenuPath(pathname: string, portal: PortalId) {
+  if (portal === "cj") {
+    return (
+      pathname.startsWith("/vendor/dropship/tracking") ||
+      pathname.startsWith("/vendor/dropship/disputes") ||
+      pathname.startsWith("/vendor/fees") ||
+      pathname.startsWith("/vendor/integrations") ||
+      pathname.startsWith("/vendor/import") ||
+      pathname.startsWith("/vendor/profile") ||
+      pathname.startsWith("/vendor/kyc")
+    );
+  }
+  return (
+    pathname === "/vendor/tracking" ||
+    pathname === "/vendor/disputes" ||
+    pathname.startsWith("/vendor/profile") ||
+    pathname.startsWith("/vendor/kyc") ||
+    pathname.startsWith("/vendor/support")
+  );
+}
+
 function resolveActiveTab(pathname: string, portal: PortalId): TabId {
+  if (isMoreMenuPath(pathname, portal)) {
+    return "more";
+  }
+
   if (pathname.startsWith("/vendor/wallet")) {
     return "wallet";
   }
 
   if (portal === "cj") {
-    if (pathname.startsWith("/vendor/dropship/tracking")) {
-      return "tracking";
-    }
     if (pathname.startsWith("/vendor/dropship/orders")) {
       return "orders";
     }
-    if (
-      pathname.startsWith("/vendor/dropship/imported") ||
-      pathname.startsWith("/vendor/dropship/disputes")
-    ) {
+    if (pathname.startsWith("/vendor/dropship/imported")) {
       return "imported";
     }
     if (
       pathname.startsWith("/vendor/sourcing") ||
-      pathname.startsWith("/vendor/import") ||
-      pathname.startsWith("/vendor/integrations") ||
-      pathname.startsWith("/vendor/fees") ||
       pathname.startsWith("/vendor/dropship")
     ) {
       return "catalog";
@@ -225,31 +302,34 @@ function resolveActiveTab(pathname: string, portal: PortalId): TabId {
   }
 
   if (
-    pathname.startsWith("/vendor/profile") ||
-    pathname.startsWith("/vendor/kyc")
-  ) {
-    return "profile";
-  }
-  if (
     pathname === "/vendor/orders" ||
-    pathname.startsWith("/vendor/orders/") ||
-    pathname === "/vendor/tracking" ||
-    pathname === "/vendor/disputes"
+    pathname.startsWith("/vendor/orders/")
   ) {
     return "orders";
   }
   if (pathname.startsWith("/vendor/settings")) {
     return "store";
   }
-  if (pathname.startsWith("/vendor/products") || pathname === "/vendor/dashboard") {
+  if (
+    pathname.startsWith("/vendor/products") ||
+    pathname === "/vendor/dashboard"
+  ) {
     return "products";
   }
   return "products";
 }
 
+function moreLinkActive(pathname: string, href: string) {
+  const hrefPath = href.split("?")[0] || href;
+  if (pathname === hrefPath) return true;
+  if (hrefPath !== "/" && pathname.startsWith(`${hrefPath}/`)) return true;
+  return false;
+}
+
 /**
  * Fixed bottom tab bar for seller portals (Independent Vendor + CJ).
- * Mirrors the buyer marketplace bottom nav for quick one-tap access.
+ * Primary tabs stay in the bar; More opens a drawer for Tracking, Disputes,
+ * profile, fees, and portal switching.
  */
 export function VendorBottomNav() {
   const pathname = usePathname() || "/vendor/dashboard";
@@ -257,6 +337,8 @@ export function VendorBottomNav() {
   const searchPortal = searchParams.get("portal");
   const urlPortal = portalFromUrl(pathname, searchPortal);
   const [portal, setPortal] = useState<PortalId>(urlPortal);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const panelId = useId();
 
   useEffect(() => {
     if (searchPortal === "cj" || searchPortal === "vendor") {
@@ -280,51 +362,163 @@ export function VendorBottomNav() {
     }
   }, [pathname, searchPortal]);
 
+  useEffect(() => {
+    setMoreOpen(false);
+  }, [pathname, searchPortal]);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setMoreOpen(false);
+    }
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [moreOpen]);
+
   const tabs = portal === "cj" ? CJ_TABS : VENDOR_TABS;
+  const moreLinks = portal === "cj" ? CJ_MORE_LINKS : VENDOR_MORE_LINKS;
   const activeId = resolveActiveTab(pathname, portal);
-  const accentClass =
-    portal === "cj"
-      ? "text-sky-700"
-      : "text-zinc-950";
-  const mutedClass =
-    portal === "cj"
-      ? "text-sky-900/55 hover:text-sky-900"
-      : "text-zinc-500 hover:text-zinc-900";
+  const inCj = portal === "cj";
+  const accentClass = inCj ? "text-sky-700" : "text-zinc-950";
+  const mutedClass = inCj
+    ? "text-sky-900/55 hover:text-sky-900"
+    : "text-zinc-500 hover:text-zinc-900";
 
   return (
-    <nav
-      aria-label={
-        portal === "cj"
-          ? "CJ Dropshipping quick navigation"
-          : "Independent Vendor quick navigation"
-      }
-      data-portal={portal}
-      className={`fixed inset-x-0 bottom-0 z-50 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur-md ${
-        portal === "cj"
-          ? "border-sky-200 bg-white/95"
-          : "border-zinc-200 bg-white/95"
-      }`}
-    >
-      <ul className="mx-auto grid h-16 max-w-6xl grid-cols-5 px-1">
-        {tabs.map((tab) => {
-          const active = tab.id === activeId;
-          return (
-            <li key={`${portal}-${tab.id}`} className="flex">
-              <Link
-                href={tab.href}
-                onClick={() => writeStoredPortal(portal)}
-                aria-current={active ? "page" : undefined}
-                className={`flex w-full flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition ${
-                  active ? accentClass : mutedClass
-                }`}
+    <>
+      {moreOpen ? (
+        <div className="fixed inset-0 z-[60]" role="presentation">
+          <button
+            type="button"
+            aria-label="Close more menu"
+            className="absolute inset-0 bg-zinc-950/40"
+            onClick={() => setMoreOpen(false)}
+          />
+          <div
+            id={panelId}
+            role="dialog"
+            aria-modal="true"
+            aria-label={
+              inCj ? "CJ Dropshipping more menu" : "Independent Vendor more menu"
+            }
+            className={`absolute inset-x-0 bottom-0 max-h-[min(78vh,36rem)] overflow-hidden rounded-t-2xl border bg-white shadow-2xl ${
+              inCj ? "border-sky-200" : "border-zinc-200"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-zinc-100 px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold text-zinc-950">More</p>
+                <p
+                  className={`text-xs ${inCj ? "text-sky-800" : "text-zinc-500"}`}
+                >
+                  {inCj ? "CJ Dropshipping" : "Independent Vendor"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMoreOpen(false)}
+                className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:border-zinc-300 hover:text-zinc-950"
               >
-                <TabIcon id={tab.id} />
-                {tab.label}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+                Close
+              </button>
+            </div>
+            <ul className="max-h-[min(68vh,30rem)] overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-1">
+              {moreLinks.map((item) => {
+                const active = moreLinkActive(pathname, item.href);
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={() => {
+                        writeStoredPortal(item.portal ?? portal);
+                        setMoreOpen(false);
+                      }}
+                      aria-current={active ? "page" : undefined}
+                      className={`block px-4 py-3 transition hover:bg-zinc-50 ${
+                        active
+                          ? inCj
+                            ? "bg-sky-50"
+                            : "bg-zinc-50"
+                          : ""
+                      }`}
+                    >
+                      <span className="block text-sm font-medium text-zinc-950">
+                        {item.label}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-zinc-500">
+                        {item.description}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      ) : null}
+
+      <nav
+        aria-label={
+          inCj
+            ? "CJ Dropshipping quick navigation"
+            : "Independent Vendor quick navigation"
+        }
+        data-portal={portal}
+        className={`fixed inset-x-0 bottom-0 z-50 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur-md ${
+          inCj
+            ? "border-sky-200 bg-white/95"
+            : "border-zinc-200 bg-white/95"
+        }`}
+      >
+        <ul className="mx-auto grid h-16 max-w-6xl grid-cols-5 px-1">
+          {tabs.map((tab) => {
+            const active = tab.id === activeId;
+            if (tab.id === "more") {
+              return (
+                <li key={`${portal}-more`} className="flex">
+                  <button
+                    type="button"
+                    aria-expanded={moreOpen}
+                    aria-controls={panelId}
+                    aria-current={active ? "page" : undefined}
+                    onClick={() => setMoreOpen((value) => !value)}
+                    className={`flex w-full flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition ${
+                      active || moreOpen ? accentClass : mutedClass
+                    }`}
+                  >
+                    <TabIcon id="more" />
+                    More
+                  </button>
+                </li>
+              );
+            }
+
+            return (
+              <li key={`${portal}-${tab.id}`} className="flex">
+                <Link
+                  href={tab.href!}
+                  onClick={() => {
+                    writeStoredPortal(portal);
+                    setMoreOpen(false);
+                  }}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex w-full flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition ${
+                    active ? accentClass : mutedClass
+                  }`}
+                >
+                  <TabIcon id={tab.id} />
+                  {tab.label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+    </>
   );
 }

@@ -54,22 +54,9 @@ export default async function VendorOrdersPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
         <p className="text-zinc-600">
           Custom-sourced orders you fulfill yourself. CJ orders are in the CJ
-          Dropshipping Portal.
+          Dropshipping Portal. Tracking and disputes are under More in the
+          bottom bar.
         </p>
-        <div className="flex flex-wrap gap-2 pt-1">
-          <Link
-            href="/vendor/tracking"
-            className="inline-flex rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:border-zinc-300 hover:text-zinc-950"
-          >
-            Tracking
-          </Link>
-          <Link
-            href="/vendor/disputes"
-            className="inline-flex rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:border-zinc-300 hover:text-zinc-950"
-          >
-            Disputes
-          </Link>
-        </div>
       </div>
 
       {orders.length === 0 ? (

@@ -301,7 +301,7 @@ export function ExternalSupplierCatalogPanel({
             setPreviewId(null);
             setPreviewSuccess(
               success ??
-                `Imported via Preview into your store (product ${productId.slice(0, 8)}…). Keep building toward ${minActive} active items for the fee floor.`,
+                `Imported via Preview into your store (product ${productId.slice(0, 8)}…). CJ imports count toward the ${minActive}-item CJ fee floor; manual/custom products do not.`,
             );
           }}
         />

@@ -93,7 +93,7 @@ export default async function VendorDropshipHubPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Link
-          href="/vendor/wallet"
+          href="/vendor/wallet?portal=cj"
           className="rounded-xl border border-sky-200 bg-white p-4 transition hover:border-sky-300"
         >
           <p className="text-xs font-medium uppercase tracking-wide text-sky-800/70">
@@ -107,7 +107,7 @@ export default async function VendorDropshipHubPage() {
           </p>
         </Link>
         <Link
-          href="/vendor/wallet"
+          href="/vendor/wallet?portal=cj"
           className="rounded-xl border border-sky-200 bg-white p-4 transition hover:border-sky-300"
         >
           <p className="text-xs font-medium uppercase tracking-wide text-sky-800/70">
@@ -121,7 +121,7 @@ export default async function VendorDropshipHubPage() {
           </p>
         </Link>
         <Link
-          href="/vendor/wallet"
+          href="/vendor/wallet?portal=cj"
           className="rounded-xl border border-sky-200 bg-white p-4 transition hover:border-sky-300"
         >
           <p className="text-xs font-medium uppercase tracking-wide text-sky-800/70">
@@ -192,7 +192,7 @@ export default async function VendorDropshipHubPage() {
               View CJ fees
             </Link>
             <Link
-              href="/vendor/wallet"
+              href="/vendor/wallet?portal=cj"
               className="font-medium text-sky-900 underline"
             >
               Open finance wallet

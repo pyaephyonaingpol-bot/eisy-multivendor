@@ -92,7 +92,7 @@ export default async function VendorProfilePage() {
           {" · "}
           KYC: <strong>{vendor.kyc_status ?? "unsubmitted"}</strong>
           {" · "}
-          <Link href="/vendor/wallet" className="font-medium underline">
+          <Link href="/vendor/wallet?portal=vendor" className="font-medium underline">
             Wallet
           </Link>
           {" · "}

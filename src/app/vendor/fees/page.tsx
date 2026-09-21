@@ -83,7 +83,7 @@ export default async function VendorFeesPage() {
           inventory fees. A universal {commissionPct}% platform commission
           applies to all sales (manual/custom and CJ). Payouts settle in USDT.
           Withdraw USDT or MMK from your{" "}
-          <Link href="/vendor/wallet" className="underline">
+          <Link href="/vendor/wallet?portal=cj" className="underline">
             wallet
           </Link>
           ; MMK remains withdraw-only.

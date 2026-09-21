@@ -126,7 +126,7 @@ export default async function VendorDashboardPage() {
       {finance ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Link
-            href="/vendor/wallet"
+            href="/vendor/wallet?portal=vendor"
             className="rounded-xl border border-zinc-200 bg-white p-4 transition hover:border-zinc-300"
           >
             <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
@@ -141,7 +141,7 @@ export default async function VendorDashboardPage() {
             </p>
           </Link>
           <Link
-            href="/vendor/wallet"
+            href="/vendor/wallet?portal=vendor"
             className="rounded-xl border border-zinc-200 bg-white p-4 transition hover:border-zinc-300"
           >
             <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
@@ -153,7 +153,7 @@ export default async function VendorDashboardPage() {
             <p className="mt-1 text-sm text-zinc-500">Manual products only</p>
           </Link>
           <Link
-            href="/vendor/wallet"
+            href="/vendor/wallet?portal=vendor"
             className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 transition hover:border-amber-300"
           >
             <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
@@ -167,7 +167,7 @@ export default async function VendorDashboardPage() {
             </p>
           </Link>
           <Link
-            href="/vendor/wallet"
+            href="/vendor/wallet?portal=vendor"
             className="rounded-xl border border-rose-200 bg-rose-50/40 p-4 transition hover:border-rose-300"
           >
             <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">

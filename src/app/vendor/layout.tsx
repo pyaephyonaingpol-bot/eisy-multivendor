@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { VendorPortalNav } from "@/components/vendors/vendor-portal-nav";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
@@ -11,17 +12,17 @@ export default async function VendorLayout({
   const locale = await getRequestLocale();
   const t = getDictionary(locale);
 
-  // Independent Vendor Portal — custom sources only (zero CJ / wallet overlap).
-  // Wallet lives once as the shared sidebar button in VendorPortalNav.
+  // Independent Vendor — custom-source ops only (no CJ links).
   const vendorLinks = [
     { href: "/vendor/products", label: t.vendorNav.products },
     { href: "/vendor/settings", label: t.vendorNav.store },
     { href: "/vendor/orders", label: t.vendorNav.orders },
     { href: "/vendor/tracking", label: t.vendorNav.tracking },
     { href: "/vendor/disputes", label: t.vendorNav.disputes },
+    { href: "/vendor/wallet?portal=vendor", label: t.vendorNav.wallet },
   ];
 
-  // CJ Dropshipping Portal — CJ workflow + fees only (no duplicate Wallet link).
+  // CJ Dropshipping — CJ workflow + fees + wallet (no Independent Vendor links).
   const dropshipLinks = [
     { href: "/vendor/sourcing", label: t.vendorNav.catalog },
     {
@@ -32,6 +33,7 @@ export default async function VendorLayout({
     { href: "/vendor/dropship/tracking", label: t.vendorNav.cjTracking },
     { href: "/vendor/dropship/disputes", label: t.vendorNav.cjDisputes },
     { href: "/vendor/fees", label: t.vendorNav.fees },
+    { href: "/vendor/wallet?portal=cj", label: t.vendorNav.wallet },
   ];
 
   return (
@@ -42,23 +44,29 @@ export default async function VendorLayout({
             <p className="text-sm font-semibold text-zinc-950">
               {t.vendorNav.title}
             </p>
-            <p className="text-xs text-zinc-500">{t.vendorNav.subtitle}</p>
+            <p className="text-xs text-zinc-500">
+              One portal at a time — menus never mix
+            </p>
           </div>
           <LanguageSwitcher compact />
         </div>
-        <VendorPortalNav
-          vendorTitle={t.vendorNav.vendorSection}
-          dropshipTitle={t.vendorNav.dropshipSection}
-          vendorLinks={vendorLinks}
-          dropshipLinks={dropshipLinks}
-          vendorHomeHref="/vendor/dashboard"
-          dropshipHomeHref="/vendor/dropship"
-          accountHref="/vendor/profile"
-          accountLabel={t.vendorNav.profile}
-          walletHref="/vendor/wallet"
-          walletLabel={t.vendorNav.wallet}
-          backLabel={t.vendorNav.backToStorefront}
-        />
+        <Suspense
+          fallback={
+            <div className="h-40 animate-pulse rounded-xl bg-zinc-100" />
+          }
+        >
+          <VendorPortalNav
+            vendorTitle={t.vendorNav.vendorSection}
+            dropshipTitle={t.vendorNav.dropshipSection}
+            vendorLinks={vendorLinks}
+            dropshipLinks={dropshipLinks}
+            vendorHomeHref="/vendor/dashboard"
+            dropshipHomeHref="/vendor/dropship"
+            accountHref="/vendor/profile"
+            accountLabel={t.vendorNav.profile}
+            backLabel={t.vendorNav.backToStorefront}
+          />
+        </Suspense>
       </aside>
       <section className="min-w-0 flex-1 space-y-4">{children}</section>
     </div>

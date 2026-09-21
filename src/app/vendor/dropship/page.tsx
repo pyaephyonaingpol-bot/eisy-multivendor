@@ -9,8 +9,9 @@ import { getVendorFinanceSnapshot } from "@/lib/wallets/vendor-finance";
 export const dynamic = "force-dynamic";
 
 /**
- * CJ Dropshipping Portal home — Catalog, Imported products, CJ Orders,
- * CJ Tracking, CJ Disputes. Independent Vendor ops stay under /vendor/dashboard.
+ * CJ Dropshipping Portal home — metrics overview.
+ * Catalog / imports / orders / tracking / disputes live in the left sidebar.
+ * Independent Vendor ops stay under /vendor/dashboard.
  */
 export default async function VendorDropshipHubPage() {
   const session = await getSessionProfile();
@@ -48,34 +49,6 @@ export default async function VendorDropshipHubPage() {
   ]);
   const commissionPct = Math.round(finance.commission_rate * 1000) / 10;
 
-  const cards = [
-    {
-      href: "/vendor/sourcing",
-      title: "Catalog",
-      body: "Browse CJ Dropshipping and import listings.",
-    },
-    {
-      href: "/vendor/dropship/imported",
-      title: "Imported products",
-      body: "Manage CJ imports — separate from Vendor → Products.",
-    },
-    {
-      href: "/vendor/dropship/orders",
-      title: "CJ Orders",
-      body: "Orders fulfilled through the CJ Dropshipping API.",
-    },
-    {
-      href: "/vendor/dropship/tracking",
-      title: "CJ Tracking",
-      body: "Supplier tracking numbers and sync status from CJ.",
-    },
-    {
-      href: "/vendor/dropship/disputes",
-      title: "CJ Disputes",
-      body: "Buyer disputes for CJ orders only.",
-    },
-  ] as const;
-
   return (
     <div className="space-y-8">
       <div className="space-y-2">
@@ -83,11 +56,11 @@ export default async function VendorDropshipHubPage() {
           CJ Dropshipping Portal
         </p>
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">
-          CJ Dropshipping
+          Overview
         </h1>
         <p className="max-w-2xl text-sm text-zinc-600">
-          Catalog, Imported products, CJ Orders, CJ Tracking, and CJ Disputes.
-          Custom-source ops stay in the Independent Vendor Portal.
+          CJ finance and subscription at a glance. Use the sidebar for catalog,
+          imports, orders, tracking, and disputes.
         </p>
       </div>
 
@@ -149,23 +122,6 @@ export default async function VendorDropshipHubPage() {
             {formatMoney(finance.subscriptions.pending_usdt, "USDT")}
           </p>
         </Link>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map((card) => (
-          <Link
-            key={card.href}
-            href={card.href}
-            className="group rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50/90 to-white p-5 transition hover:border-sky-300 hover:shadow-sm"
-          >
-            <h2 className="text-base font-semibold text-sky-950 group-hover:underline">
-              {card.title}
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-sky-950/75">
-              {card.body}
-            </p>
-          </Link>
-        ))}
       </div>
 
       {feePreview?.is_dropshipper ? (

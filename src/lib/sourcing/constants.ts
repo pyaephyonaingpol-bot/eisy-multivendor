@@ -1,3 +1,5 @@
+import { ALL_COUNTRY_OPTIONS } from "@/lib/sourcing/countries";
+
 /** Cookie storing the buyer destination country (ISO-ish, e.g. MM, TH, US). */
 export const BUYER_COUNTRY_COOKIE = "eisy_buyer_country";
 
@@ -7,27 +9,12 @@ export const BUYER_REGION_COOKIE = "eisy_buyer_region";
 export const DEFAULT_BUYER_COUNTRY = "MM";
 export const DEFAULT_BUYER_REGION = "MM";
 
-/** Common checkout / selector countries for Eisy Myanmar buyers. */
-export const BUYER_COUNTRY_OPTIONS: { code: string; label: string }[] = [
-  { code: "MM", label: "Myanmar" },
-  { code: "TH", label: "Thailand" },
-  { code: "SG", label: "Singapore" },
-  { code: "MY", label: "Malaysia" },
-  { code: "ID", label: "Indonesia" },
-  { code: "VN", label: "Vietnam" },
-  { code: "PH", label: "Philippines" },
-  { code: "KH", label: "Cambodia" },
-  { code: "CN", label: "China" },
-  { code: "HK", label: "Hong Kong" },
-  { code: "JP", label: "Japan" },
-  { code: "KR", label: "South Korea" },
-  { code: "US", label: "United States" },
-  { code: "CA", label: "Canada" },
-  { code: "GB", label: "United Kingdom" },
-  { code: "DE", label: "Germany" },
-  { code: "FR", label: "France" },
-  { code: "AU", label: "Australia" },
-];
+/**
+ * Full ISO 3166-1 alpha-2 country list for checkout / address / profile selectors.
+ * Myanmar is listed first; remaining countries are alphabetical.
+ * CJ freight checks still decide whether a destination is shippable at quote time.
+ */
+export const BUYER_COUNTRY_OPTIONS = ALL_COUNTRY_OPTIONS;
 
 /** Offline fallback when Supabase regions are unavailable. */
 export const FALLBACK_REGIONS: {
@@ -93,6 +80,13 @@ export function matchRegionCodeForCountry(
   const match = regions.find((region) => region.country_codes.includes(code));
   if (match) {
     return match.code;
+  }
+  // Unlisted destinations map to GLOBAL (rest of world), not the default marketplace region.
+  const global =
+    regions.find((region) => region.code === "GLOBAL") ??
+    regions.find((region) => region.country_codes.length === 0);
+  if (global) {
+    return global.code;
   }
   const fallback =
     regions.find((region) => region.is_default) ??

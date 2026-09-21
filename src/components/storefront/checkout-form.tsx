@@ -251,7 +251,7 @@ export function CheckoutForm({
               >
                 {BUYER_COUNTRY_OPTIONS.map((option) => (
                   <option key={option.code} value={option.code}>
-                    {option.label}
+                    {option.label} ({option.code})
                   </option>
                 ))}
               </select>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { DeleteProductButton } from "@/components/vendors/delete-product-button";
 import { getSessionProfile } from "@/lib/auth/session";
 import { formatMoney } from "@/lib/money";
 import { listCjImportedProductsForVendor } from "@/lib/products/queries";
@@ -113,12 +114,20 @@ export default async function DropshipImportedProductsPage() {
                     </p>
                   </div>
                 </div>
-                <Link
-                  href={`/vendor/products/${product.id}/edit?catalog=cj`}
-                  className="inline-flex min-h-11 w-full max-w-full items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-950 hover:bg-sky-100 sm:min-h-0 sm:w-auto"
-                >
-                  Edit CJ listing
-                </Link>
+                <div className="grid w-full max-w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
+                  <Link
+                    href={`/vendor/products/${product.id}/edit?catalog=cj`}
+                    className="inline-flex min-h-11 w-full max-w-full items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-950 hover:bg-sky-100 sm:min-h-0 sm:w-auto"
+                  >
+                    Edit CJ listing
+                  </Link>
+                  <DeleteProductButton
+                    productId={product.id}
+                    productName={product.name}
+                    label="Remove"
+                    className="inline-flex min-h-11 w-full max-w-full items-center justify-center rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-sm font-medium text-rose-800 hover:bg-rose-50 disabled:opacity-60 sm:min-h-0 sm:w-auto"
+                  />
+                </div>
               </li>
             );
           })}

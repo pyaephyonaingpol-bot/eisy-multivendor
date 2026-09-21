@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { DeleteProductButton } from "@/components/vendors/delete-product-button";
 import { getSessionProfile } from "@/lib/auth/session";
 import { formatMoney } from "@/lib/money";
 import { listManualProductsForVendor } from "@/lib/products/queries";
@@ -142,12 +143,20 @@ export default async function VendorProductsPage() {
                     </p>
                   </div>
                 </div>
-                <Link
-                  href={`/vendor/products/${product.id}/edit`}
-                  className="inline-flex rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
-                >
-                  Edit
-                </Link>
+                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+                  <Link
+                    href={`/vendor/products/${product.id}/edit`}
+                    className="inline-flex flex-1 items-center justify-center rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50 sm:flex-none"
+                  >
+                    Edit
+                  </Link>
+                  <DeleteProductButton
+                    productId={product.id}
+                    productName={product.name}
+                    label="Delete"
+                    className="inline-flex flex-1 items-center justify-center rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-sm font-medium text-rose-800 hover:bg-rose-50 disabled:opacity-60 sm:flex-none"
+                  />
+                </div>
               </li>
             );
           })}

@@ -45,16 +45,22 @@ type SitePortalFooterProps = {
   brandTitle?: string;
   brandDescription?: string;
   shopLinks?: boolean;
+  /**
+   * Show the Portals card grid (Buyer / Vendor / CJ / Admin).
+   * Off by default on the buyer storefront — use the Account menu instead.
+   */
+  showPortalHub?: boolean;
 };
 
 /**
- * Shared site footer: brand + shop shortcuts + account/portal navigation hub.
- * Used on buyer storefront; compact variants can omit shop links.
+ * Shared site footer: brand + shop shortcuts (+ optional portal hub).
+ * Buyer storefront keeps this clean; seller/admin can still show portal cards.
  */
 export function SitePortalFooter({
   brandTitle = "Eisy Marketplace",
   brandDescription = "Browse products, pay with USDT, and checkout in a clean buyer storefront.",
   shopLinks = true,
+  showPortalHub = true,
 }: SitePortalFooterProps) {
   const pathname = usePathname() || "/";
   const searchParams = useSearchParams();
@@ -101,9 +107,9 @@ export function SitePortalFooter({
 
         {onAccountSurface ? (
           <AccountMenu />
-        ) : (
+        ) : showPortalHub ? (
           <PortalNavHub active={active} />
-        )}
+        ) : null}
       </div>
       <div className="border-t border-zinc-100">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4 text-xs text-zinc-500">

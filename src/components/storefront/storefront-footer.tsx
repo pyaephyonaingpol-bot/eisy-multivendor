@@ -2,8 +2,8 @@ import { Suspense } from "react";
 import { SitePortalFooter } from "@/components/layout/site-portal-footer";
 
 /**
- * Buyer storefront footer with shop links and portal navigation hub.
- * Suspense wraps the client footer (uses searchParams for active portal).
+ * Buyer storefront footer — shop links only (no Portals card grid).
+ * Portal switching lives in the Account menu / bottom nav.
  */
 export function StorefrontFooter() {
   return (
@@ -16,7 +16,7 @@ export function StorefrontFooter() {
         </footer>
       }
     >
-      <SitePortalFooter />
+      <SitePortalFooter showPortalHub={false} />
     </Suspense>
   );
 }

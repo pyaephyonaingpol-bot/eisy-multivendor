@@ -18,9 +18,10 @@ export default async function VendorLayout({
     { href: "/vendor/orders", label: t.vendorNav.orders },
     { href: "/vendor/tracking", label: t.vendorNav.tracking },
     { href: "/vendor/disputes", label: t.vendorNav.disputes },
+    { href: "/vendor/wallet", label: t.vendorNav.wallet },
   ];
 
-  // CJ Dropshipping Portal — CJ workflow only (zero vendor overlap).
+  // CJ Dropshipping Portal — CJ workflow only (zero vendor product overlap).
   const dropshipLinks = [
     { href: "/vendor/sourcing", label: t.vendorNav.catalog },
     {
@@ -30,6 +31,8 @@ export default async function VendorLayout({
     { href: "/vendor/dropship/orders", label: t.vendorNav.cjOrders },
     { href: "/vendor/dropship/tracking", label: t.vendorNav.cjTracking },
     { href: "/vendor/dropship/disputes", label: t.vendorNav.cjDisputes },
+    { href: "/vendor/fees", label: t.vendorNav.fees },
+    { href: "/vendor/wallet", label: t.vendorNav.wallet },
   ];
 
   return (

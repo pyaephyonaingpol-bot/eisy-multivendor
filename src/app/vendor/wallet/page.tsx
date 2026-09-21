@@ -23,10 +23,44 @@ export default async function VendorWalletPage() {
 
   const vendor = await getVendorForOwner(session.userId);
   if (!vendor) {
-    redirect("/vendor/apply");
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold tracking-tight">Wallet</h1>
+        <p className="text-zinc-600">
+          Submit a vendor application before you can view wallet earnings.
+        </p>
+        <Link
+          href="/vendor/apply"
+          className="inline-flex rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+        >
+          Apply as a vendor
+        </Link>
+      </div>
+    );
   }
 
-  const snapshot = await getVendorFinanceSnapshot(session.userId, vendor.id);
+  let snapshot;
+  try {
+    snapshot = await getVendorFinanceSnapshot(session.userId, vendor.id);
+  } catch (error) {
+    console.error("vendor wallet finance snapshot:", error);
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold tracking-tight">Wallet</h1>
+        <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+          Wallet data could not be loaded right now. Refresh the page or try
+          again shortly.
+        </p>
+        <Link
+          href="/vendor/dashboard"
+          className="inline-flex text-sm font-medium underline"
+        >
+          Back to dashboard
+        </Link>
+      </div>
+    );
+  }
+
   const kycApproved = isVendorKycApproved(vendor);
 
   return (
@@ -37,7 +71,7 @@ export default async function VendorWalletPage() {
           <Link href="/vendor/kyc" className="font-medium underline">
             Submit or check KYC verification
           </Link>
-          {vendor?.kyc_status ? ` (current: ${vendor.kyc_status})` : null}.
+          {vendor.kyc_status ? ` (current: ${vendor.kyc_status})` : null}.
         </div>
       ) : null}
       <VendorFinanceDashboard

@@ -90,7 +90,7 @@ function NavSection({
 
 /**
  * Two fully independent portals — only one sidebar menu is visible at a time.
- * Independent Vendor and CJ Dropshipping never share nav items.
+ * Wallet is always available as a primary sidebar item for both portals.
  */
 export function VendorPortalNav({
   vendorTitle,
@@ -107,6 +107,7 @@ export function VendorPortalNav({
 }: Props) {
   const pathname = usePathname() || "/vendor/dashboard";
   const inCjPortal = isCjPortalPath(pathname);
+  const walletActive = linkIsActive(pathname, walletHref);
 
   return (
     <nav
@@ -123,9 +124,9 @@ export function VendorPortalNav({
         <Link
           href={vendorHomeHref}
           role="tab"
-          aria-selected={!inCjPortal}
+          aria-selected={!inCjPortal && !walletActive}
           className={`rounded-lg px-2 py-2 text-center text-[11px] font-semibold leading-tight transition sm:text-xs ${
-            !inCjPortal
+            !inCjPortal && !walletActive
               ? "bg-white text-zinc-950 shadow-sm"
               : "text-zinc-500 hover:text-zinc-800"
           }`}
@@ -145,6 +146,18 @@ export function VendorPortalNav({
           {dropshipTitle}
         </Link>
       </div>
+
+      <Link
+        href={walletHref}
+        aria-current={walletActive ? "page" : undefined}
+        className={`flex w-full items-center justify-center rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
+          walletActive
+            ? "border-emerald-600 bg-emerald-600 text-white shadow-sm"
+            : "border-emerald-200 bg-emerald-50 text-emerald-950 hover:border-emerald-300 hover:bg-emerald-100"
+        }`}
+      >
+        {walletLabel}
+      </Link>
 
       {inCjPortal ? (
         <div className="space-y-3 rounded-xl border border-sky-200 bg-sky-50/70 p-2.5 md:border-sky-100 md:bg-sky-50/40">
@@ -167,12 +180,6 @@ export function VendorPortalNav({
       )}
 
       <div className="space-y-2 border-t border-zinc-200 pt-3 md:pt-2">
-        <Link
-          href={walletHref}
-          className="block whitespace-nowrap rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-zinc-500 hover:text-zinc-950 md:rounded-none md:border-0 md:bg-transparent md:px-0 md:py-0"
-        >
-          {walletLabel}
-        </Link>
         <Link
           href={accountHref}
           className="inline-flex whitespace-nowrap rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-zinc-500 hover:text-zinc-950 md:rounded-none md:border-0 md:bg-transparent md:px-0 md:py-0"

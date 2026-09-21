@@ -300,7 +300,7 @@ export function SupplierProductPreviewModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
+      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
@@ -309,8 +309,8 @@ export function SupplierProductPreviewModal({
         if (e.target === e.currentTarget && !importPending) onClose();
       }}
     >
-      <div className="flex h-[100dvh] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl border border-zinc-200 bg-white shadow-xl sm:h-[min(92vh,52rem)] sm:rounded-2xl">
-        <header className="flex h-16 shrink-0 items-start justify-between gap-3 border-b border-zinc-200 px-3 py-3 sm:px-5">
+      <div className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl sm:max-h-[90vh]">
+        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-200 px-3 py-3 sm:px-5">
           <div className="min-w-0 flex-1 overflow-hidden">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
               Product preview ·{" "}
@@ -318,7 +318,7 @@ export function SupplierProductPreviewModal({
             </p>
             <h2
               id={titleId}
-              className="h-7 truncate text-base font-semibold leading-7 text-zinc-950 sm:text-lg"
+              className="truncate text-base font-semibold leading-7 text-zinc-950 sm:text-lg"
             >
               {product?.name ?? (loading ? "Loading product…" : "Product preview")}
             </h2>
@@ -333,14 +333,14 @@ export function SupplierProductPreviewModal({
           </button>
         </header>
 
-        <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-4 sm:px-5">
+        <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-4 sm:px-5">
           {loadError ? (
             <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
               {loadError}
             </p>
           ) : null}
 
-          <div className="grid min-h-[28rem] min-w-0 gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+          <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
             <div className="min-w-0 space-y-3">
               <div className={PRODUCT_IMAGE_FRAME}>
                 {!imageReady || !heroSrc ? (
@@ -719,7 +719,7 @@ export function SupplierProductPreviewModal({
           </div>
         </div>
 
-        <footer className="flex min-h-[4.5rem] shrink-0 flex-col justify-center gap-2 border-t border-zinc-200 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <footer className="flex shrink-0 flex-col justify-center gap-2 border-t border-zinc-200 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <p className="break-words text-[11px] text-zinc-500">
             {confirmOpen
               ? "Confirm the import details below."

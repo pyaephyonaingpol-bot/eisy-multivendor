@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/storefront/cart-provider";
+import { BuyerCountrySelect } from "@/components/storefront/buyer-country-select";
 import {
   checkoutWithUsdt,
   type CheckoutActionState,
 } from "@/lib/cart/checkout-actions";
 import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
-import { BUYER_COUNTRY_OPTIONS } from "@/lib/sourcing/constants";
 
 const initialState: CheckoutActionState = null;
 
@@ -242,19 +242,14 @@ export function CheckoutForm({
               >
                 Country
               </label>
-              <select
+              <BuyerCountrySelect
                 id="country"
                 name="country"
                 value={country}
-                onChange={(event) => setCountry(event.target.value)}
+                onChange={setCountry}
+                required={hasPhysical}
                 className={fieldClassName}
-              >
-                {BUYER_COUNTRY_OPTIONS.map((option) => (
-                  <option key={option.code} value={option.code}>
-                    {option.label} ({option.code})
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <label

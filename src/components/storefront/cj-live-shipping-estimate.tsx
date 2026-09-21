@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { RegionalShippingEstimate } from "@/components/storefront/regional-shipping-estimate";
+import { BuyerCountrySelect } from "@/components/storefront/buyer-country-select";
 import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
-import { BUYER_COUNTRY_OPTIONS } from "@/lib/sourcing/constants";
 import { setBuyerSourcingPreference } from "@/lib/sourcing/actions";
 import type { ResolvedSupplierRoute } from "@/lib/types/database";
 
@@ -178,18 +178,14 @@ export function CjLiveShippingEstimate({
         <label htmlFor="cj-browse-country" className="text-xs font-medium text-zinc-600">
           Ship to
         </label>
-        <select
+        <BuyerCountrySelect
           id="cj-browse-country"
+          name="cj_browse_country"
           value={country}
-          onChange={(event) => onCountryChange(event.target.value)}
+          onChange={onCountryChange}
           className={fieldClassName}
-        >
-          {BUYER_COUNTRY_OPTIONS.map((option) => (
-            <option key={option.code} value={option.code}>
-              {option.label} ({option.code})
-            </option>
-          ))}
-        </select>
+          aria-label="Ship to"
+        />
       </div>
 
       {quote.status === "loading" ? (

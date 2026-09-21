@@ -10,9 +10,10 @@ export const DEFAULT_BUYER_COUNTRY = "MM";
 export const DEFAULT_BUYER_REGION = "MM";
 
 /**
- * Full ISO 3166-1 alpha-2 country list for checkout / address / profile selectors.
- * Myanmar is listed first; remaining countries are alphabetical.
- * CJ freight checks still decide whether a destination is shippable at quote time.
+ * CJ Dropshipping official destination countries for checkout / address selectors.
+ * Myanmar first, then GCC (AE/BH/KW/OM/QA/SA), then remaining CJ destinations A–Z.
+ * Live refresh available via `/api/shipping/cj-countries`.
+ * Freight checks still decide whether a destination is shippable for a given cart.
  */
 export const BUYER_COUNTRY_OPTIONS = ALL_COUNTRY_OPTIONS;
 
@@ -59,6 +60,12 @@ export const FALLBACK_REGIONS: {
     code: "US",
     name: "North America",
     country_codes: ["US", "CA", "MX"],
+    is_default: false,
+  },
+  {
+    code: "GCC",
+    name: "Gulf Cooperation Council",
+    country_codes: ["AE", "BH", "KW", "OM", "QA", "SA"],
     is_default: false,
   },
   { code: "GLOBAL", name: "Rest of world", country_codes: [], is_default: false },

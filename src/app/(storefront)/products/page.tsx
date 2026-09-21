@@ -23,9 +23,10 @@ export default async function ProductsPage() {
             Showing items that ship to{" "}
             <strong>{sourcing.regionName}</strong> ({sourcing.countryCode})
             {sourcing.fromProfile
-              ? " based on your profile shipping country"
-              : " (default region — add a preferred country on your profile for a personal catalog)"}
-            . Prices are in USDT.
+              ? " based on your default delivery address / profile country"
+              : " (default region — set a default delivery address or preferred country on your profile)"}
+            . CJ Dropshipping listings are filtered by live shipping availability
+            for this destination. Prices are in USDT.
           </p>
         ) : (
           <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950 sm:flex sm:items-center sm:justify-between sm:gap-4">
@@ -34,7 +35,8 @@ export default async function ProductsPage() {
               <strong>
                 {sourcing.regionName} ({DEFAULT_BUYER_COUNTRY})
               </strong>
-              . Sign in to filter products by the country on your profile.
+              . Sign in and set a default delivery address to filter CJ products
+              by countries where they can ship.
             </p>
             <AuthHeaderButton label="Sign in to set region" />
           </div>

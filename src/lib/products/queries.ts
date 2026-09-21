@@ -55,19 +55,42 @@ async function filterDeliverableProducts(
   }
 
   const supabase = supabaseClient ?? (await createClient());
+  const safeCountry = countryCode || DEFAULT_BUYER_COUNTRY;
   const { data, error } = await supabase.rpc("filter_deliverable_product_ids", {
     p_product_ids: products.map((product) => product.id),
-    p_country_code: countryCode || DEFAULT_BUYER_COUNTRY,
+    p_country_code: safeCountry,
   });
 
+  let regionFiltered = products;
   if (error || !data) {
     // Fail open for local inventory if the migration is not applied yet.
     console.warn("filter_deliverable_product_ids:", error?.message);
-    return products;
+  } else {
+    const allowed = new Set(data as string[]);
+    regionFiltered = products.filter((product) => allowed.has(product.id));
   }
 
-  const allowed = new Set(data as string[]);
-  return products.filter((product) => allowed.has(product.id));
+  if (regionFiltered.length === 0) {
+    return [];
+  }
+
+  // Second pass: live CJ freight — hide CJ imports that cannot ship to this country.
+  try {
+    const { filterCjProductsShippableToCountry } = await import(
+      "@/lib/suppliers/cj-shipping"
+    );
+    const cjAllowed = await filterCjProductsShippableToCountry(
+      regionFiltered.map((product) => product.id),
+      safeCountry,
+    );
+    return regionFiltered.filter((product) => cjAllowed.has(product.id));
+  } catch (cjError) {
+    console.warn(
+      "filterCjProductsShippableToCountry:",
+      cjError instanceof Error ? cjError.message : cjError,
+    );
+    return regionFiltered;
+  }
 }
 
 async function withPublicVendorMeta(

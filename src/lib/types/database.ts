@@ -457,7 +457,7 @@ export type Order = {
   shipping_address: Record<string, unknown> | null;
   buyer_region_id: string | null;
   buyer_country_code: string | null;
-  /** 3% platform commission on dropship GMV (0 for direct sales). */
+  /** Universal platform commission on GMV (default 10% for manual + CJ). */
   platform_commission_usdt: number;
   tracking_number: string | null;
   tracking_carrier: string | null;

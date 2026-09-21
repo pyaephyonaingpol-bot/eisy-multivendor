@@ -49,7 +49,7 @@ export default async function VendorDropshipHubPage() {
     getVendorDropshipCommissionSummary(vendor.id),
   ]);
   const commissionPct =
-    Math.round((commissions.commission_rate || 0.03) * 1000) / 10;
+    Math.round((commissions.commission_rate || 0.1) * 1000) / 10;
 
   const cards = [
     {
@@ -137,14 +137,15 @@ export default async function VendorDropshipHubPage() {
           </div>
           <div className="rounded-xl border border-sky-200 bg-white p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-sky-800/70">
-              CJ commissions paid
+              Platform commissions paid
             </p>
             <p className="mt-2 text-2xl font-semibold text-zinc-950">
               {formatMoney(commissions.commission_usdt, "USDT")}
             </p>
             <p className="mt-2 text-sm text-zinc-600">
-              {commissionPct}% platform fee across {commissions.order_count} paid
-              CJ order{commissions.order_count === 1 ? "" : "s"}
+              Universal {commissionPct}% platform fee across{" "}
+              {commissions.order_count} paid order
+              {commissions.order_count === 1 ? "" : "s"}
             </p>
           </div>
         </div>

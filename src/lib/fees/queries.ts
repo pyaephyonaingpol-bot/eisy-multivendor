@@ -25,7 +25,7 @@ function mapPreview(data: DropshipInventoryFeePreview): DropshipInventoryFeePrev
     billable_item_count: Number(data.billable_item_count ?? 0),
     unit_fee_usdt: Number(data.unit_fee_usdt ?? 1),
     min_billable_items: Number(data.min_billable_items ?? 10),
-    commission_rate: Number(data.commission_rate ?? 0.03),
+    commission_rate: Number(data.commission_rate ?? 0.10),
     amount_usdt: Number(data.amount_usdt ?? 0),
   };
 }
@@ -136,7 +136,7 @@ export async function getVendorDropshipCommissionSummary(
     order_count: 0,
     gmv_usdt: 0,
     commission_usdt: 0,
-    commission_rate: 0.03,
+    commission_rate: 0.10,
   };
 
   if (!getSupabasePublicEnv() || !vendorId) {
@@ -165,20 +165,22 @@ export async function getVendorDropshipCommissionSummary(
         }[]
       | null) ?? [];
 
-  const dropshipOrders = rows.filter(
-    (row) =>
-      row.seller_vendor_id !== row.vendor_id &&
-      Number(row.platform_commission_usdt) > 0,
+  // Universal 10%: commission applies to manual/custom and CJ sales alike.
+  const commissionedOrders = rows.filter(
+    (row) => Number(row.platform_commission_usdt) > 0,
   );
 
   return {
-    order_count: dropshipOrders.length,
-    gmv_usdt: dropshipOrders.reduce((sum, row) => sum + Number(row.subtotal), 0),
-    commission_usdt: dropshipOrders.reduce(
+    order_count: commissionedOrders.length,
+    gmv_usdt: commissionedOrders.reduce(
+      (sum, row) => sum + Number(row.subtotal),
+      0,
+    ),
+    commission_usdt: commissionedOrders.reduce(
       (sum, row) => sum + Number(row.platform_commission_usdt),
       0,
     ),
-    commission_rate: settings?.commission_rate ?? 0.03,
+    commission_rate: settings?.commission_rate ?? 0.10,
   };
 }
 

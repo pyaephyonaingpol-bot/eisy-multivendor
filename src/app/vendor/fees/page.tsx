@@ -62,7 +62,8 @@ export default async function VendorFeesPage() {
     getVendorImportQuota(vendor.id),
   ]);
 
-  const commissionPct = Math.round((commissions.commission_rate || 0.03) * 1000) / 10;
+  const commissionPct =
+    Math.round((commissions.commission_rate || 0.1) * 1000) / 10;
   const alreadyPaid = preview?.invoice_status === "paid";
   const canPay =
     Boolean(preview?.is_dropshipper) &&
@@ -78,10 +79,10 @@ export default async function VendorFeesPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Fees & payouts</h1>
         <p className="max-w-2xl text-zinc-600">
           CJ Dropshipping imports pay 1 USDT per active CJ listing each month
-          (minimum 10 USDT), plus a {commissionPct}% platform commission on
-          completed CJ dropship resales. Manual / custom-sourced products and
-          orders are never billed inventory fees or fee floors. Payouts settle
-          in USDT. Withdraw USDT or MMK from your{" "}
+          (minimum 10 USDT). Manual / custom-sourced products are never billed
+          inventory fees. A universal {commissionPct}% platform commission
+          applies to all sales (manual/custom and CJ). Payouts settle in USDT.
+          Withdraw USDT or MMK from your{" "}
           <Link href="/vendor/wallet" className="underline">
             wallet
           </Link>
@@ -143,9 +144,9 @@ export default async function VendorFeesPage() {
             {formatMoney(commissions.commission_usdt, "USDT")}
           </p>
           <p className="mt-2 text-sm text-zinc-600">
-            {commissionPct}% of dropship GMV deducted at checkout alongside supplier
-            cost and your markup. Across {commissions.order_count} paid dropship
-            order{commissions.order_count === 1 ? "" : "s"} (
+            {commissionPct}% of GMV deducted at checkout on all sales (manual and
+            CJ). Across {commissions.order_count} paid order
+            {commissions.order_count === 1 ? "" : "s"} (
             {formatMoney(commissions.gmv_usdt, "USDT")} GMV).
           </p>
         </div>

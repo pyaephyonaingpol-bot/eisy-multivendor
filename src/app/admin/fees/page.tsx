@@ -61,7 +61,7 @@ export default async function AdminFeesPage() {
   const itemFee = settings?.item_fee_usdt ?? 1;
   const minItems = settings?.min_billable_items ?? 10;
   const commissionPct =
-    Math.round((settings?.commission_rate ?? 0.03) * 1000) / 10;
+    Math.round((settings?.commission_rate ?? 0.1) * 1000) / 10;
 
   return (
     <div className="space-y-8">
@@ -72,10 +72,10 @@ export default async function AdminFeesPage() {
         <p className="max-w-2xl text-zinc-600">
           CJ inventory fee: {formatMoney(itemFee, "USDT")} per active CJ import
           (minimum {minItems} items / {formatMoney(itemFee * minItems, "USDT")}
-          /mo). Manual / custom-sourced products are exempt. Platform commission:{" "}
-          {commissionPct}% on completed CJ dropship resales. A Vercel Cron job
-          runs on the 1st of each month at 01:00 UTC; you can also trigger
-          billing manually below.
+          /mo). Manual / custom-sourced products are exempt from inventory fees.
+          Platform commission is a universal {commissionPct}% on all sales
+          (manual/custom and CJ). A Vercel Cron job runs on the 1st of each
+          month at 01:00 UTC; you can also trigger billing manually below.
         </p>
       </div>
 
@@ -94,8 +94,8 @@ export default async function AdminFeesPage() {
             {formatMoney(commissions.commission_usdt, "USDT")}
           </p>
           <p className="mt-1 text-sm text-zinc-500">
-            Across {commissions.order_count} dropship order
-            {commissions.order_count === 1 ? "" : "s"}
+            Across {commissions.order_count} paid order
+            {commissions.order_count === 1 ? "" : "s"} (manual + CJ)
           </p>
         </div>
         <div className="rounded-xl border border-zinc-200 bg-white p-4">

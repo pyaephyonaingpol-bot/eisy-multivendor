@@ -383,6 +383,77 @@ export function pickCjProductTitle(
   return title.slice(0, 180);
 }
 
+/**
+ * Parse a CJ money field into a positive USDT amount.
+ * Accepts numbers and common string forms ("12.5", "$12.50", "12,50").
+ * Returns null when missing/invalid so callers can try the next key.
+ */
+export function parseCjPriceUsdt(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value) || value <= 0) return null;
+    return Math.round(value * 100) / 100;
+  }
+  if (typeof value === "string") {
+    const cleaned = value
+      .trim()
+      .replace(/,/g, "")
+      .replace(/[^0-9.]/g, "");
+    if (!cleaned) return null;
+    const n = Number(cleaned);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return Math.round(n * 100) / 100;
+  }
+  return null;
+}
+
+/** First positive USDT price among CJ product/variant money keys. */
+export function pickCjPriceUsdt(
+  row: Record<string, unknown>,
+  ...extraKeys: unknown[]
+): number | null {
+  const candidates: unknown[] = [
+    ...extraKeys,
+    row.variantSellPrice,
+    row.productSellPrice,
+    row.sellPrice,
+    row.nowPrice,
+    row.discountPrice,
+    row.cjSellPrice,
+    row.cjPrice,
+    row.unitPrice,
+    row.wholesalePrice,
+    row.productPrice,
+    row.price,
+    row.costPrice,
+  ];
+  for (const candidate of candidates) {
+    const parsed = parseCjPriceUsdt(candidate);
+    if (parsed != null) return parsed;
+  }
+  return null;
+}
+
+/** Optional compare-at / list price from CJ (must be > sell price to keep). */
+export function pickCjCompareAtPriceUsdt(
+  row: Record<string, unknown>,
+  sellPrice: number,
+): number | null {
+  const candidates = [
+    row.listedPrice,
+    row.listPrice,
+    row.originalPrice,
+    row.marketPrice,
+    row.msrp,
+    row.compareAtPrice,
+  ];
+  for (const candidate of candidates) {
+    const parsed = parseCjPriceUsdt(candidate);
+    if (parsed != null && parsed > sellPrice) return parsed;
+  }
+  return null;
+}
+
 function collectImages(row: Record<string, unknown>): string[] {
   const candidates = [
     row.bigImage,
@@ -543,23 +614,27 @@ function variantStockMapFromProduct(
 function mapCjVariant(
   row: Record<string, unknown>,
   stockOverride?: number | null,
+  fallbackPriceUsdt?: number | null,
 ): ExternalProductVariant | null {
   const externalVariantId = String(
     row.vid ?? row.variantId ?? row.id ?? "",
   ).trim();
   if (!externalVariantId) return null;
 
-  const price = Number(
-    row.variantSellPrice ?? row.sellPrice ?? row.nowPrice ?? row.price ?? 0,
-  );
+  const price =
+    pickCjPriceUsdt(row) ??
+    (fallbackPriceUsdt != null && fallbackPriceUsdt > 0
+      ? fallbackPriceUsdt
+      : null) ??
+    0.01;
   const label =
-    String(
-      row.variantNameEn ??
-        row.variantKey ??
-        row.variantName ??
-        row.variantSku ??
-        externalVariantId,
-    ).trim() || externalVariantId;
+    pickCjText(
+      row.variantNameEn,
+      row.variantKey,
+      row.variantName,
+      row.variantSku,
+      externalVariantId,
+    ) ?? externalVariantId;
 
   const stockQuantity =
     stockOverride != null
@@ -569,17 +644,18 @@ function mapCjVariant(
   return {
     externalVariantId,
     externalSku:
-      String(row.variantSku ?? row.sku ?? "").trim() || null,
+      pickCjText(row.variantSku, row.sku) ?? null,
     label,
-    priceUsdt: Number.isFinite(price) && price > 0 ? price : 1,
+    priceUsdt: price,
     stockQuantity,
     imageUrl:
-      String(row.variantImage ?? row.bigImage ?? row.image ?? "").trim() || null,
+      pickCjText(row.variantImage, row.bigImage, row.image) ?? null,
   };
 }
 
 function mapCjVariants(
   row: Record<string, unknown>,
+  productPriceUsdt: number,
 ): ExternalProductVariant[] {
   const stockByVid = variantStockMapFromProduct(row);
   const variantsRaw = Array.isArray(row.variants) ? row.variants : [];
@@ -592,7 +668,7 @@ function mapCjVariants(
       variantRow.vid ?? variantRow.variantId ?? variantRow.id ?? "",
     ).trim();
     const override = vid ? stockByVid.get(vid) : undefined;
-    const mapped = mapCjVariant(variantRow, override);
+    const mapped = mapCjVariant(variantRow, override, productPriceUsdt);
     if (mapped) variants.push(mapped);
   }
 
@@ -603,7 +679,7 @@ function mapCjVariants(
         externalVariantId: vid,
         externalSku: null,
         label: vid,
-        priceUsdt: 1,
+        priceUsdt: productPriceUsdt,
         stockQuantity: qty,
         imageUrl: null,
       });
@@ -638,18 +714,10 @@ function productLevelStock(row: Record<string, unknown>): number | null {
 
 function mapCjProduct(row: Record<string, unknown>): ExternalCatalogProduct {
   const images = collectImages(row);
-  const price = Number(
-    row.nowPrice ??
-      row.discountPrice ??
-      row.sellPrice ??
-      row.productPrice ??
-      row.price ??
-      0,
-  );
-  const externalProductId = String(
-    row.pid ?? row.productId ?? row.id ?? "",
-  ).trim();
-  const variants = mapCjVariants(row);
+  const productPrice = pickCjPriceUsdt(row) ?? 0.01;
+  const externalProductId =
+    pickCjText(row.pid, row.productId, row.id) ?? "";
+  const variants = mapCjVariants(row, productPrice);
 
   const variantStockSum = variants.reduce<number | null>((acc, variant) => {
     if (variant.stockQuantity == null) return acc;
@@ -660,17 +728,22 @@ function mapCjProduct(row: Record<string, unknown>): ExternalCatalogProduct {
 
   const firstVariant = variants[0] ?? null;
   const title = pickCjProductTitle(row, "CJ product");
+  // Prefer a real variant sell price when present; otherwise product-level.
+  const priceUsdt =
+    firstVariant && firstVariant.priceUsdt > 0
+      ? firstVariant.priceUsdt
+      : productPrice;
 
   return {
     providerKind: "cj_dropshipping",
     externalProductId,
     externalVariantId:
       firstVariant?.externalVariantId ||
-      String(row.vid ?? row.variantId ?? "").trim() ||
+      pickCjText(row.vid, row.variantId) ||
       null,
     externalSku:
       firstVariant?.externalSku ||
-      String(row.productSku ?? row.sku ?? row.spu ?? "").trim() ||
+      pickCjText(row.productSku, row.sku, row.spu) ||
       null,
     name: title,
     description:
@@ -678,20 +751,15 @@ function mapCjProduct(row: Record<string, unknown>): ExternalCatalogProduct {
       title,
     imageUrl: images[0] ?? null,
     images,
-    priceUsdt:
-      firstVariant && firstVariant.priceUsdt > 0
-        ? firstVariant.priceUsdt
-        : Number.isFinite(price) && price > 0
-          ? price
-          : 1,
-    compareAtPriceUsdt: null,
+    priceUsdt,
+    compareAtPriceUsdt: pickCjCompareAtPriceUsdt(row, priceUsdt),
     stockQuantity,
-    warehouseCountry: String(
-      row.warehouseCountryCode ??
-        row.countryCode ??
-        row.warehouseCountry ??
-        "CN",
-    ),
+    warehouseCountry:
+      pickCjText(
+        row.warehouseCountryCode,
+        row.countryCode,
+        row.warehouseCountry,
+      ) ?? "CN",
     shippingDaysMin: 5,
     shippingDaysMax: 18,
     variants: variants.length > 0 ? variants : undefined,

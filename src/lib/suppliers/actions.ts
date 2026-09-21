@@ -122,7 +122,10 @@ function sanitizeUsdtPrice(
   return Math.round(n * 100) / 100;
 }
 
-/** Product write payload; always sets price + price_usdt (drifted DBs). */
+/**
+ * Product write fields for import. Always sets every drifted NOT NULL column
+ * the live DB may require (price, price_usdt, title) plus currency.
+ */
 function productPriceFields(
   sellPrice: number,
   compareAtPriceUsdt: number | null | undefined,
@@ -133,10 +136,37 @@ function productPriceFields(
     price_usdt: number;
     compare_at_price?: number | null;
   } = { price, price_usdt: price };
-  if (compareAtPriceUsdt != null && Number.isFinite(compareAtPriceUsdt) && compareAtPriceUsdt > 0) {
+  if (compareAtPriceUsdt != null && Number.isFinite(compareAtPriceUsdt) && compareAtPriceUsdt > price) {
     fields.compare_at_price = sanitizeUsdtPrice(compareAtPriceUsdt, price);
   }
   return fields;
+}
+
+/** Non-null listing fields shared by import insert + update payloads. */
+function importProductCoreFields(args: {
+  name: string;
+  description: string;
+  sellPrice: number;
+  compareAtPriceUsdt: number | null | undefined;
+  images: string[];
+  stockQuantity: number;
+  sku: string | null;
+}) {
+  const name = args.name.trim() || "Untitled product";
+  const description =
+    args.description.trim() ||
+    `${name} imported from supplier.`;
+  return {
+    name,
+    // Drifted DBs: title NOT NULL — mirror canonical name.
+    title: name,
+    description,
+    ...productPriceFields(args.sellPrice, args.compareAtPriceUsdt),
+    currency: "USDT",
+    sku: args.sku,
+    stock_quantity: Math.max(0, Math.floor(args.stockQuantity)),
+    images: Array.isArray(args.images) ? args.images : [],
+  };
 }
 
 function resolveImportSellPrice(
@@ -482,14 +512,17 @@ export async function importExternalSupplierProductAction(
     }
 
     if (existingImport?.product_id) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- price_usdt is drifted
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- drifted title/price_usdt
       const updatePayload: any = {
-        name: listing.name,
-        description: listing.description,
-        ...productPriceFields(sellPrice, remote.compareAtPriceUsdt),
-        sku: variant.externalSku,
-        stock_quantity: effectiveStock ?? 0,
-        images: productImages,
+        ...importProductCoreFields({
+          name: listing.name,
+          description: listing.description,
+          sellPrice,
+          compareAtPriceUsdt: remote.compareAtPriceUsdt,
+          images: productImages,
+          stockQuantity: effectiveStock ?? 0,
+          sku: variant.externalSku,
+        }),
         updated_at: new Date().toISOString(),
       };
       let { error: updateError } = await supabase
@@ -556,13 +589,17 @@ export async function importExternalSupplierProductAction(
       .maybeSingle();
 
     if (existingBySku?.id) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- price_usdt is drifted
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- drifted title/price_usdt
       const updatePayload: any = {
-        name: listing.name,
-        description: listing.description,
-        ...productPriceFields(sellPrice, remote.compareAtPriceUsdt),
-        stock_quantity: effectiveStock ?? 0,
-        images: productImages,
+        ...importProductCoreFields({
+          name: listing.name,
+          description: listing.description,
+          sellPrice,
+          compareAtPriceUsdt: remote.compareAtPriceUsdt,
+          images: productImages,
+          stockQuantity: effectiveStock ?? 0,
+          sku: variant.externalSku,
+        }),
         updated_at: new Date().toISOString(),
       };
       let { error: updateError } = await supabase
@@ -662,19 +699,22 @@ export async function importExternalSupplierProductAction(
   );
   const slug = `${slugBase}-${Date.now().toString(36).slice(-5)}`;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- price_usdt is drifted
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- drifted title/price_usdt
   const insertPayload: any = {
     vendor_id: gate.vendor.id,
-    name: listing.name,
     slug,
-    description: listing.description,
-    ...productPriceFields(sellPrice, remote.compareAtPriceUsdt),
-    currency: "USDT",
-    sku: variant.externalSku,
-    stock_quantity: effectiveStock ?? 0,
+    ...importProductCoreFields({
+      name: listing.name,
+      description: listing.description,
+      sellPrice,
+      compareAtPriceUsdt: remote.compareAtPriceUsdt,
+      images: productImages,
+      stockQuantity: effectiveStock ?? 0,
+      sku: variant.externalSku,
+    }),
     status: "active" as const,
-    images: productImages,
     product_type: "physical" as const,
+    is_dropship: true,
   };
 
   let { data: product, error: productError } = await supabase

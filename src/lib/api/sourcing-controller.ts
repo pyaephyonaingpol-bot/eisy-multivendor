@@ -160,6 +160,8 @@ export async function importSourcingProduct(input: {
   external_product_id?: string;
   region_code?: string;
   price?: number | string;
+  /** Alias for price — some clients send the drifted column name. */
+  price_usdt?: number | string;
   name?: string;
   description?: string;
   external_variant_id?: string;
@@ -191,6 +193,8 @@ export async function importSourcingProduct(input: {
   formData.set("region_code", String(input.region_code ?? "GLOBAL"));
   if (input.price != null && input.price !== "") {
     formData.set("price", String(input.price));
+  } else if (input.price_usdt != null && input.price_usdt !== "") {
+    formData.set("price_usdt", String(input.price_usdt));
   }
   if (input.name) formData.set("name", input.name);
   if (input.description) formData.set("description", input.description);

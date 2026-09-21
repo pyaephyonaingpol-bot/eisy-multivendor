@@ -7,6 +7,21 @@
 -- (Products already use catalog_kind + cj_imported_products in 060.)
 -- =============================================================================
 
+-- Prerequisite: seller_vendor_id (missing on some drifted live DBs).
+alter table public.orders
+  add column if not exists vendor_id uuid references public.vendors (id) on delete restrict;
+
+alter table public.orders
+  add column if not exists seller_vendor_id uuid references public.vendors (id) on delete set null;
+
+update public.orders
+set seller_vendor_id = vendor_id
+where seller_vendor_id is null
+  and vendor_id is not null;
+
+create index if not exists orders_seller_vendor_id_idx
+  on public.orders (seller_vendor_id);
+
 do $$
 begin
   if not exists (
@@ -46,11 +61,31 @@ comment on column public.orders.fulfillment_channel is
 create index if not exists orders_fulfillment_channel_created_idx
   on public.orders (fulfillment_channel, created_at desc);
 
-create index if not exists orders_vendor_fulfillment_channel_idx
-  on public.orders (vendor_id, fulfillment_channel, created_at desc);
-
-create index if not exists orders_seller_fulfillment_channel_idx
-  on public.orders (seller_vendor_id, fulfillment_channel, created_at desc);
+do $$
+begin
+  -- Only create composite indexes once seller_vendor_id / vendor_id exist.
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'orders'
+      and column_name = 'seller_vendor_id'
+  ) then
+    execute $idx$
+      create index if not exists orders_seller_fulfillment_channel_idx
+        on public.orders (seller_vendor_id, fulfillment_channel, created_at desc)
+    $idx$;
+  end if;
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'orders'
+      and column_name = 'vendor_id'
+  ) then
+    execute $idx$
+      create index if not exists orders_vendor_fulfillment_channel_idx
+        on public.orders (vendor_id, fulfillment_channel, created_at desc)
+    $idx$;
+  end if;
+end;
+$$;
 
 -- ---------------------------------------------------------------------------
 -- Disputes: same channel partition (copied from order)
@@ -277,7 +312,7 @@ begin
     select
       o.id,
       o.vendor_id,
-      o.seller_vendor_id,
+      coalesce(o.seller_vendor_id, o.vendor_id),
       o.supplier_order_ref,
       o.tracking_number,
       o.tracking_carrier,
@@ -290,7 +325,7 @@ begin
     on conflict (order_id) do update
       set
         vendor_id = excluded.vendor_id,
-        seller_vendor_id = excluded.seller_vendor_id,
+        seller_vendor_id = coalesce(excluded.seller_vendor_id, cj_order_fulfillments.seller_vendor_id),
         supplier_order_ref = coalesce(excluded.supplier_order_ref, cj_order_fulfillments.supplier_order_ref),
         tracking_number = coalesce(excluded.tracking_number, cj_order_fulfillments.tracking_number),
         tracking_carrier = coalesce(excluded.tracking_carrier, cj_order_fulfillments.tracking_carrier),
@@ -383,7 +418,7 @@ begin
       tracking_number, tracking_carrier, tracking_url,
       last_sync_status, last_sync_error, last_synced_at
     ) values (
-      new.id, new.vendor_id, new.seller_vendor_id, new.supplier_order_ref,
+      new.id, new.vendor_id, coalesce(new.seller_vendor_id, new.vendor_id), new.supplier_order_ref,
       new.tracking_number, new.tracking_carrier, new.tracking_url,
       new.fulfillment_sync_status::text, new.fulfillment_sync_error, new.fulfillment_synced_at
     )

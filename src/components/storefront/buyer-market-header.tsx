@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AuthHeaderButton } from "@/components/auth/auth-header-button";
-import { SignOutButton } from "@/components/auth/sign-out-button";
+import { AccountMenuDropdown } from "@/components/layout/account-menu-dropdown";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { getDefaultBuyerAddress } from "@/lib/addresses/queries";
 import { getSessionProfile } from "@/lib/auth/session";
@@ -58,7 +58,7 @@ export async function BuyerMarketHeader({
           <div className="flex shrink-0 items-center gap-2">
             <LanguageSwitcher compact />
             {session ? (
-              <SignOutButton />
+              <AccountMenuDropdown label="Account" />
             ) : (
               <AuthHeaderButton label="Sign in" />
             )}

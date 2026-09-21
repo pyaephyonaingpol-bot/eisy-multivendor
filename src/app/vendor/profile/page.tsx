@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { AccountMenu } from "@/components/layout/account-menu";
 import { VendorProfileForm } from "@/components/vendors/vendor-profile-form";
 import { canAccessVendor, getSessionProfile } from "@/lib/auth/session";
 import { getVendorForOwner } from "@/lib/vendors/queries";
@@ -72,6 +74,17 @@ export default async function VendorProfilePage() {
           lives under Vendor → Store.
         </p>
       </div>
+
+      <Suspense
+        fallback={
+          <div className="h-36 animate-pulse rounded-2xl border border-zinc-200 bg-zinc-50" />
+        }
+      >
+        <AccountMenu
+          active="profile"
+          className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-4 sm:p-5"
+        />
+      </Suspense>
 
       <div className="grid gap-3 sm:grid-cols-2">
         {profileLinks.map((item) => (

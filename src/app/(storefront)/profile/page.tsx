@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { AccountMenu } from "@/components/layout/account-menu";
 import { BuyerAddressBook } from "@/components/profile/buyer-address-book";
 import { ProfileForm } from "@/components/profile/profile-form";
 import { listBuyerAddresses } from "@/lib/addresses/queries";
@@ -54,13 +56,32 @@ export default async function ProfilePage() {
   return (
     <section className="space-y-8">
       <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Profile</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Account</h1>
         <p className="text-sm text-zinc-600">
-          View and update your buyer profile, preferred country, and default
-          delivery address for checkout.
+          Manage your profile, wallet, and switch between buyer and seller
+          portals from one place.
           {result.authEmail && result.authEmail !== profile.email ? (
             <> Signed in as {result.authEmail}.</>
           ) : null}
+        </p>
+      </div>
+
+      <Suspense
+        fallback={
+          <div className="h-40 animate-pulse rounded-2xl border border-zinc-200 bg-zinc-50" />
+        }
+      >
+        <AccountMenu
+          active="profile"
+          className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-4 sm:p-5"
+        />
+      </Suspense>
+
+      <div className="space-y-2">
+        <h2 className="text-xl font-semibold tracking-tight">Profile</h2>
+        <p className="text-sm text-zinc-600">
+          View and update your buyer profile, preferred country, and default
+          delivery address for checkout.
         </p>
       </div>
 
@@ -134,13 +155,6 @@ export default async function ProfilePage() {
           "MM"
         }
       />
-
-      <p className="text-sm text-zinc-500">
-        Need your balance?{" "}
-        <Link href="/account/wallet" className="underline hover:text-zinc-800">
-          Open wallet
-        </Link>
-      </p>
     </section>
   );
 }

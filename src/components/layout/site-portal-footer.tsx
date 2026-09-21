@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { AccountMenu } from "@/components/layout/account-menu";
 import { PortalNavHub } from "@/components/layout/portal-nav-hub";
 
 function resolveActive(
@@ -47,17 +48,19 @@ type SitePortalFooterProps = {
 };
 
 /**
- * Shared site footer: brand + shop shortcuts + portal navigation hub.
+ * Shared site footer: brand + shop shortcuts + account/portal navigation hub.
  * Used on buyer storefront; compact variants can omit shop links.
  */
 export function SitePortalFooter({
-          brandTitle = "Eisy Marketplace",
+  brandTitle = "Eisy Marketplace",
   brandDescription = "Browse products, pay with USDT, and checkout in a clean buyer storefront.",
   shopLinks = true,
 }: SitePortalFooterProps) {
   const pathname = usePathname() || "/";
   const searchParams = useSearchParams();
   const active = resolveActive(pathname, searchParams.get("portal"));
+  const onAccountSurface =
+    pathname.startsWith("/profile") || pathname.startsWith("/account");
 
   return (
     <footer className="mt-auto border-t border-zinc-200 bg-white">
@@ -96,7 +99,11 @@ export function SitePortalFooter({
           ) : null}
         </div>
 
-        <PortalNavHub active={active} />
+        {onAccountSurface ? (
+          <AccountMenu />
+        ) : (
+          <PortalNavHub active={active} />
+        )}
       </div>
       <div className="border-t border-zinc-100">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4 text-xs text-zinc-500">

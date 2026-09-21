@@ -22,6 +22,44 @@ where seller_vendor_id is null
 create index if not exists orders_seller_vendor_id_idx
   on public.orders (seller_vendor_id);
 
+-- Prerequisite buyer column: canonical is customer_id (not user_id).
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'orders' and column_name = 'user_id'
+  ) and not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'orders' and column_name = 'customer_id'
+  ) then
+    alter table public.orders rename column user_id to customer_id;
+  end if;
+end;
+$$;
+
+alter table public.orders
+  add column if not exists customer_id uuid references public.profiles (id) on delete restrict;
+
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'orders' and column_name = 'user_id'
+  ) and exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'orders' and column_name = 'customer_id'
+  ) then
+    execute $sql$
+      update public.orders
+      set customer_id = user_id
+      where customer_id is null and user_id is not null
+    $sql$;
+  end if;
+end;
+$$;
+
+create index if not exists orders_customer_id_idx on public.orders (customer_id);
+
 do $$
 begin
   if not exists (

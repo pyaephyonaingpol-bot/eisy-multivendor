@@ -11,17 +11,17 @@ export default async function VendorLayout({
   const locale = await getRequestLocale();
   const t = getDictionary(locale);
 
-  // Independent Vendor Portal — custom sources only (zero CJ overlap).
+  // Independent Vendor Portal — custom sources only (zero CJ / wallet overlap).
+  // Wallet lives once as the shared sidebar button in VendorPortalNav.
   const vendorLinks = [
     { href: "/vendor/products", label: t.vendorNav.products },
     { href: "/vendor/settings", label: t.vendorNav.store },
     { href: "/vendor/orders", label: t.vendorNav.orders },
     { href: "/vendor/tracking", label: t.vendorNav.tracking },
     { href: "/vendor/disputes", label: t.vendorNav.disputes },
-    { href: "/vendor/wallet", label: t.vendorNav.wallet },
   ];
 
-  // CJ Dropshipping Portal — CJ workflow only (zero vendor product overlap).
+  // CJ Dropshipping Portal — CJ workflow + fees only (no duplicate Wallet link).
   const dropshipLinks = [
     { href: "/vendor/sourcing", label: t.vendorNav.catalog },
     {
@@ -32,7 +32,6 @@ export default async function VendorLayout({
     { href: "/vendor/dropship/tracking", label: t.vendorNav.cjTracking },
     { href: "/vendor/dropship/disputes", label: t.vendorNav.cjDisputes },
     { href: "/vendor/fees", label: t.vendorNav.fees },
-    { href: "/vendor/wallet", label: t.vendorNav.wallet },
   ];
 
   return (

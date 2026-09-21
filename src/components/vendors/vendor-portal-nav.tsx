@@ -90,7 +90,8 @@ function NavSection({
 
 /**
  * Two fully independent portals — only one sidebar menu is visible at a time.
- * Wallet is always available as a primary sidebar item for both portals.
+ * A single shared Wallet button sits between the portal switcher and menus
+ * (not duplicated inside Independent Vendor or CJ link lists).
  */
 export function VendorPortalNav({
   vendorTitle,

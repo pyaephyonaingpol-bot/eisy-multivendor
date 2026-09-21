@@ -5,7 +5,15 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 type PortalId = "vendor" | "cj";
-type TabId = "products" | "store" | "orders" | "wallet" | "profile";
+type TabId =
+  | "products"
+  | "store"
+  | "orders"
+  | "wallet"
+  | "profile"
+  | "catalog"
+  | "imported"
+  | "tracking";
 
 const PORTAL_STORAGE_KEY = "eisy-seller-portal";
 
@@ -23,12 +31,21 @@ const VENDOR_TABS: TabDef[] = [
   { id: "profile", href: "/vendor/profile?portal=vendor", label: "Profile" },
 ];
 
+/** CJ Dropshipping bottom bar — Catalog, Imported, Orders, Tracking, Wallet. */
 const CJ_TABS: TabDef[] = [
-  { id: "products", href: "/vendor/sourcing", label: "Catalog" },
-  { id: "store", href: "/vendor/dropship/imported", label: "Imported" },
+  { id: "catalog", href: "/vendor/sourcing", label: "Catalog" },
+  {
+    id: "imported",
+    href: "/vendor/dropship/imported",
+    label: "Imported",
+  },
   { id: "orders", href: "/vendor/dropship/orders", label: "Orders" },
+  {
+    id: "tracking",
+    href: "/vendor/dropship/tracking",
+    label: "Tracking",
+  },
   { id: "wallet", href: "/vendor/wallet?portal=cj", label: "Wallet" },
-  { id: "profile", href: "/vendor/profile?portal=cj", label: "Profile" },
 ];
 
 function isCjExclusivePath(pathname: string) {
@@ -105,6 +122,7 @@ function TabIcon({ id }: { id: TabId }) {
 
   switch (id) {
     case "products":
+    case "catalog":
       return (
         <svg {...common}>
           <path
@@ -115,6 +133,7 @@ function TabIcon({ id }: { id: TabId }) {
         </svg>
       );
     case "store":
+    case "imported":
       return (
         <svg {...common}>
           <path
@@ -133,6 +152,18 @@ function TabIcon({ id }: { id: TabId }) {
             d="M7 4.75h10a1.5 1.5 0 0 1 1.5 1.5v12.5l-3-1.5-3 1.5-3-1.5-3 1.5V6.25a1.5 1.5 0 0 1 1.5-1.5Z"
           />
           <path strokeLinecap="round" d="M9 9h6M9 12.5h6" />
+        </svg>
+      );
+    case "tracking":
+      return (
+        <svg {...common}>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M3.5 16.5h9.5V7.5H8.2L3.5 11.2v5.3Zm13 0H20.5v-4.2L18.2 9.5H16.5v7Z"
+          />
+          <circle cx="7.5" cy="17.75" r="1.35" />
+          <circle cx="17.25" cy="17.75" r="1.35" />
         </svg>
       );
     case "wallet":
@@ -164,39 +195,41 @@ function TabIcon({ id }: { id: TabId }) {
 }
 
 function resolveActiveTab(pathname: string, portal: PortalId): TabId {
+  if (pathname.startsWith("/vendor/wallet")) {
+    return "wallet";
+  }
+
+  if (portal === "cj") {
+    if (pathname.startsWith("/vendor/dropship/tracking")) {
+      return "tracking";
+    }
+    if (pathname.startsWith("/vendor/dropship/orders")) {
+      return "orders";
+    }
+    if (
+      pathname.startsWith("/vendor/dropship/imported") ||
+      pathname.startsWith("/vendor/dropship/disputes")
+    ) {
+      return "imported";
+    }
+    if (
+      pathname.startsWith("/vendor/sourcing") ||
+      pathname.startsWith("/vendor/import") ||
+      pathname.startsWith("/vendor/integrations") ||
+      pathname.startsWith("/vendor/fees") ||
+      pathname.startsWith("/vendor/dropship")
+    ) {
+      return "catalog";
+    }
+    return "catalog";
+  }
+
   if (
     pathname.startsWith("/vendor/profile") ||
     pathname.startsWith("/vendor/kyc")
   ) {
     return "profile";
   }
-  if (pathname.startsWith("/vendor/wallet")) {
-    return "wallet";
-  }
-
-  if (portal === "cj") {
-    if (
-      pathname.startsWith("/vendor/dropship/orders") ||
-      pathname.startsWith("/vendor/dropship/tracking") ||
-      pathname.startsWith("/vendor/dropship/disputes")
-    ) {
-      return "orders";
-    }
-    if (pathname.startsWith("/vendor/dropship/imported")) {
-      return "store";
-    }
-    if (
-      pathname.startsWith("/vendor/sourcing") ||
-      pathname.startsWith("/vendor/dropship") ||
-      pathname.startsWith("/vendor/import") ||
-      pathname.startsWith("/vendor/integrations") ||
-      pathname.startsWith("/vendor/fees")
-    ) {
-      return "products";
-    }
-    return "products";
-  }
-
   if (
     pathname === "/vendor/orders" ||
     pathname.startsWith("/vendor/orders/") ||

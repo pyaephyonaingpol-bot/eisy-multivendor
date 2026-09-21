@@ -383,10 +383,12 @@ begin
         updated_at = now();
   end if;
 
-  update public.disputes
-  set fulfillment_channel = v_channel
-  where order_id = p_order_id
-    and fulfillment_channel is distinct from v_channel;
+  if to_regclass('public.disputes') is not null then
+    update public.disputes
+    set fulfillment_channel = v_channel
+    where order_id = p_order_id
+      and fulfillment_channel is distinct from v_channel;
+  end if;
 
   return v_channel;
 end;

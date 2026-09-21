@@ -2,43 +2,58 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
-import {
-  ADMIN_DASHBOARD_HREF,
-} from "@/components/layout/admin-dashboard-link";
+import { ADMIN_DASHBOARD_HREF } from "@/components/layout/admin-dashboard-link";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 
-const MENU_ITEMS = [
+const ACCOUNT_ITEMS = [
   {
     href: "/profile",
     label: "Profile",
-    description: "Personal details & addresses",
+    description: "Details & delivery addresses",
   },
   {
     href: "/account/wallet",
     label: "Wallet",
     description: "USDT balance & withdrawals",
   },
+] as const;
+
+const WORKSPACE_ITEMS = [
   {
     href: "/",
     label: "Buyer Marketplace",
-    description: "Shop as a buyer",
+    description: "Shop and checkout",
+    portal: null,
   },
   {
     href: "/vendor/dashboard",
     label: "Independent Vendor",
-    description: "Manual store portal",
+    description: "Manual store ops",
+    portal: "vendor" as const,
   },
   {
     href: "/vendor/dropship",
     label: "CJ Dropshipping",
-    description: "CJ catalog & fulfillment",
+    description: "Catalog & fulfillment",
+    portal: "cj" as const,
   },
   {
     href: ADMIN_DASHBOARD_HREF,
     label: "Admin",
     description: "Platform dashboard",
+    portal: null,
   },
 ] as const;
+
+const PORTAL_STORAGE_KEY = "eisy-seller-portal";
+
+function writeStoredPortal(portal: "vendor" | "cj") {
+  try {
+    window.localStorage.setItem(PORTAL_STORAGE_KEY, portal);
+  } catch {
+    // ignore
+  }
+}
 
 type AccountMenuDropdownProps = {
   label?: string;
@@ -46,7 +61,7 @@ type AccountMenuDropdownProps = {
 };
 
 /**
- * Compact header Account menu with Profile, Wallet, and portal switches.
+ * Header Account menu — the only place to switch workspaces.
  */
 export function AccountMenuDropdown({
   label = "Account",
@@ -82,10 +97,10 @@ export function AccountMenuDropdown({
         aria-expanded={open}
         aria-controls={menuId}
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[var(--market-line)] bg-white px-3 text-sm font-medium text-[var(--market-ink)] hover:bg-[var(--background)]"
+        className="inline-flex h-9 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-900 hover:bg-zinc-50"
       >
         {label}
-        <span aria-hidden className="text-[10px] text-[var(--market-muted)]">
+        <span aria-hidden className="text-[10px] text-zinc-400">
           {open ? "▴" : "▾"}
         </span>
       </button>
@@ -94,20 +109,47 @@ export function AccountMenuDropdown({
         <div
           id={menuId}
           role="menu"
-          className="absolute right-0 z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-lg"
+          className="absolute right-0 z-50 mt-2 w-[min(18.5rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-lg"
         >
           <div className="border-b border-zinc-100 px-3 py-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
               Account
             </p>
           </div>
-          <ul className="max-h-[70vh] overflow-y-auto py-1">
-            {MENU_ITEMS.map((item) => (
+          <ul className="py-1">
+            {ACCOUNT_ITEMS.map((item) => (
               <li key={item.href}>
                 <Link
                   href={item.href}
                   role="menuitem"
                   onClick={() => setOpen(false)}
+                  className="block px-3 py-2.5 hover:bg-zinc-50"
+                >
+                  <span className="block text-sm font-medium text-zinc-950">
+                    {item.label}
+                  </span>
+                  <span className="block text-xs text-zinc-500">
+                    {item.description}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <div className="border-y border-zinc-100 px-3 py-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+              Workspaces
+            </p>
+          </div>
+          <ul className="max-h-[50vh] overflow-y-auto py-1">
+            {WORKSPACE_ITEMS.map((item) => (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  role="menuitem"
+                  onClick={() => {
+                    if (item.portal) writeStoredPortal(item.portal);
+                    setOpen(false);
+                  }}
                   className="block px-3 py-2.5 hover:bg-zinc-50"
                 >
                   <span className="block text-sm font-medium text-zinc-950">

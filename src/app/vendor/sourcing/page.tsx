@@ -61,9 +61,6 @@ export default async function VendorSourcingIndexPage() {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-sky-800">
-          CJ Dropshipping Portal
-        </p>
         <h1 className="text-2xl font-semibold tracking-tight">
           {t.sourcing.title}
         </h1>

@@ -48,14 +48,9 @@ export default async function VendorOrdersPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-          Independent Vendor Portal
-        </p>
         <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
         <p className="text-zinc-600">
-          Custom-sourced orders you fulfill yourself. CJ orders are in the CJ
-          Dropshipping Portal. Tracking and disputes are under More in the
-          bottom bar.
+          Custom-sourced orders you fulfill yourself. Tracking and disputes are under More.
         </p>
       </div>
 

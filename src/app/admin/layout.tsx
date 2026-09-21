@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Suspense } from "react";
 import { SitePortalFooter } from "@/components/layout/site-portal-footer";
 
 const links = [
@@ -45,19 +44,13 @@ export default function AdminLayout({
               href="/"
               className="whitespace-nowrap rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-zinc-400 hover:text-zinc-950 md:rounded-none md:border-0 md:bg-transparent md:px-0 md:pb-0 md:pt-4"
             >
-              ← Buyer Marketplace
+              ← Home
             </Link>
           </nav>
         </aside>
         <section className="min-w-0 flex-1">{children}</section>
       </div>
-      <Suspense fallback={null}>
-        <SitePortalFooter
-          brandTitle="EISY Admin"
-          brandDescription="Platform operations — switch to buyer or seller portals from here."
-          shopLinks={false}
-        />
-      </Suspense>
+      <SitePortalFooter />
     </>
   );
 }

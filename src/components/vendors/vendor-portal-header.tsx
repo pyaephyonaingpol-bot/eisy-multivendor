@@ -73,8 +73,8 @@ function portalFromUrl(
 }
 
 /**
- * Compact top header for seller portals — brand, active portal, account.
- * Primary navigation lives in the fixed bottom bar.
+ * Minimal seller header — brand, active workspace label, Account dropdown.
+ * Task navigation is the fixed bottom bar only.
  */
 export function VendorPortalHeader() {
   const pathname = usePathname() || "/vendor/dashboard";
@@ -107,48 +107,35 @@ export function VendorPortalHeader() {
 
   const inCj = portal === "cj";
   const homeHref = inCj ? "/vendor/dropship" : "/vendor/dashboard";
-  const portalLabel = inCj ? "CJ Dropshipping" : "Independent Vendor";
-  const switchHref = inCj ? "/vendor/dashboard" : "/vendor/dropship";
-  const switchLabel = inCj ? "Vendor portal" : "CJ portal";
+  const portalLabel = inCj ? "CJ Dropshipping" : "Vendor";
 
   return (
     <header
       data-portal={portal}
       className={`sticky top-0 z-40 border-b backdrop-blur-md ${
         inCj
-          ? "border-sky-200/80 bg-white/95"
-          : "border-zinc-200/80 bg-white/95"
+          ? "border-sky-100 bg-white/95"
+          : "border-zinc-100 bg-white/95"
       }`}
     >
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-3 px-4">
-        <div className="min-w-0">
-          <Link
-            href={homeHref}
-            onClick={() => writeStoredPortal(portal)}
-            className="block truncate text-sm font-semibold tracking-tight text-zinc-950"
-          >
-            EISY Seller
-          </Link>
-          <p
-            className={`truncate text-[11px] font-medium ${
-              inCj ? "text-sky-800" : "text-zinc-500"
+        <Link
+          href={homeHref}
+          onClick={() => writeStoredPortal(portal)}
+          className="min-w-0"
+        >
+          <span className="block truncate text-sm font-semibold tracking-tight text-zinc-950">
+            Eisy
+          </span>
+          <span
+            className={`block truncate text-[11px] font-medium ${
+              inCj ? "text-sky-700" : "text-zinc-500"
             }`}
           >
             {portalLabel}
-          </p>
-        </div>
+          </span>
+        </Link>
         <div className="flex shrink-0 items-center gap-2">
-          <Link
-            href={switchHref}
-            onClick={() => writeStoredPortal(inCj ? "vendor" : "cj")}
-            className={`hidden rounded-full border px-2.5 py-1.5 text-xs font-medium transition sm:inline-flex ${
-              inCj
-                ? "border-zinc-200 text-zinc-600 hover:border-zinc-300 hover:text-zinc-950"
-                : "border-sky-200 text-sky-900 hover:border-sky-300 hover:bg-sky-50"
-            }`}
-          >
-            {switchLabel}
-          </Link>
           <LanguageSwitcher compact />
           <AccountMenuDropdown label="Account" />
         </div>

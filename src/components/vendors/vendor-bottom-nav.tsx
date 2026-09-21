@@ -63,19 +63,8 @@ const VENDOR_MORE_LINKS: MoreLink[] = [
   },
   {
     href: "/vendor/dashboard",
-    label: "Portal home",
-    description: "Independent Vendor overview",
-  },
-  {
-    href: "/vendor/dropship",
-    label: "Switch to CJ Dropshipping",
-    description: "CJ catalog, imports, and fulfillment",
-    portal: "cj",
-  },
-  {
-    href: "/",
-    label: "Buyer Marketplace",
-    description: "Shop as a buyer",
+    label: "Overview",
+    description: "Store finance and status",
   },
 ];
 
@@ -107,19 +96,8 @@ const CJ_MORE_LINKS: MoreLink[] = [
   },
   {
     href: "/vendor/dropship",
-    label: "Portal home",
-    description: "CJ Dropshipping overview",
-  },
-  {
-    href: "/vendor/dashboard",
-    label: "Switch to Independent Vendor",
-    description: "Manual store listings and orders",
-    portal: "vendor",
-  },
-  {
-    href: "/",
-    label: "Buyer Marketplace",
-    description: "Shop as a buyer",
+    label: "Overview",
+    description: "CJ finance and subscription",
   },
 ];
 

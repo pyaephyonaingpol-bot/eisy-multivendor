@@ -8,7 +8,7 @@ import { getVendorFinanceSnapshot } from "@/lib/wallets/vendor-finance";
 export const dynamic = "force-dynamic";
 
 /**
- * Independent Vendor Portal home — metrics and store approval status.
+ * My store home — metrics and store approval status.
  * Primary nav is the bottom bar (Products, Store, Orders, Wallet, Profile).
  * CJ Dropshipping is a separate portal at /vendor/dropship.
  */
@@ -20,7 +20,7 @@ export default async function VendorDashboardPage() {
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold tracking-tight">
-          Independent Vendor Portal
+          My store
         </h1>
         <p className="text-zinc-600">
           You do not have a store application yet. Submit one to start selling
@@ -47,16 +47,12 @@ export default async function VendorDashboardPage() {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-          Independent Vendor Portal
-        </p>
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">{vendor.name}</h1>
           <VendorStatusBadge status={vendor.status} />
         </div>
         <p className="text-zinc-600">
-          Custom-source finance and store status at a glance. Use the bottom bar
-          for products, store settings, orders, wallet, and profile.
+          Custom-source finance and store status at a glance.
         </p>
         <p className="text-zinc-600">
           Public store:{" "}
@@ -88,7 +84,7 @@ export default async function VendorDashboardPage() {
 
       {vendor.status === "approved" ? (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-          Store approved. Use this portal for custom-source ops only.
+          Store approved. Ready for custom-source listings and orders.
         </div>
       ) : null}
 

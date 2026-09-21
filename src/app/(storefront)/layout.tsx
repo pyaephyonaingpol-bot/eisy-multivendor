@@ -6,8 +6,7 @@ import { CartProvider } from "@/components/storefront/cart-provider";
 import { StorefrontFooter } from "@/components/storefront/storefront-footer";
 
 /**
- * Buyer storefront chrome — Noon-style super-app shell:
- * location/search header + page content + portal footer + fixed bottom tabs.
+ * Buyer shell — sticky header, full-width workspace, bottom tabs.
  */
 export default function StorefrontLayout({
   children,
@@ -17,7 +16,7 @@ export default function StorefrontLayout({
   return (
     <CartProvider>
       <BuyerMarketHeader />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-4 sm:pb-28 sm:pt-5">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-28 pt-4 sm:pt-5">
         {children}
       </main>
       <div className="pb-20 sm:pb-24">

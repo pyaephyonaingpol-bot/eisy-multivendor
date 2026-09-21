@@ -9,7 +9,7 @@ import { getVendorFinanceSnapshot } from "@/lib/wallets/vendor-finance";
 export const dynamic = "force-dynamic";
 
 /**
- * CJ Dropshipping Portal home — metrics overview.
+ * CJ Dropshipping home — metrics overview.
  * Primary nav is the bottom bar (Catalog, Imported, Orders, Tracking, Wallet).
  * Independent Vendor ops stay under /vendor/dashboard.
  */
@@ -27,11 +27,10 @@ export default async function VendorDropshipHubPage() {
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold tracking-tight">
-          CJ Dropshipping Portal
+          CJ Dropshipping
         </h1>
         <p className="text-zinc-600">
-          Apply as a vendor first, then use this portal for CJ catalog, imports,
-          orders, tracking, and disputes.
+          Apply as a vendor first, then browse the CJ catalog and import products.
         </p>
         <Link
           href="/vendor/apply"
@@ -52,15 +51,11 @@ export default async function VendorDropshipHubPage() {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-sky-800">
-          CJ Dropshipping Portal
-        </p>
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">
           Overview
         </h1>
         <p className="max-w-2xl text-sm text-zinc-600">
-          CJ finance and subscription at a glance. Use the bottom bar for
-          catalog, imports, orders, tracking, and wallet.
+          CJ finance and subscription at a glance.
         </p>
       </div>
 

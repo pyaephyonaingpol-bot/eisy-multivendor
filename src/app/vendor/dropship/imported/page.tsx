@@ -18,9 +18,6 @@ export default async function DropshipImportedProductsPage() {
   if (!vendor) {
     return (
       <div className="space-y-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-sky-800">
-          CJ Dropshipping Portal
-        </p>
         <h1 className="text-2xl font-semibold tracking-tight">
           Imported products
         </h1>
@@ -40,9 +37,6 @@ export default async function DropshipImportedProductsPage() {
     <div className="w-full max-w-full space-y-6 overflow-x-hidden">
       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-sky-800">
-            CJ Dropshipping Portal
-          </p>
           <h1 className="text-2xl font-semibold tracking-tight">
             Imported products
           </h1>

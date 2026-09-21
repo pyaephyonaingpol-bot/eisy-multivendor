@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Suspense } from "react";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { AdminDashboardLink } from "@/components/layout/admin-dashboard-link";
@@ -96,20 +95,5 @@ export async function Header() {
 }
 
 export async function Footer() {
-  return (
-    <Suspense
-      fallback={
-        <footer className="mt-auto border-t border-zinc-200 bg-white">
-          <div className="mx-auto max-w-6xl px-4 py-6 text-sm text-zinc-500">
-            © 2026 EISY Marketplace
-          </div>
-        </footer>
-      }
-    >
-      <SitePortalFooter
-        brandDescription="Sign in to shop, sell, or manage the platform."
-        shopLinks={false}
-      />
-    </Suspense>
-  );
+  return <SitePortalFooter />;
 }

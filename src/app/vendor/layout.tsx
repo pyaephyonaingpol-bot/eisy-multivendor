@@ -28,8 +28,9 @@ export default function VendorLayout({
         <Suspense fallback={null}>
           <SitePortalFooter
             brandTitle="EISY Seller"
-            brandDescription="Switch portals anytime — buyer shop, independent vendor, CJ dropshipping, or admin."
+            brandDescription="Manage your store operations — products, orders, wallet, and fulfillment."
             shopLinks={false}
+            showPortalHub={false}
           />
         </Suspense>
       </div>

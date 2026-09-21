@@ -198,12 +198,12 @@ export function SupplierProductPreviewModal({
       }}
     >
       <div className="flex max-h-[100dvh] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl border border-zinc-200 bg-white shadow-xl sm:max-h-[92vh] sm:rounded-2xl">
-        <header className="flex items-start justify-between gap-3 border-b border-zinc-200 px-4 py-3 sm:px-5">
-          <div className="min-w-0">
+        <header className="flex min-w-0 items-start justify-between gap-3 border-b border-zinc-200 px-3 py-3 sm:px-5">
+          <div className="min-w-0 flex-1 overflow-hidden">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
               Product preview · {providerKind === "cj_dropshipping" ? "CJ" : "DSers"}
             </p>
-            <h2 id={titleId} className="truncate text-base font-semibold text-zinc-950 sm:text-lg">
+            <h2 id={titleId} className="break-words text-base font-semibold text-zinc-950 sm:truncate sm:text-lg">
               {product?.name ?? "Loading product…"}
             </h2>
           </div>
@@ -211,13 +211,13 @@ export function SupplierProductPreviewModal({
             type="button"
             onClick={onClose}
             disabled={importPending}
-            className="rounded-md border border-zinc-200 px-2.5 py-1 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
+            className="shrink-0 rounded-md border border-zinc-200 px-2.5 py-1 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
           >
             Close
           </button>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+        <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-4 sm:px-5">
           {loading && !product && (
             <p className="py-12 text-center text-sm text-zinc-500">
               Loading full product details…
@@ -230,18 +230,18 @@ export function SupplierProductPreviewModal({
           )}
 
           {product && (
-            <div className="grid gap-6 lg:grid-cols-[1.05fr_1fr]">
-              <div className="space-y-3">
+            <div className="grid min-w-0 gap-6 lg:grid-cols-[1.05fr_1fr]">
+              <div className="min-w-0 space-y-3">
                 <div className="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={images[activeImage] ?? product.imageUrl ?? ""}
                     alt={product.name}
-                    className="aspect-square w-full object-cover"
+                    className="aspect-square h-auto w-full max-w-full object-contain sm:object-cover"
                   />
                 </div>
                 {images.length > 1 && (
-                  <div className="flex gap-2 overflow-x-auto pb-1">
+                  <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
                     {images.map((src, i) => (
                       <button
                         key={`${src}-${i}`}
@@ -252,7 +252,7 @@ export function SupplierProductPreviewModal({
                         }`}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={src} alt="" className="h-full w-full object-cover" />
+                        <img src={src} alt="" className="h-full w-full max-w-full object-cover" />
                       </button>
                     ))}
                   </div>
@@ -417,8 +417,8 @@ export function SupplierProductPreviewModal({
         </div>
 
         {product && (
-          <footer className="flex flex-col gap-2 border-t border-zinc-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-            <p className="text-[11px] text-zinc-500">
+          <footer className="flex min-w-0 flex-col gap-2 border-t border-zinc-200 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <p className="break-words text-[11px] text-zinc-500">
               Import uses your edited title, description, price, and selected variant.
             </p>
             {!confirmOpen ? (
@@ -426,17 +426,17 @@ export function SupplierProductPreviewModal({
                 type="button"
                 disabled={quota.atImportLimit || !sellOk || importPending}
                 onClick={() => setConfirmOpen(true)}
-                className="rounded-md bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                className="min-h-11 w-full shrink-0 rounded-md bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 sm:min-h-0 sm:w-auto"
               >
                 Import to Store
               </button>
             ) : (
-              <div className="flex w-full flex-col gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 sm:max-w-md">
-                <p className="text-xs text-zinc-950">
+              <div className="flex w-full min-w-0 max-w-full flex-col gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 sm:max-w-md">
+                <p className="break-words text-xs text-zinc-950">
                   Confirm import of <strong>{editName.trim() || product.name}</strong> at{" "}
                   {formatMoney(parsedSell, MARKETPLACE_CURRENCY)}?
                 </p>
-                <p className="text-[11px] text-zinc-600">
+                <p className="break-words text-[11px] text-zinc-600">
                   Minimum catalog size: {quota.minActiveItems} active items (you have{" "}
                   {quota.activeItemCount} active / {quota.catalogItemCount} listed). Cap:{" "}
                   {quota.maxImportItems} imports.
@@ -444,12 +444,12 @@ export function SupplierProductPreviewModal({
                     ? ` CJ import is allowed below ${quota.minActiveItems}; keep going to clear the CJ fee floor. Manual products are exempt.`
                     : ""}
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid w-full max-w-full grid-cols-1 gap-2 sm:flex sm:flex-wrap">
                   <button
                     type="button"
                     disabled={importPending || quota.atImportLimit || !sellOk}
                     onClick={submitImport}
-                    className="rounded-md bg-emerald-800 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                    className="min-h-11 w-full rounded-md bg-emerald-800 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 sm:min-h-0 sm:w-auto"
                   >
                     {importPending ? "Importing…" : "Confirm import"}
                   </button>
@@ -457,7 +457,7 @@ export function SupplierProductPreviewModal({
                     type="button"
                     disabled={importPending}
                     onClick={() => setConfirmOpen(false)}
-                    className="rounded-md border border-zinc-200 px-3 py-2 text-sm text-zinc-600"
+                    className="min-h-11 w-full rounded-md border border-zinc-200 px-3 py-2 text-sm text-zinc-600 sm:min-h-0 sm:w-auto"
                   >
                     Back
                   </button>

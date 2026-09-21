@@ -192,8 +192,8 @@ export function UnifiedSupplierSourcingCatalog({
   }, []);
 
   return (
-    <section className="space-y-5 rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5">
-      <div className="space-y-1">
+    <section className="w-full max-w-full space-y-5 overflow-x-hidden rounded-2xl border border-zinc-200 bg-white p-3 sm:p-5">
+      <div className="min-w-0 space-y-1">
         <h2 className="text-lg font-semibold tracking-tight">
           {t("sourcing.catalogTitle")}
         </h2>
@@ -215,13 +215,13 @@ export function UnifiedSupplierSourcingCatalog({
         <p className="font-semibold text-sky-900">
           {t("sourcing.fastStrategiesTitle")}
         </p>
-        <p className="mt-1 text-sky-900/90">
+        <p className="mt-1 break-words text-sky-900/90">
           {t("sourcing.fastStrategiesBody")}
         </p>
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
-        <label className="min-w-0 flex-1 text-xs font-medium text-zinc-600">
+      <div className="grid w-full max-w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_10rem_10rem_auto] lg:items-end">
+        <label className="min-w-0 text-xs font-medium text-zinc-600 sm:col-span-2 lg:col-span-1">
           {t("sourcing.search")}
           <input
             value={query}
@@ -230,15 +230,15 @@ export function UnifiedSupplierSourcingCatalog({
               if (event.key === "Enter") runSearch();
             }}
             placeholder={t("sourcing.searchPlaceholder")}
-            className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm"
+            className="mt-1 w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm"
           />
         </label>
-        <label className="text-xs font-medium text-zinc-600">
+        <label className="min-w-0 text-xs font-medium text-zinc-600">
           {t("sourcing.shipToRegion")}
           <select
             value={regionCode}
             onChange={(event) => setRegionCode(event.target.value)}
-            className="mt-1 block min-w-[10rem] rounded-lg border border-zinc-200 px-3 py-2.5 text-sm"
+            className="mt-1 block w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm"
           >
             {regions.length === 0 ? (
               <option value="GLOBAL">GLOBAL</option>
@@ -251,14 +251,14 @@ export function UnifiedSupplierSourcingCatalog({
             )}
           </select>
         </label>
-        <label className="text-xs font-medium text-zinc-600">
+        <label className="min-w-0 text-xs font-medium text-zinc-600">
           {t("sourcing.deliverySpeed")}
           <select
             value={deliverySpeed}
             onChange={(event) =>
               setDeliverySpeed(event.target.value as DeliverySpeedFilter)
             }
-            className="mt-1 block min-w-[10rem] rounded-lg border border-zinc-200 px-3 py-2.5 text-sm"
+            className="mt-1 block w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm"
           >
             <option value="any">{t("sourcing.anySpeed")}</option>
             <option value="fast">{t("sourcing.fastDispatchFilter")}</option>
@@ -269,7 +269,7 @@ export function UnifiedSupplierSourcingCatalog({
           type="button"
           onClick={runSearch}
           disabled={pendingSearch}
-          className="min-h-11 rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+          className="min-h-11 w-full rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 sm:col-span-2 lg:col-span-1 lg:w-auto"
         >
           {pendingSearch ? t("sourcing.searching") : t("sourcing.searchButton")}
         </button>
@@ -296,7 +296,7 @@ export function UnifiedSupplierSourcingCatalog({
             : t("sourcing.emptySearch")}
         </p>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <ul className="grid w-full max-w-full grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {visibleProducts.map((product) => {
             const suggested = defaultSellPrice(product.priceUsdt);
             const stockOk = meetsMinImportStock(product.stockQuantity);
@@ -305,20 +305,24 @@ export function UnifiedSupplierSourcingCatalog({
             return (
               <li
                 key={`${product.providerKind}:${product.externalProductId}`}
-                className="flex flex-col gap-3 rounded-xl border border-zinc-100 p-3"
+                className="flex min-w-0 max-w-full flex-col overflow-hidden rounded-xl border border-zinc-100"
               >
-                <div className="flex gap-3">
+                <div className="aspect-[4/3] w-full max-w-full overflow-hidden bg-zinc-100 sm:aspect-square">
                   {product.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={product.imageUrl}
                       alt=""
-                      className="h-20 w-20 shrink-0 rounded-lg object-cover"
+                      className="h-full w-full max-w-full object-cover"
                     />
                   ) : (
-                    <div className="h-20 w-20 shrink-0 rounded-lg bg-zinc-100" />
+                    <div className="flex h-full w-full items-center justify-center text-xs text-zinc-400">
+                      No image
+                    </div>
                   )}
-                  <div className="min-w-0 space-y-1">
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col gap-3 p-3">
+                  <div className="min-w-0 space-y-1.5">
                     <div className="flex flex-wrap gap-1">
                       <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-700">
                         {sourceBadge(product.providerKind)}
@@ -334,10 +338,10 @@ export function UnifiedSupplierSourcingCatalog({
                         </span>
                       ) : null}
                     </div>
-                    <p className="line-clamp-2 font-medium text-zinc-950">
+                    <p className="line-clamp-2 break-words font-medium text-zinc-950">
                       {product.name}
                     </p>
-                    <p className="text-xs text-zinc-500">
+                    <p className="break-words text-xs text-zinc-500">
                       {product.warehouseCountry}
                       {product.shippingDaysMin != null &&
                       product.shippingDaysMax != null
@@ -365,18 +369,18 @@ export function UnifiedSupplierSourcingCatalog({
                       </p>
                     ) : null}
                   </div>
+                  <button
+                    type="button"
+                    disabled={!stockOk || atLimit}
+                    onClick={() => {
+                      setPreviewId(product.externalProductId);
+                      setPreviewKind(product.providerKind);
+                    }}
+                    className="mt-auto min-h-11 w-full max-w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
+                  >
+                    {t("sourcing.previewImport")}
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  disabled={!stockOk || atLimit}
-                  onClick={() => {
-                    setPreviewId(product.externalProductId);
-                    setPreviewKind(product.providerKind);
-                  }}
-                  className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
-                >
-                  {t("sourcing.previewImport")}
-                </button>
               </li>
             );
           })}

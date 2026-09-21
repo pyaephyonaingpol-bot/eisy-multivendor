@@ -101,17 +101,17 @@ export default async function VendorSourcingIndexPage() {
       />
 
       <div className="flex flex-col gap-3 rounded-xl border border-sky-200 bg-white px-3 py-3 text-sm text-zinc-800 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-        <p>Browse the live CJ catalog or open imported CJ listings.</p>
-        <div className="flex flex-wrap gap-2">
+        <p className="min-w-0 break-words">Browse the live CJ catalog or open imported CJ listings.</p>
+        <div className="grid w-full max-w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
           <Link
             href="/vendor/integrations"
-            className="inline-flex min-h-11 items-center justify-center rounded-lg bg-sky-700 px-3 py-2 text-sm font-medium text-white hover:bg-sky-800 sm:min-h-0"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-sky-700 px-3 py-2 text-sm font-medium text-white hover:bg-sky-800 sm:min-h-0 sm:w-auto"
           >
             Open CJ catalog
           </Link>
           <Link
             href="/vendor/dropship/imported"
-            className="inline-flex min-h-11 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-950 hover:bg-sky-100 sm:min-h-0"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-950 hover:bg-sky-100 sm:min-h-0 sm:w-auto"
           >
             Imported products
           </Link>
@@ -136,17 +136,17 @@ export default async function VendorSourcingIndexPage() {
           {cjProducts.map((product) => (
             <li
               key={product.id}
-              className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm"
+              className="flex min-w-0 flex-col gap-2 px-3 py-3 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-4"
             >
-              <div>
-                <p className="font-medium text-zinc-950">{product.name}</p>
+              <div className="min-w-0">
+                <p className="break-words font-medium text-zinc-950">{product.name}</p>
                 <p className="text-zinc-500">
                   CJ import · {product.status}
                 </p>
               </div>
               <Link
                 href={`/vendor/sourcing/${product.id}`}
-                className="font-medium text-sky-950 underline"
+                className="inline-flex min-h-11 w-full items-center justify-center font-medium text-sky-950 underline sm:min-h-0 sm:w-auto sm:justify-start"
               >
                 {t.sourcing.manageRoutes}
               </Link>

@@ -93,10 +93,10 @@ export function ExternalSupplierCatalogPanel({
   }
 
   return (
-    <section className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5">
-      <div className="space-y-1">
+    <section className="w-full max-w-full space-y-4 overflow-x-hidden rounded-2xl border border-zinc-200 bg-white p-3 sm:p-5">
+      <div className="min-w-0 space-y-1">
         <h2 className="text-lg font-semibold tracking-tight">{providerLabel}</h2>
-        <p className="text-sm text-zinc-600">
+        <p className="break-words text-sm text-zinc-600">
           Search the {providerLabel} catalog, open <strong>Preview</strong> to review
           images, variants, and description, then <strong>Import to Store</strong>.
           One-click listing uses a default{" "}
@@ -106,18 +106,18 @@ export function ExternalSupplierCatalogPanel({
         </p>
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+      <div className="flex w-full max-w-full flex-col gap-2 sm:flex-row">
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search products"
-          className="w-full min-w-0 flex-1 rounded-lg border border-zinc-200 px-3 py-2.5 text-sm sm:py-2"
+          className="w-full min-w-0 max-w-full flex-1 rounded-lg border border-zinc-200 px-3 py-2.5 text-sm sm:py-2"
         />
         <button
           type="button"
           onClick={runSearch}
           disabled={pendingSearch}
-          className="min-h-11 w-full rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 sm:min-h-0 sm:w-auto"
+          className="min-h-11 w-full shrink-0 rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 sm:min-h-0 sm:w-auto"
         >
           {pendingSearch ? "Searching…" : "Search"}
         </button>
@@ -164,27 +164,35 @@ export function ExternalSupplierCatalogPanel({
             : "."}
         </p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="grid w-full max-w-full grid-cols-1 gap-3">
           {products.map((product) => {
             const suggested = defaultSellPrice(product.priceUsdt);
             const showCustom = customPriceFor === product.externalProductId;
             return (
               <li
                 key={product.externalProductId}
-                className="flex flex-col gap-3 rounded-xl border border-zinc-100 p-3 sm:flex-row sm:items-end sm:justify-between"
+                className="flex min-w-0 max-w-full flex-col overflow-hidden rounded-xl border border-zinc-100"
               >
-                <div className="flex min-w-0 flex-1 gap-3">
-                  {product.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={product.imageUrl}
-                      alt=""
-                      className="h-16 w-16 shrink-0 rounded-lg object-cover"
-                    />
-                  ) : null}
-                  <div className="min-w-0 space-y-1">
-                    <p className="font-medium text-zinc-950">{product.name}</p>
-                    <p className="text-xs text-zinc-500">
+                <div className="flex min-w-0 gap-3 p-3">
+                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-zinc-100 sm:h-24 sm:w-24">
+                    {product.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={product.imageUrl}
+                        alt=""
+                        className="h-full w-full max-w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-[10px] uppercase tracking-wide text-zinc-400">
+                        No img
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <p className="line-clamp-2 break-words font-medium text-zinc-950">
+                      {product.name}
+                    </p>
+                    <p className="break-all text-xs text-zinc-500">
                       ID {product.externalProductId}
                       {product.externalSku ? ` · SKU ${product.externalSku}` : ""}
                       {product.stockQuantity != null
@@ -204,16 +212,16 @@ export function ExternalSupplierCatalogPanel({
                   </div>
                 </div>
 
-                <div className="flex flex-col items-stretch gap-2 sm:items-end">
-                  <div className="flex flex-wrap gap-2">
+                <div className="flex min-w-0 flex-col gap-2 border-t border-zinc-100 p-3">
+                  <div className="grid w-full max-w-full grid-cols-1 gap-2 sm:flex sm:flex-wrap">
                     <button
                       type="button"
                       onClick={() => setPreviewId(product.externalProductId)}
-                      className="min-h-11 flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 sm:min-h-0 sm:flex-none"
+                      className="min-h-11 w-full max-w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 sm:min-h-0 sm:w-auto"
                     >
                       Preview
                     </button>
-                    <form action={formAction} className="flex-1 sm:flex-none">
+                    <form action={formAction} className="min-w-0 w-full sm:w-auto">
                       <input type="hidden" name="provider_kind" value={providerKind} />
                       <input
                         type="hidden"
@@ -225,7 +233,7 @@ export function ExternalSupplierCatalogPanel({
                       <button
                         type="submit"
                         disabled={pendingImport || atLimit}
-                        className="min-h-11 w-full rounded-lg bg-emerald-800 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60 sm:min-h-0"
+                        className="min-h-11 w-full max-w-full rounded-lg bg-emerald-800 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60 sm:min-h-0"
                       >
                         {pendingImport ? "Importing…" : "Import to Store"}
                       </button>
@@ -239,7 +247,7 @@ export function ExternalSupplierCatalogPanel({
                         showCustom ? null : product.externalProductId,
                       )
                     }
-                    className="text-left text-xs font-medium text-zinc-600 underline sm:text-right"
+                    className="text-left text-xs font-medium text-zinc-600 underline"
                   >
                     {showCustom ? "Hide custom price" : "Set custom price"}
                   </button>
@@ -247,7 +255,7 @@ export function ExternalSupplierCatalogPanel({
                   {showCustom ? (
                     <form
                       action={formAction}
-                      className="flex flex-wrap items-end gap-2"
+                      className="flex w-full max-w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end"
                     >
                       <input
                         type="hidden"
@@ -260,7 +268,7 @@ export function ExternalSupplierCatalogPanel({
                         value={product.externalProductId}
                       />
                       <input type="hidden" name="region_code" value="GLOBAL" />
-                      <label className="text-xs text-zinc-600">
+                      <label className="min-w-0 flex-1 text-xs text-zinc-600">
                         Sell price (USDT)
                         <input
                           name="price"
@@ -268,14 +276,14 @@ export function ExternalSupplierCatalogPanel({
                           min={product.priceUsdt}
                           step="0.01"
                           defaultValue={suggested}
-                          className="mt-1 block w-28 rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
+                          className="mt-1 block w-full max-w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm sm:max-w-[8rem]"
                           required
                         />
                       </label>
                       <button
                         type="submit"
                         disabled={pendingImport || atLimit}
-                        className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60"
+                        className="min-h-11 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60 sm:min-h-0 sm:w-auto"
                       >
                         {pendingImport ? "Importing…" : "Import"}
                       </button>

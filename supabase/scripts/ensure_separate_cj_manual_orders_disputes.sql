@@ -107,6 +107,28 @@ create index if not exists orders_supplier_order_ref_idx
   on public.orders (supplier_order_ref)
   where supplier_order_ref is not null;
 
+-- Prerequisite timestamps (channel refresh / CJ upserts set updated_at).
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+alter table public.orders
+  add column if not exists created_at timestamptz not null default now();
+
+alter table public.orders
+  add column if not exists updated_at timestamptz not null default now();
+
+drop trigger if exists orders_set_updated_at on public.orders;
+create trigger orders_set_updated_at
+  before update on public.orders
+  for each row execute function public.set_updated_at();
+
 do $$
 begin
   if not exists (

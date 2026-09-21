@@ -95,6 +95,10 @@ create index if not exists orders_supplier_order_ref_idx
   on public.orders (supplier_order_ref)
   where supplier_order_ref is not null;
 
+-- updated_at required by sync-status index and channel-refresh UPDATEs.
+alter table public.orders
+  add column if not exists updated_at timestamptz not null default now();
+
 create index if not exists orders_fulfillment_sync_status_idx
   on public.orders (fulfillment_sync_status, updated_at desc);
 

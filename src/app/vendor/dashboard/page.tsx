@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Independent Vendor Portal home — metrics and store approval status.
- * Products / Store / Orders / Tracking / Disputes live in the left sidebar.
+ * Primary nav is the bottom bar (Products, Store, Orders, Wallet, Profile).
  * CJ Dropshipping is a separate portal at /vendor/dropship.
  */
 export default async function VendorDashboardPage() {
@@ -55,8 +55,8 @@ export default async function VendorDashboardPage() {
           <VendorStatusBadge status={vendor.status} />
         </div>
         <p className="text-zinc-600">
-          Custom-source finance and store status at a glance. Use the sidebar for
-          products, store settings, orders, tracking, and disputes.
+          Custom-source finance and store status at a glance. Use the bottom bar
+          for products, store settings, orders, wallet, and profile.
         </p>
         <p className="text-zinc-600">
           Public store:{" "}

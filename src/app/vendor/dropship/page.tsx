@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * CJ Dropshipping Portal home — metrics overview.
- * Catalog / imports / orders / tracking / disputes live in the left sidebar.
+ * Primary nav is the bottom bar (Catalog, Imported, Orders, Tracking, Wallet).
  * Independent Vendor ops stay under /vendor/dashboard.
  */
 export default async function VendorDropshipHubPage() {
@@ -59,8 +59,8 @@ export default async function VendorDropshipHubPage() {
           Overview
         </h1>
         <p className="max-w-2xl text-sm text-zinc-600">
-          CJ finance and subscription at a glance. Use the sidebar for catalog,
-          imports, orders, tracking, and disputes.
+          CJ finance and subscription at a glance. Use the bottom bar for
+          catalog, imports, orders, tracking, and wallet.
         </p>
       </div>
 

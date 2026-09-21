@@ -44,6 +44,20 @@ export default async function DropshipCjOrdersPage() {
           Orders fulfilled through the CJ Dropshipping API. Custom-source orders
           stay in the Independent Vendor Portal.
         </p>
+        <div className="flex flex-wrap gap-2 pt-1">
+          <Link
+            href="/vendor/dropship/tracking"
+            className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-950 hover:bg-sky-100"
+          >
+            Tracking
+          </Link>
+          <Link
+            href="/vendor/dropship/disputes"
+            className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-950 hover:bg-sky-100"
+          >
+            Disputes
+          </Link>
+        </div>
       </div>
 
       {orders.length === 0 ? (

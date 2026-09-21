@@ -56,6 +56,20 @@ export default async function VendorOrdersPage() {
           Custom-sourced orders you fulfill yourself. CJ orders are in the CJ
           Dropshipping Portal.
         </p>
+        <div className="flex flex-wrap gap-2 pt-1">
+          <Link
+            href="/vendor/tracking"
+            className="inline-flex rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:border-zinc-300 hover:text-zinc-950"
+          >
+            Tracking
+          </Link>
+          <Link
+            href="/vendor/disputes"
+            className="inline-flex rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:border-zinc-300 hover:text-zinc-950"
+          >
+            Disputes
+          </Link>
+        </div>
       </div>
 
       {orders.length === 0 ? (

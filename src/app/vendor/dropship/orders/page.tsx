@@ -37,28 +37,12 @@ export default async function DropshipCjOrdersPage() {
     <div className="space-y-6">
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wider text-sky-800">
-          Dropshipper · CJ fulfillment
+          CJ Dropshipping Portal
         </p>
-        <h1 className="text-2xl font-semibold tracking-tight">CJ orders</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">CJ Orders</h1>
         <p className="max-w-2xl text-zinc-600">
-          Orders fulfilled through the CJ Dropshipping API. Manual / custom
-          sourcing orders stay under Vendor → Orders.
-        </p>
-        <p className="text-sm text-zinc-500">
-          <Link href="/vendor/orders" className="font-medium underline">
-            Manual orders
-          </Link>
-          {" · "}
-          <Link
-            href="/vendor/dropship/tracking"
-            className="font-medium underline"
-          >
-            CJ tracking
-          </Link>
-          {" · "}
-          <Link href="/vendor/sourcing" className="font-medium underline">
-            CJ catalog
-          </Link>
+          Orders fulfilled through the CJ Dropshipping API. Custom-source orders
+          stay in the Independent Vendor Portal.
         </p>
       </div>
 

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useId, useState } from "react";
+import { createPortal } from "react-dom";
 
 type PortalId = "vendor" | "cj";
 type TabId =
@@ -316,7 +317,12 @@ export function VendorBottomNav() {
   const urlPortal = portalFromUrl(pathname, searchPortal);
   const [portal, setPortal] = useState<PortalId>(urlPortal);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const panelId = useId();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (searchPortal === "cj" || searchPortal === "vendor") {
@@ -367,79 +373,91 @@ export function VendorBottomNav() {
     ? "text-sky-900/55 hover:text-sky-900"
     : "text-zinc-500 hover:text-zinc-900";
 
+  const moreSheet =
+    moreOpen && mounted
+      ? createPortal(
+          <>
+            <button
+              type="button"
+              aria-label="Close more menu"
+              className="fixed inset-0 z-[80] bg-zinc-950/40"
+              onClick={() => setMoreOpen(false)}
+            />
+            <div
+              id={panelId}
+              role="dialog"
+              aria-modal="true"
+              aria-label={
+                inCj
+                  ? "CJ Dropshipping more menu"
+                  : "Independent Vendor more menu"
+              }
+              className={`fixed bottom-0 left-1/2 z-[81] flex w-[min(100%-1.5rem,20rem)] max-w-xs -translate-x-1/2 flex-col overflow-hidden rounded-t-2xl border bg-white shadow-2xl sm:max-w-sm ${
+                inCj ? "border-sky-200" : "border-zinc-200"
+              }`}
+              style={{ maxHeight: "min(70vh, 28rem)" }}
+            >
+              <div
+                className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-zinc-200"
+                aria-hidden
+              />
+              <div className="flex items-center justify-between gap-3 border-b border-zinc-100 px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-zinc-950">More</p>
+                  <p
+                    className={`break-words text-xs ${inCj ? "text-sky-800" : "text-zinc-500"}`}
+                  >
+                    {inCj ? "CJ Dropshipping" : "Independent Vendor"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMoreOpen(false)}
+                  className="shrink-0 rounded-full border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:border-zinc-300 hover:text-zinc-950"
+                >
+                  Close
+                </button>
+              </div>
+              <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1">
+                {moreLinks.map((item) => {
+                  const active = moreLinkActive(pathname, item.href);
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        onClick={() => {
+                          writeStoredPortal(item.portal ?? portal);
+                          setMoreOpen(false);
+                        }}
+                        aria-current={active ? "page" : undefined}
+                        className={`block px-3 py-2.5 transition hover:bg-zinc-50 ${
+                          active
+                            ? inCj
+                              ? "bg-sky-50"
+                              : "bg-zinc-50"
+                            : ""
+                        }`}
+                      >
+                        <span className="block break-words text-sm font-medium text-zinc-950">
+                          {item.label}
+                        </span>
+                        <span className="mt-0.5 block break-words text-xs text-zinc-500">
+                          {item.description}
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </>,
+          document.body,
+        )
+      : null;
+
   return (
     <>
-      {moreOpen ? (
-        <div className="fixed inset-0 z-[60]" role="presentation">
-          <button
-            type="button"
-            aria-label="Close more menu"
-            className="absolute inset-0 bg-zinc-950/40"
-            onClick={() => setMoreOpen(false)}
-          />
-          <div
-            id={panelId}
-            role="dialog"
-            aria-modal="true"
-            aria-label={
-              inCj ? "CJ Dropshipping more menu" : "Independent Vendor more menu"
-            }
-            className={`absolute inset-x-0 bottom-0 mx-auto max-h-[min(70vh,28rem)] w-full max-w-xs overflow-hidden rounded-t-2xl border bg-white shadow-2xl sm:max-w-sm ${
-              inCj ? "border-sky-200" : "border-zinc-200"
-            }`}
-          >
-            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-zinc-200 sm:hidden" aria-hidden />
-            <div className="flex items-center justify-between gap-3 border-b border-zinc-100 px-3 py-2.5 sm:px-4 sm:py-3">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-zinc-950">More</p>
-                <p
-                  className={`break-words text-xs ${inCj ? "text-sky-800" : "text-zinc-500"}`}
-                >
-                  {inCj ? "CJ Dropshipping" : "Independent Vendor"}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setMoreOpen(false)}
-                className="shrink-0 rounded-full border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:border-zinc-300 hover:text-zinc-950"
-              >
-                Close
-              </button>
-            </div>
-            <ul className="max-h-[min(56vh,22rem)] overflow-y-auto overscroll-contain pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-1">
-              {moreLinks.map((item) => {
-                const active = moreLinkActive(pathname, item.href);
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      onClick={() => {
-                        writeStoredPortal(item.portal ?? portal);
-                        setMoreOpen(false);
-                      }}
-                      aria-current={active ? "page" : undefined}
-                      className={`block px-3 py-2.5 transition hover:bg-zinc-50 sm:px-4 sm:py-3 ${
-                        active
-                          ? inCj
-                            ? "bg-sky-50"
-                            : "bg-zinc-50"
-                          : ""
-                      }`}
-                    >
-                      <span className="block break-words text-sm font-medium text-zinc-950">
-                        {item.label}
-                      </span>
-                      <span className="mt-0.5 block text-xs text-zinc-500">
-                        {item.description}
-                      </span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </div>
-      ) : null}
+      {moreSheet}
 
       <nav
         aria-label={

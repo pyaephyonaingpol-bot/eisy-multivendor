@@ -12,7 +12,7 @@ export default function VendorLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-full w-full max-w-[100vw] flex-col overflow-x-hidden">
+    <div className="flex min-h-full w-full max-w-full flex-col overflow-x-hidden">
       <Suspense
         fallback={<div className="h-14 border-b border-zinc-100 bg-white" />}
       >

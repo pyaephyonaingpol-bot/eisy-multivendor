@@ -10,7 +10,7 @@ function loginErrorMessage(error: string | undefined) {
   switch (error) {
     case "auth_config":
     case "config":
-      return "Authentication is not configured. Add Supabase environment variables in Vercel.";
+      return "Authentication is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_URL + SUPABASE_ANON_KEY / SUPABASE_PUBLISHABLE_KEY) in Vercel, then redeploy.";
     case "auth_callback":
     case "auth":
       return "Sign-in link expired or is invalid. Please try again.";

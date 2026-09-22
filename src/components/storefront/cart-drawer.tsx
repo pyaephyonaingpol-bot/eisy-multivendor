@@ -27,7 +27,7 @@ export function CartDrawer() {
         className="absolute inset-0 bg-zinc-950/40"
         onClick={closeDrawer}
       />
-      <aside className="relative flex h-full w-full max-w-md flex-col bg-white shadow-xl">
+      <aside className="relative flex h-full w-full max-w-sm flex-col bg-white shadow-xl sm:max-w-md">
         <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-4">
           <div>
             <h2 className="text-lg font-semibold tracking-tight">Your cart</h2>

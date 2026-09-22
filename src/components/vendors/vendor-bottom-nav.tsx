@@ -384,15 +384,16 @@ export function VendorBottomNav() {
             aria-label={
               inCj ? "CJ Dropshipping more menu" : "Independent Vendor more menu"
             }
-            className={`absolute inset-x-0 bottom-0 max-h-[min(78vh,36rem)] overflow-hidden rounded-t-2xl border bg-white shadow-2xl ${
+            className={`absolute inset-x-0 bottom-0 mx-auto max-h-[min(70vh,28rem)] w-full max-w-xs overflow-hidden rounded-t-2xl border bg-white shadow-2xl sm:max-w-sm ${
               inCj ? "border-sky-200" : "border-zinc-200"
             }`}
           >
-            <div className="flex items-center justify-between gap-3 border-b border-zinc-100 px-4 py-3">
-              <div>
+            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-zinc-200 sm:hidden" aria-hidden />
+            <div className="flex items-center justify-between gap-3 border-b border-zinc-100 px-3 py-2.5 sm:px-4 sm:py-3">
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-zinc-950">More</p>
                 <p
-                  className={`text-xs ${inCj ? "text-sky-800" : "text-zinc-500"}`}
+                  className={`break-words text-xs ${inCj ? "text-sky-800" : "text-zinc-500"}`}
                 >
                   {inCj ? "CJ Dropshipping" : "Independent Vendor"}
                 </p>
@@ -400,12 +401,12 @@ export function VendorBottomNav() {
               <button
                 type="button"
                 onClick={() => setMoreOpen(false)}
-                className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:border-zinc-300 hover:text-zinc-950"
+                className="shrink-0 rounded-full border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:border-zinc-300 hover:text-zinc-950"
               >
                 Close
               </button>
             </div>
-            <ul className="max-h-[min(68vh,30rem)] overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-1">
+            <ul className="max-h-[min(56vh,22rem)] overflow-y-auto overscroll-contain pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-1">
               {moreLinks.map((item) => {
                 const active = moreLinkActive(pathname, item.href);
                 return (
@@ -417,7 +418,7 @@ export function VendorBottomNav() {
                         setMoreOpen(false);
                       }}
                       aria-current={active ? "page" : undefined}
-                      className={`block px-4 py-3 transition hover:bg-zinc-50 ${
+                      className={`block px-3 py-2.5 transition hover:bg-zinc-50 sm:px-4 sm:py-3 ${
                         active
                           ? inCj
                             ? "bg-sky-50"
@@ -425,7 +426,7 @@ export function VendorBottomNav() {
                           : ""
                       }`}
                     >
-                      <span className="block text-sm font-medium text-zinc-950">
+                      <span className="block break-words text-sm font-medium text-zinc-950">
                         {item.label}
                       </span>
                       <span className="mt-0.5 block text-xs text-zinc-500">

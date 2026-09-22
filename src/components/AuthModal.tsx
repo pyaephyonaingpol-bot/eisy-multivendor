@@ -283,7 +283,7 @@ export function AuthModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative my-auto z-10 mx-auto flex max-h-[min(92vh,640px)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl"
+        className="relative my-auto z-10 mx-auto flex max-h-[min(90vh,640px)] w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl sm:max-w-md"
       >
         <div className="flex items-start justify-between gap-3 border-b border-zinc-100 px-5 py-4">
           <div>

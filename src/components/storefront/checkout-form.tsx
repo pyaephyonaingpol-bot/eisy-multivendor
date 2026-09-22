@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/storefront/cart-provider";
 import {
   checkoutWithUsdt,
@@ -21,6 +21,12 @@ type CheckoutFormProps = {
   defaultCountry?: string;
 };
 
+type CjShipCheck = {
+  status: "idle" | "checking" | "ok" | "blocked" | "skipped";
+  message: string | null;
+  methods: Array<{ name: string; amount: number | null; currency: string }>;
+};
+
 export function CheckoutForm({
   isSignedIn,
   usdtAvailable,
@@ -34,6 +40,12 @@ export function CheckoutForm({
   const [paymentMethod, setPaymentMethod] = useState<"wallet" | "trc20">(
     "wallet",
   );
+  const [country, setCountry] = useState(defaultCountry);
+  const [cjShip, setCjShip] = useState<CjShipCheck>({
+    status: "idle",
+    message: null,
+    methods: [],
+  });
 
   const payload = useMemo(
     () =>
@@ -52,6 +64,93 @@ export function CheckoutForm({
       ? subtotal - usdtAvailable
       : 0;
   const walletBlocked = paymentMethod === "wallet" && shortfall > 0;
+  const shipBlocked = cjShip.status === "blocked";
+
+  useEffect(() => {
+    if (!isSignedIn || items.length === 0) {
+      setCjShip({ status: "idle", message: null, methods: [] });
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setCjShip((prev) => ({ ...prev, status: "checking", message: null }));
+      try {
+        const response = await fetch("/api/shipping/cj-check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            country,
+            items: items.map((item) => ({
+              product_id: item.productId,
+              quantity: item.quantity,
+            })),
+          }),
+          signal: controller.signal,
+        });
+        const data = (await response.json()) as {
+          ok?: boolean;
+          skipped?: boolean;
+          hasCjItems?: boolean;
+          error?: string;
+          methods?: Array<{
+            name: string;
+            amount: number | null;
+            currency: string;
+            days?: string | null;
+          }>;
+          availability?: {
+            status?: string;
+            available?: number | null;
+            message?: string | null;
+          };
+        };
+
+        if (!response.ok || data.ok === false) {
+          setCjShip({
+            status: "blocked",
+            message:
+              data.error ??
+              "Sorry, CJ Dropshipping does not ship to your location.",
+            methods: data.methods ?? [],
+          });
+          return;
+        }
+
+        if (data.skipped || !data.hasCjItems) {
+          setCjShip({ status: "skipped", message: null, methods: [] });
+          return;
+        }
+
+        const availabilityNote =
+          data.availability?.status === "out_of_stock"
+            ? data.availability.message ??
+              "One or more CJ items are out of stock."
+            : null;
+
+        setCjShip({
+          status: availabilityNote ? "blocked" : "ok",
+          message: availabilityNote,
+          methods: data.methods ?? [],
+        });
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setCjShip({
+          status: "blocked",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Could not verify CJ shipping for this country.",
+          methods: [],
+        });
+      }
+    }, 280);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [country, items, isSignedIn]);
 
   if (itemCount === 0) {
     return (
@@ -103,7 +202,7 @@ export function CheckoutForm({
             </h2>
             <p className="text-sm text-zinc-500">
               {hasPhysical
-                ? "Required for physical items. Checkout blocks items that cannot ship to the selected country."
+                ? "Required for physical items. CJ Dropshipping destinations are verified live before payment."
                 : "Optional for digital-only carts."}
             </p>
           </div>
@@ -146,7 +245,8 @@ export function CheckoutForm({
               <select
                 id="country"
                 name="country"
-                defaultValue={defaultCountry}
+                value={country}
+                onChange={(event) => setCountry(event.target.value)}
                 className={fieldClassName}
               >
                 {BUYER_COUNTRY_OPTIONS.map((option) => (
@@ -230,6 +330,42 @@ export function CheckoutForm({
               />
             </div>
           </div>
+
+          {cjShip.status === "checking" ? (
+            <p className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-sm text-sky-950">
+              Checking CJ Dropshipping options for {country}…
+            </p>
+          ) : null}
+          {cjShip.status === "blocked" ? (
+            <div
+              className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-950"
+              role="alert"
+            >
+              <p className="font-medium">Shipping unavailable</p>
+              <p className="mt-1">
+                {cjShip.message ??
+                  "Sorry, CJ Dropshipping does not ship to your location."}
+              </p>
+            </div>
+          ) : null}
+          {cjShip.status === "ok" && cjShip.methods.length > 0 ? (
+            <p className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
+              CJ shipping available
+              {cjShip.methods[0]
+                ? ` · ${cjShip.methods[0].name}${
+                    cjShip.methods[0].amount != null
+                      ? ` (${formatMoney(
+                          cjShip.methods[0].amount,
+                          cjShip.methods[0].currency || "USD",
+                        )})`
+                      : ""
+                  }`
+                : ""}
+              {cjShip.methods.length > 1
+                ? ` · +${cjShip.methods.length - 1} more`
+                : ""}
+            </p>
+          ) : null}
         </section>
 
         <section className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-5">
@@ -298,79 +434,66 @@ export function CheckoutForm({
                 USDT TRC-20 transfer
               </span>
               <span className="mt-0.5 block text-xs text-zinc-500">
-                Send on-chain USDT. Orders stay pending until the webhook
-                confirms the transaction, then supplier/dropshipper split runs.
+                Pay on-chain to a unique deposit address.
               </span>
             </span>
           </label>
         </fieldset>
 
-        <div className="space-y-2 text-sm">
+        <div className="space-y-1 border-t border-zinc-100 pt-3 text-sm">
           <div className="flex justify-between">
-            <span className="text-zinc-600">Subtotal</span>
-            <span className="font-medium">
+            <span className="text-zinc-500">Subtotal</span>
+            <span className="font-medium text-zinc-950">
               {formatMoney(subtotal, MARKETPLACE_CURRENCY)}
             </span>
           </div>
-          {paymentMethod === "wallet" ? (
+          {usdtAvailable != null ? (
             <div className="flex justify-between">
-              <span className="text-zinc-600">Wallet available</span>
-              <span className="font-medium">
-                {usdtAvailable == null
-                  ? "—"
-                  : formatMoney(usdtAvailable, MARKETPLACE_CURRENCY)}
+              <span className="text-zinc-500">Wallet available</span>
+              <span className="font-medium text-zinc-950">
+                {formatMoney(usdtAvailable, MARKETPLACE_CURRENCY)}
               </span>
             </div>
           ) : null}
-          <div className="flex justify-between border-t border-zinc-100 pt-2 text-base">
-            <span className="font-medium">Pay now</span>
-            <span className="font-semibold">
-              {formatMoney(subtotal, MARKETPLACE_CURRENCY)}
-            </span>
-          </div>
         </div>
 
-        <p className="text-xs text-zinc-500">
-          {paymentMethod === "wallet"
-            ? "Confirming payment debits your USDT wallet and credits each vendor. MMK cannot be used for checkout."
-            : "You will get a TRC-20 deposit address after placing the order. Payment is confirmed automatically via webhook once the transfer is verified."}
-        </p>
-
         {walletBlocked ? (
-          <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            <p>
-              You need {formatMoney(shortfall, MARKETPLACE_CURRENCY)} more USDT
-              for wallet checkout — or pay with TRC-20 transfer instead.
-            </p>
-            <Link href="/account/wallet" className="font-medium underline">
-              Deposit USDT
-            </Link>
-          </div>
+          <p className="text-sm text-amber-800">
+            Need {formatMoney(shortfall, MARKETPLACE_CURRENCY)} more in your
+            wallet, or switch to TRC-20 transfer.
+          </p>
         ) : null}
 
         {state?.error ? (
-          <p className="text-sm text-red-600" role="alert">
+          <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900">
             {state.error}
+          </p>
+        ) : null}
+
+        {shipBlocked ? (
+          <p className="text-sm text-rose-800">
+            Checkout is blocked until you select a country CJ can ship to.
           </p>
         ) : null}
 
         <button
           type="submit"
-          disabled={pending || walletBlocked}
-          className="inline-flex w-full items-center justify-center rounded-lg bg-zinc-950 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={
+            pending ||
+            walletBlocked ||
+            shipBlocked ||
+            cjShip.status === "checking"
+          }
+          className="w-full rounded-lg bg-zinc-950 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {pending
             ? "Processing…"
-            : paymentMethod === "trc20"
-              ? "Place order · pay with TRC-20"
-              : "Pay with USDT wallet"}
+            : shipBlocked
+              ? "Shipping unavailable"
+              : paymentMethod === "trc20"
+                ? "Continue to USDT deposit"
+                : "Pay with USDT wallet"}
         </button>
-        <Link
-          href="/cart"
-          className="inline-flex w-full items-center justify-center rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
-        >
-          Back to cart
-        </Link>
       </aside>
     </form>
   );

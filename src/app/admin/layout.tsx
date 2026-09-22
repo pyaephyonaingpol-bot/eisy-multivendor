@@ -3,15 +3,20 @@ import Link from "next/link";
 const links = [
   { href: "/admin/dashboard", label: "Overview" },
   { href: "/admin/orders", label: "Orders" },
+  { href: "/admin/orders?channel=manual", label: "Manual orders" },
+  { href: "/admin/orders?channel=cj", label: "CJ orders" },
   { href: "/admin/vendors", label: "Vendors" },
   { href: "/admin/kyc", label: "KYC review" },
   { href: "/admin/disputes", label: "Disputes" },
+  { href: "/admin/disputes?channel=manual", label: "Manual disputes" },
+  { href: "/admin/disputes?channel=cj", label: "CJ disputes" },
   { href: "/admin/transactions", label: "Transactions" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/categories", label: "Categories" },
   { href: "/admin/wallets", label: "Wallets" },
   { href: "/admin/withdrawals", label: "Withdrawals" },
   { href: "/admin/fees", label: "Fees" },
+  { href: "/admin/integrations", label: "Supplier APIs" },
 ];
 
 export default function AdminLayout({

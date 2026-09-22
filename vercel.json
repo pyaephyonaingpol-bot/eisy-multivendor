@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/poll-supplier-tracking",
       "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-operational-data",
+      "schedule": "0 4 * * *"
     }
   ]
 }

@@ -99,11 +99,35 @@ export type SupplierCredentials = {
   metadata?: Record<string, unknown> | null;
 };
 
+/** Env var names that indicate a supplier kind has platform keys configured. */
+const LIVE_ENV_HINTS: Record<ExternalSupplierKind, string[]> = {
+  cj_dropshipping: ["CJ_API_KEY", "CJ_ACCESS_TOKEN"],
+  dsers: ["DSERS_API_KEY"],
+  spocket: ["SPOCKET_API_KEY"],
+  printful: ["PRINTFUL_API_KEY"],
+  printify: ["PRINTIFY_API_KEY"],
+};
+
+function credentialsHaveKey(credentials?: SupplierCredentials | null): boolean {
+  return Boolean(
+    credentials?.apiKey?.trim() || credentials?.accessToken?.trim(),
+  );
+}
+
+function envHasKeyForKind(kind: ExternalSupplierKind): boolean {
+  return LIVE_ENV_HINTS[kind].some((name) => Boolean(process.env[name]?.trim()));
+}
+
+/**
+ * Global integrations mode override.
+ * Prefer {@link useLiveSupplierApi} in adapters — it also honors per-request
+ * platform/DB credentials, not only process.env.
+ */
 export function supplierIntegrationsMode(): "live" | "mock" {
   const mode = process.env.SUPPLIER_INTEGRATIONS_MODE?.trim().toLowerCase();
   if (mode === "live") return "live";
   if (mode === "mock") return "mock";
-  // Default to mock unless live credentials are clearly present.
+  // Default to mock unless any live env credentials are present.
   if (
     process.env.CJ_API_KEY?.trim() ||
     process.env.CJ_ACCESS_TOKEN?.trim() ||
@@ -115,6 +139,20 @@ export function supplierIntegrationsMode(): "live" | "mock" {
     return "live";
   }
   return "mock";
+}
+
+/**
+ * Whether a supplier adapter should call the live API for this request.
+ * Uses explicit mode override, then passed credentials (DB/platform), then env.
+ */
+export function useLiveSupplierApi(
+  kind: ExternalSupplierKind,
+  credentials?: SupplierCredentials | null,
+): boolean {
+  const mode = process.env.SUPPLIER_INTEGRATIONS_MODE?.trim().toLowerCase();
+  if (mode === "mock") return false;
+  if (mode === "live") return true;
+  return credentialsHaveKey(credentials) || envHasKeyForKind(kind);
 }
 
 export function slugifyExternalName(value: string): string {

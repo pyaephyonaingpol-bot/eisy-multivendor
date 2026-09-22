@@ -61,7 +61,7 @@ export function ConfirmDeliveryForm({
       <p className="text-sm font-medium text-zinc-950">Confirm delivery</p>
       <p className="text-sm text-zinc-600">
         Once you confirm receipt, the order is marked delivered and seller
-        earnings (after the 3% platform fee) leave escrow for withdrawal.
+        earnings (after the 10% platform fee) leave escrow for withdrawal.
       </p>
       {state?.error ? (
         <p className="text-sm text-rose-700">{state.error}</p>

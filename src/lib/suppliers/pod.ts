@@ -6,7 +6,8 @@ import type {
   SupplierFulfillmentRequest,
   SupplierFulfillmentResult,
 } from "@/lib/suppliers/types";
-import { supplierIntegrationsMode } from "@/lib/suppliers/types";
+import { useLiveSupplierApi } from "@/lib/suppliers/types";
+import { shouldFallbackToMock } from "@/lib/suppliers/auth";
 
 export type PodProviderKind = Extract<
   ExternalSupplierKind,
@@ -122,8 +123,10 @@ async function podFetch(
     options.credentials?.accessToken?.trim() ||
     process.env[cfg.envKey]?.trim() ||
     "";
-  if (!apiKey && supplierIntegrationsMode() === "live") {
-    throw new Error(`${cfg.label} credentials missing. Set ${cfg.envKey}.`);
+  if (!apiKey) {
+    throw new Error(
+      `${cfg.label} credentials missing. Save a platform API key or set ${cfg.envKey}.`,
+    );
   }
 
   const base =
@@ -195,7 +198,7 @@ export async function searchPodProducts(
   credentials?: SupplierCredentials | null,
   page = 1,
 ): Promise<ExternalCatalogProduct[]> {
-  if (supplierIntegrationsMode() === "mock") {
+  if (!useLiveSupplierApi(kind, credentials)) {
     return mockCatalog(kind, query);
   }
 
@@ -266,7 +269,7 @@ export async function getPodProduct(
 ): Promise<ExternalCatalogProduct | null> {
   const prefix = POD_CONFIG[kind].prefix;
   if (
-    supplierIntegrationsMode() === "mock" ||
+    !useLiveSupplierApi(kind, credentials) ||
     externalProductId.startsWith(`${prefix}-MOCK-`)
   ) {
     return (
@@ -332,7 +335,7 @@ export async function createPodOrder(
   request: SupplierFulfillmentRequest,
   credentials?: SupplierCredentials | null,
 ): Promise<SupplierFulfillmentResult> {
-  if (supplierIntegrationsMode() === "mock") {
+  if (!useLiveSupplierApi(kind, credentials)) {
     return {
       ok: true,
       supplierOrderRef: `${POD_CONFIG[kind].prefix}-MOCK-ORD-${request.orderId.slice(0, 8)}`,

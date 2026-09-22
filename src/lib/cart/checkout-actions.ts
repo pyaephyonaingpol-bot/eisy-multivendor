@@ -146,6 +146,26 @@ export async function checkoutWithUsdt(
     return { error: deliverabilityError.message };
   }
 
+  const { assertCjLiveStockForCartItems } = await import(
+    "@/lib/suppliers/cj-live-stock"
+  );
+  const cjStock = await assertCjLiveStockForCartItems(parsed.items);
+  if (!cjStock.ok) {
+    return { error: cjStock.error };
+  }
+
+  const { assertCjShipsToDestinationForCartItems } = await import(
+    "@/lib/suppliers/cj-shipping"
+  );
+  const cjShip = await assertCjShipsToDestinationForCartItems(
+    parsed.items,
+    shipCountry,
+    { zip: parsed.shippingAddress?.postal_code },
+  );
+  if (!cjShip.ok) {
+    return { error: cjShip.error };
+  }
+
   if (parsed.paymentMethod === "trc20") {
     try {
       const deposit = await syncUsdtTrc20SettingsFromEnv();

@@ -1,7 +1,9 @@
 import { resolveAdapterKindFromProvider } from "@/lib/suppliers/auth";
 import {
+  checkCjFulfillmentStock,
   createCjOrder,
   getCjProduct,
+  queryCjVariantAvailableStock,
   searchCjProducts,
   syncCjInventory,
 } from "@/lib/suppliers/cj";
@@ -45,6 +47,12 @@ export type {
   SupplierFulfillmentRequest,
   SupplierFulfillmentResult,
 };
+
+export {
+  checkCjFulfillmentStock,
+  queryCjVariantAvailableStock,
+} from "@/lib/suppliers/cj";
+export type { CjLineStockCheck } from "@/lib/suppliers/cj";
 
 export { resolveAdapterKindFromProvider } from "@/lib/suppliers/auth";
 
@@ -94,7 +102,8 @@ export function kindsForSourceTab(tab: SupplierSourceTab): ExternalSupplierKind[
       return ["printful", "printify"];
     case "all":
     default:
-      return ["dsers", "cj_dropshipping", "spocket", "printful", "printify"];
+      // Platform currently focuses on CJ only; other sources stay Coming Soon in UI.
+      return ["cj_dropshipping"];
   }
 }
 

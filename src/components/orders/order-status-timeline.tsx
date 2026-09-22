@@ -1,6 +1,7 @@
 import type { OrderStatus } from "@/lib/types/database";
 import {
   ORDER_STATUS_STEPS,
+  isSupplierUnavailableStatus,
   isTerminalOrderStatus,
   orderStatusLabel,
   orderStatusStepIndex,
@@ -10,13 +11,40 @@ type OrderStatusTimelineProps = {
   status: OrderStatus;
   shippedAt?: string | null;
   deliveredAt?: string | null;
+  syncError?: string | null;
 };
 
 export function OrderStatusTimeline({
   status,
   shippedAt,
   deliveredAt,
+  syncError = null,
 }: OrderStatusTimelineProps) {
+  if (isSupplierUnavailableStatus(status)) {
+    const shippingUnavailable =
+      syncError &&
+      /does not ship|shipping unavailable|no available shipping/i.test(
+        syncError,
+      );
+    return (
+      <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-950">
+        <p className="font-medium">
+          {orderStatusLabel(status, syncError)}
+        </p>
+        <p className="mt-1 text-rose-900/80">
+          {shippingUnavailable
+            ? "CJ Dropshipping does not ship to this buyer’s region. Cancel and refund escrow, or handle the order manually."
+            : `The supplier could not fulfill this order${
+                status === "out_of_stock" ? " because stock ran out" : ""
+              }. An admin or vendor can cancel and refund escrow from the orders dashboard.`}
+        </p>
+        {syncError ? (
+          <p className="mt-2 text-xs text-rose-900/70">{syncError}</p>
+        ) : null}
+      </div>
+    );
+  }
+
   if (isTerminalOrderStatus(status)) {
     return (
       <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">

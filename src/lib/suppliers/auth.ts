@@ -3,7 +3,7 @@ import type {
   SupplierCredentials,
 } from "@/lib/suppliers/types";
 
-/** Env / metadata keys used by each live supplier client. */
+/** Env / metadata keys used by each live supplier client (platform-owned). */
 export const SUPPLIER_AUTH_ENV: Record<
   ExternalSupplierKind,
   {
@@ -43,40 +43,82 @@ export const SUPPLIER_AUTH_ENV: Record<
   },
 };
 
-export function resolveSupplierCredentials(
+function emptyCredentials(): SupplierCredentials {
+  return {
+    apiKey: null,
+    apiSecret: null,
+    accessToken: null,
+    refreshToken: null,
+    accountEmail: null,
+    metadata: {},
+  };
+}
+
+/** Merge credential layers; earlier layers win for each field. */
+export function mergeSupplierCredentials(
+  ...layers: Array<SupplierCredentials | null | undefined>
+): SupplierCredentials {
+  const out = emptyCredentials();
+  const metadata: Record<string, unknown> = {};
+
+  for (const layer of [...layers].reverse()) {
+    if (!layer) continue;
+    if (layer.apiKey?.trim()) out.apiKey = layer.apiKey.trim();
+    if (layer.apiSecret?.trim()) out.apiSecret = layer.apiSecret.trim();
+    if (layer.accessToken?.trim()) out.accessToken = layer.accessToken.trim();
+    if (layer.refreshToken?.trim()) out.refreshToken = layer.refreshToken.trim();
+    if (layer.accountEmail?.trim()) out.accountEmail = layer.accountEmail.trim();
+    Object.assign(metadata, layer.metadata ?? {});
+  }
+
+  out.metadata = metadata;
+  return out;
+}
+
+export function credentialsFromEnv(
   kind: ExternalSupplierKind,
-  vendorCredentials?: SupplierCredentials | null,
 ): SupplierCredentials {
   const env = SUPPLIER_AUTH_ENV[kind];
-  const apiKey =
-    vendorCredentials?.apiKey?.trim() ||
-    (env.apiKey ? process.env[env.apiKey]?.trim() : "") ||
-    null;
-  const accessToken =
-    vendorCredentials?.accessToken?.trim() ||
-    (env.accessToken ? process.env[env.accessToken]?.trim() : "") ||
-    null;
-  const apiSecret = vendorCredentials?.apiSecret?.trim() || null;
-  const refreshToken = vendorCredentials?.refreshToken?.trim() || null;
-  const accountEmail = vendorCredentials?.accountEmail?.trim() || null;
-
-  const metadata: Record<string, unknown> = {
-    ...(vendorCredentials?.metadata ?? {}),
-  };
-
-  if (env.shopId && !metadata.shop_id && !metadata.shopId) {
+  const metadata: Record<string, unknown> = {};
+  if (env.shopId) {
     const shop = process.env[env.shopId]?.trim();
     if (shop) metadata.shop_id = shop;
   }
 
   return {
-    apiKey,
-    apiSecret,
-    accessToken,
-    refreshToken,
-    accountEmail,
+    apiKey: (env.apiKey ? process.env[env.apiKey]?.trim() : "") || null,
+    apiSecret: null,
+    accessToken:
+      (env.accessToken ? process.env[env.accessToken]?.trim() : "") || null,
+    refreshToken: null,
+    accountEmail: null,
     metadata,
   };
+}
+
+/**
+ * Resolve supplier API credentials for catalog / import / fulfillment.
+ *
+ * Platform-owned keys win (DB row via `platform` arg, then env).
+ * Per-vendor keys are ignored unless ALLOW_VENDOR_SUPPLIER_KEYS=1.
+ */
+export function resolveSupplierCredentials(
+  kind: ExternalSupplierKind,
+  vendorCredentials?: SupplierCredentials | null,
+  platformCredentials?: SupplierCredentials | null,
+): SupplierCredentials {
+  const env = credentialsFromEnv(kind);
+  const platform = mergeSupplierCredentials(platformCredentials, env);
+
+  if (
+    process.env.ALLOW_VENDOR_SUPPLIER_KEYS === "1" &&
+    vendorCredentials &&
+    (vendorCredentials.apiKey || vendorCredentials.accessToken)
+  ) {
+    return mergeSupplierCredentials(vendorCredentials, platform);
+  }
+
+  return platform;
 }
 
 export function supplierApiBase(kind: ExternalSupplierKind): string {
@@ -88,8 +130,13 @@ export function supplierApiBase(kind: ExternalSupplierKind): string {
 export function hasLiveSupplierCredentials(
   kind: ExternalSupplierKind,
   credentials?: SupplierCredentials | null,
+  platformCredentials?: SupplierCredentials | null,
 ): boolean {
-  const resolved = resolveSupplierCredentials(kind, credentials);
+  const resolved = resolveSupplierCredentials(
+    kind,
+    credentials,
+    platformCredentials,
+  );
   return Boolean(resolved.apiKey || resolved.accessToken);
 }
 
@@ -105,7 +152,7 @@ export function bearerAuthHeader(
 export function getPrintifyShopId(
   credentials?: SupplierCredentials | null,
 ): string | null {
-  const resolved = resolveSupplierCredentials("printify", credentials);
+  const resolved = resolveSupplierCredentials("printify", null, credentials);
   const meta = resolved.metadata ?? {};
   const shop = String(meta.shop_id ?? meta.shopId ?? "").trim();
   return shop || null;
@@ -113,7 +160,6 @@ export function getPrintifyShopId(
 
 /**
  * Map DB `supplier_provider_kind` (+ optional slug) to an adapter kind.
- * Jobs often store `print_on_demand` for both Printful and Printify.
  */
 export function resolveAdapterKindFromProvider(input: {
   providerKind?: string | null;
@@ -138,7 +184,6 @@ export function resolveAdapterKindFromProvider(input: {
   if (kind === "spocket") return "spocket";
   if (kind === "dsers") return "dsers";
   if (kind === "cj_dropshipping" || kind === "cj") return "cj_dropshipping";
-  // Ambiguous POD — prefer Printful if only kind is print_on_demand
   if (kind === "print_on_demand") {
     if (hasLiveSupplierCredentials("printify")) return "printify";
     return "printful";
@@ -148,4 +193,16 @@ export function resolveAdapterKindFromProvider(input: {
 
 export function shouldFallbackToMock(): boolean {
   return process.env.SUPPLIER_INTEGRATIONS_FALLBACK_MOCK !== "0";
+}
+
+/** Which platform suppliers currently have live keys configured (env). */
+export function listConfiguredPlatformSuppliers(): ExternalSupplierKind[] {
+  const kinds: ExternalSupplierKind[] = [
+    "cj_dropshipping",
+    "dsers",
+    "spocket",
+    "printful",
+    "printify",
+  ];
+  return kinds.filter((kind) => hasLiveSupplierCredentials(kind));
 }

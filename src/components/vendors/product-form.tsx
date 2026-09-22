@@ -30,6 +30,8 @@ type ProductFormProps = {
   categories: Category[];
   product?: Product;
   sourcingRegions?: SourcingRegion[];
+  /** Shipping regions / logistics — CJ Dropshipping only (never Independent Vendor). */
+  showLogistics?: boolean;
 };
 
 type PreviewItem = {
@@ -52,6 +54,7 @@ function ProductFormFields({
   categories,
   product,
   sourcingRegions = [],
+  showLogistics = false,
 }: ProductFormProps) {
   const isEdit = Boolean(product);
   const serverAction = isEdit ? updateProduct : createProduct;
@@ -528,12 +531,15 @@ function ProductFormFields({
         </div>
       )}
 
-      <div className="space-y-3 rounded-lg border border-zinc-200 p-4">
+      {showLogistics ? (
+      <div className="space-y-3 rounded-lg border border-sky-200 bg-sky-50/40 p-4">
         <div>
-          <p className="text-sm font-medium text-zinc-700">Shipping regions</p>
-          <p className="text-xs text-zinc-500">
-            Buyers only see this listing when it can ship to their selected country.
-            Leave “ships to” empty to use supplier routes (or ship locally by default).
+          <p className="text-sm font-medium text-sky-950">
+            Shipping regions (CJ logistics)
+          </p>
+          <p className="text-xs text-zinc-600">
+            Buyers only see this listing when it can ship to their selected
+            country. Leave “ships to” empty to use CJ supplier routes.
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -602,6 +608,12 @@ function ProductFormFields({
           </fieldset>
         ) : null}
       </div>
+      ) : (
+        <>
+          <input type="hidden" name="origin_country_code" value={product?.origin_country_code ?? "MM"} />
+          <input type="hidden" name="origin_region_id" value={product?.origin_region_id ?? ""} />
+        </>
+      )}
 
       <fieldset className="space-y-2 rounded-lg border border-zinc-200 p-3 text-sm">
         <legend className="px-1 text-zinc-600">Status</legend>

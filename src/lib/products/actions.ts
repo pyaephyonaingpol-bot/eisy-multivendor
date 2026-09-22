@@ -15,6 +15,76 @@ export type ProductActionState = {
   success?: string;
 } | null;
 
+function isSchemaCacheColumnError(
+  message: string | undefined,
+  column: string,
+) {
+  if (!message) return false;
+  const m = message.toLowerCase();
+  return (
+    m.includes(column.toLowerCase()) &&
+    (m.includes("schema cache") ||
+      m.includes("does not exist") ||
+      m.includes("could not find"))
+  );
+}
+
+/** Columns that may be missing on partial DBs; omit and retry when PostgREST rejects them. */
+const PRODUCT_SCHEMA_FALLBACK_COLUMNS = [
+  "compare_at_price",
+  "currency",
+  "images",
+  "specifications",
+  "product_type",
+  "download_url",
+  "download_label",
+  "category_id",
+  "origin_country_code",
+  "origin_region_id",
+  "ships_to_region_ids",
+  "is_dropship",
+  "source_product_id",
+  "price_usdt",
+  "title",
+  "catalog_kind",
+] as const;
+
+function stripProductSchemaColumn(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload: any,
+  column: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
+  if (!payload || typeof payload !== "object" || !(column in payload)) {
+    return payload;
+  }
+  const { [column]: _ignored, ...rest } = payload;
+  void _ignored;
+  return rest;
+}
+
+function applyProductSchemaCacheFallback(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload: any,
+  message: string | undefined,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): { payload: any; stripped: boolean } {
+  for (const column of PRODUCT_SCHEMA_FALLBACK_COLUMNS) {
+    if (
+      isSchemaCacheColumnError(message, column) &&
+      payload &&
+      typeof payload === "object" &&
+      column in payload
+    ) {
+      return {
+        payload: stripProductSchemaColumn(payload, column),
+        stripped: true,
+      };
+    }
+  }
+  return { payload, stripped: false };
+}
+
 function parseMoney(value: FormDataEntryValue | null): number | null {
   if (value == null || String(value).trim() === "") {
     return null;
@@ -219,13 +289,16 @@ export async function createProduct(
     return { error: imageResult.error };
   }
 
-  const { error } = await supabase.from("products").insert({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- price_usdt is drifted
+  const insertPayload: any = {
     vendor_id: vendor.id,
     category_id: parsed.categoryId,
     name: parsed.name,
     slug: parsed.slug,
     description: parsed.description || null,
     price: parsed.price,
+    // Drifted DBs require price_usdt NOT NULL; mirror canonical USDT price.
+    price_usdt: parsed.price,
     compare_at_price: parsed.compareAtPrice,
     currency: parsed.currency,
     sku: parsed.sku || null,
@@ -234,13 +307,28 @@ export async function createProduct(
     images: imageResult.images,
     specifications: parsed.specifications,
     product_type: parsed.productType,
+    // Manual vendor catalog — never mark as CJ import.
+    catalog_kind: "manual",
+    is_dropship: false,
     download_url: parsed.productType === "digital" ? parsed.downloadUrl : null,
     download_label:
       parsed.productType === "digital" ? parsed.downloadLabel || null : null,
     origin_country_code: parsed.originCountryCode,
     origin_region_id: parsed.originRegionId,
     ships_to_region_ids: parsed.shipsToRegionIds,
-  });
+  };
+
+  let { error } = await supabase.from("products").insert(insertPayload);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let fallbackPayload: any = insertPayload;
+
+  for (let attempt = 0; attempt < PRODUCT_SCHEMA_FALLBACK_COLUMNS.length; attempt += 1) {
+    if (!error) break;
+    const next = applyProductSchemaCacheFallback(fallbackPayload, error.message);
+    if (!next.stripped) break;
+    fallbackPayload = next.payload;
+    ({ error } = await supabase.from("products").insert(fallbackPayload));
+  }
 
   if (error) {
     if (error.code === "23505") {
@@ -304,36 +392,62 @@ export async function updateProduct(
     return { error: "Product not found in your catalog." };
   }
 
+  // Keep CJ imports in the CJ workflow — never reclassify via the manual form.
+  const existingKind =
+    (existing as { catalog_kind?: string | null }).catalog_kind === "cj_import"
+      ? "cj_import"
+      : "manual";
+
   const imageResult = await resolveProductImages(vendor.id, formData);
   if (imageResult.error) {
     return { error: imageResult.error };
   }
 
-  const { error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- price_usdt is drifted
+  const updatePayload: any = {
+    category_id: parsed.categoryId,
+    name: parsed.name,
+    slug: parsed.slug,
+    description: parsed.description || null,
+    price: parsed.price,
+    // Drifted DBs require price_usdt NOT NULL; mirror canonical USDT price.
+    price_usdt: parsed.price,
+    compare_at_price: parsed.compareAtPrice,
+    currency: parsed.currency,
+    sku: parsed.sku || null,
+    stock_quantity: parsed.stockQuantity,
+    status: parsed.status,
+    images: imageResult.images,
+    specifications: parsed.specifications,
+    product_type: parsed.productType,
+    catalog_kind: existingKind,
+    download_url: parsed.productType === "digital" ? parsed.downloadUrl : null,
+    download_label:
+      parsed.productType === "digital" ? parsed.downloadLabel || null : null,
+    origin_country_code: parsed.originCountryCode,
+    origin_region_id: parsed.originRegionId,
+    ships_to_region_ids: parsed.shipsToRegionIds,
+  };
+
+  let { error } = await supabase
     .from("products")
-    .update({
-      category_id: parsed.categoryId,
-      name: parsed.name,
-      slug: parsed.slug,
-      description: parsed.description || null,
-      price: parsed.price,
-      compare_at_price: parsed.compareAtPrice,
-      currency: parsed.currency,
-      sku: parsed.sku || null,
-      stock_quantity: parsed.stockQuantity,
-      status: parsed.status,
-      images: imageResult.images,
-      specifications: parsed.specifications,
-      product_type: parsed.productType,
-      download_url: parsed.productType === "digital" ? parsed.downloadUrl : null,
-      download_label:
-        parsed.productType === "digital" ? parsed.downloadLabel || null : null,
-      origin_country_code: parsed.originCountryCode,
-      origin_region_id: parsed.originRegionId,
-      ships_to_region_ids: parsed.shipsToRegionIds,
-    })
+    .update(updatePayload)
     .eq("id", productId)
     .eq("vendor_id", vendor.id);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let fallbackPayload: any = updatePayload;
+
+  for (let attempt = 0; attempt < PRODUCT_SCHEMA_FALLBACK_COLUMNS.length; attempt += 1) {
+    if (!error) break;
+    const next = applyProductSchemaCacheFallback(fallbackPayload, error.message);
+    if (!next.stripped) break;
+    fallbackPayload = next.payload;
+    ({ error } = await supabase
+      .from("products")
+      .update(fallbackPayload)
+      .eq("id", productId)
+      .eq("vendor_id", vendor.id));
+  }
 
   if (error) {
     if (error.code === "23505") {

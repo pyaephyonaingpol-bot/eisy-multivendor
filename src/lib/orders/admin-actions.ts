@@ -198,6 +198,36 @@ export async function adminResolveOrderDisputeRelease(
   return { success: "Dispute resolved — escrow released to seller." };
 }
 
+/** Admin refunds a paid order that failed supplier stock check. */
+export async function adminRefundSupplierUnavailableOrder(
+  _prev: AdminOrderActionState,
+  formData: FormData,
+): Promise<AdminOrderActionState> {
+  const auth = await requireAdminSession();
+  if (auth.error || !auth.session) {
+    return { error: auth.error ?? "Admin access required." };
+  }
+
+  const orderId = String(formData.get("order_id") ?? "").trim();
+  const note = String(formData.get("note") ?? "").trim();
+  if (!orderId) {
+    return { error: "Order id is required." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("refund_order_supplier_unavailable", {
+    p_order_id: orderId,
+    p_note: note || "Admin refund — supplier out of stock / fulfillment failed",
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidateAdminOrderPaths(orderId);
+  return { success: "Order cancelled and buyer refunded from escrow." };
+}
+
 /** Resolve the first open dispute on an order as a buyer refund. */
 export async function adminResolveOrderDisputeRefund(
   _prev: AdminOrderActionState,

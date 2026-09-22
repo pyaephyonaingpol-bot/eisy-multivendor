@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import type { UserRole } from "@/lib/types/database";
+import { resolveUserRole } from "@/lib/auth/roles";
 import { getSupabasePublicEnv } from "@/lib/supabase/env";
 
 function copyCookies(from: NextResponse, to: NextResponse) {
@@ -21,6 +21,16 @@ function homeRedirect(request: NextRequest, sessionResponse: NextResponse) {
   const url = request.nextUrl.clone();
   url.pathname = "/";
   url.search = "";
+  return copyCookies(sessionResponse, NextResponse.redirect(url));
+}
+
+function unauthorizedAdminRedirect(
+  request: NextRequest,
+  sessionResponse: NextResponse,
+) {
+  const url = request.nextUrl.clone();
+  url.pathname = "/unauthorized";
+  url.search = "from=admin";
   return copyCookies(sessionResponse, NextResponse.redirect(url));
 }
 
@@ -82,20 +92,29 @@ export async function updateSession(request: NextRequest) {
       return supabaseResponse;
     }
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle<{ role: UserRole }>();
-
-    const role = profile?.role ?? null;
+    const role = await resolveUserRole({
+      supabase,
+      userId: user.id,
+      email: user.email,
+    });
 
     if (isAdminRoute && role !== "admin") {
-      return homeRedirect(request, supabaseResponse);
+      return unauthorizedAdminRedirect(request, supabaseResponse);
     }
 
     if (isVendorRoute && role !== "vendor" && role !== "admin") {
-      return homeRedirect(request, supabaseResponse);
+      // Applicants may have a vendors row before profiles.role is promoted
+      // (role trigger can block non-RPC updates on incomplete live DBs).
+      const { data: vendorRow } = await supabase
+        .from("vendors")
+        .select("id")
+        .eq("owner_id", user.id)
+        .limit(1)
+        .maybeSingle();
+
+      if (!vendorRow) {
+        return homeRedirect(request, supabaseResponse);
+      }
     }
 
     return supabaseResponse;

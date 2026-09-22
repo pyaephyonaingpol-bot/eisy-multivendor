@@ -1,5 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSupabasePublicEnv } from "@/lib/supabase/env";
+import {
+  canAccessAdmin,
+  canAccessVendor,
+  normalizeUserRole,
+  resolveUserRole,
+} from "@/lib/auth/roles";
 import type { Profile, UserRole } from "@/lib/types/database";
 
 export type SessionProfile = {
@@ -8,6 +14,8 @@ export type SessionProfile = {
   profile: Profile | null;
   role: UserRole | null;
 };
+
+export { canAccessAdmin, canAccessVendor, normalizeUserRole, resolveUserRole };
 
 /**
  * Never throws — auth layout/header must not 500 the login/register pages
@@ -29,29 +37,43 @@ export async function getSessionProfile(): Promise<SessionProfile | null> {
       return null;
     }
 
+    try {
+      await supabase.rpc("ensure_own_profile");
+    } catch {
+      // RPC may be missing until migration 031 is applied.
+    }
+
     const { data } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", user.id)
       .maybeSingle();
 
-    const profile = data as Profile | null;
+    let profile = (data as Profile | null) ?? null;
+
+    if (!profile && user.email) {
+      const { data: byEmail } = await supabase
+        .from("profiles")
+        .select("*")
+        .ilike("email", user.email.trim())
+        .maybeSingle();
+      profile = (byEmail as Profile | null) ?? null;
+    }
+
+    const role =
+      (await resolveUserRole({
+        supabase,
+        userId: user.id,
+        email: user.email,
+      })) ?? normalizeUserRole(profile?.role);
 
     return {
       userId: user.id,
       email: user.email,
       profile,
-      role: profile?.role ?? null,
+      role,
     };
   } catch {
     return null;
   }
-}
-
-export function canAccessVendor(role: UserRole | null | undefined) {
-  return role === "vendor" || role === "admin";
-}
-
-export function canAccessAdmin(role: UserRole | null | undefined) {
-  return role === "admin";
 }

@@ -103,6 +103,7 @@ export default async function OrderDetailPage({
           status={order.status}
           shippedAt={order.shipped_at}
           deliveredAt={order.delivered_at}
+          syncError={order.fulfillment_sync_error}
         />
         <ConfirmDeliveryForm
           orderId={order.id}

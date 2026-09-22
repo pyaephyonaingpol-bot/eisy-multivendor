@@ -3,6 +3,7 @@ import { AuthHeaderButton } from "@/components/auth/auth-header-button";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { CartTrigger } from "@/components/storefront/cart-trigger";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
+import { AdminDashboardLink } from "@/components/layout/admin-dashboard-link";
 import { getSessionProfile } from "@/lib/auth/session";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { getRequestLocale } from "@/lib/i18n/locale";
@@ -20,6 +21,7 @@ export async function StorefrontHeader() {
     { href: "/vendors", label: t.nav.stores },
     { href: "/orders", label: t.nav.orders },
     { href: "/account/wallet", label: t.nav.wallet },
+    { href: "/profile", label: t.nav.profile },
   ];
 
   return (
@@ -43,6 +45,9 @@ export async function StorefrontHeader() {
                 {item.label}
               </Link>
             ))}
+            <AdminDashboardLink className="hover:text-zinc-950">
+              {t.nav.adminDashboard}
+            </AdminDashboardLink>
           </nav>
         </div>
 
@@ -71,6 +76,9 @@ export async function StorefrontHeader() {
             {item.label}
           </Link>
         ))}
+        <AdminDashboardLink className="snap-start whitespace-nowrap rounded-full bg-zinc-50 px-3 py-1 hover:bg-zinc-100 hover:text-zinc-950">
+          {t.nav.adminDashboard}
+        </AdminDashboardLink>
       </nav>
     </header>
   );

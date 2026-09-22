@@ -164,6 +164,8 @@ export async function submitKycFromFormData(
   }
 
   revalidatePath("/vendor/settings");
+  revalidatePath("/vendor/profile");
+  revalidatePath("/vendor/kyc");
   revalidatePath("/vendor/dashboard");
   revalidatePath("/admin/kyc");
 
@@ -215,6 +217,8 @@ export async function reviewKycSubmission(input: {
   revalidatePath("/admin/kyc");
   revalidatePath("/admin/vendors");
   revalidatePath("/vendor/settings");
+  revalidatePath("/vendor/profile");
+  revalidatePath("/vendor/kyc");
   revalidatePath("/vendor/dashboard");
 
   return {

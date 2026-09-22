@@ -7,8 +7,12 @@ import type {
 } from "@/lib/types/database";
 
 function normalizeVendor(row: Vendor): Vendor {
+  if (!row.owner_id) {
+    throw new Error("Vendor row is missing owner_id");
+  }
   return {
     ...row,
+    owner_id: row.owner_id,
     kyc_status: (row.kyc_status ?? "unsubmitted") as VendorKycStatus,
     kyc_document_type: row.kyc_document_type ?? null,
     kyc_document_url: row.kyc_document_url ?? null,
@@ -19,6 +23,11 @@ function normalizeVendor(row: Vendor): Vendor {
     kyc_reviewed_at: row.kyc_reviewed_at ?? null,
     kyc_reviewed_by: row.kyc_reviewed_by ?? null,
     kyc_rejection_reason: row.kyc_rejection_reason ?? null,
+    contact_phone: row.contact_phone ?? null,
+    business_legal_name: row.business_legal_name ?? null,
+    business_registration_number: row.business_registration_number ?? null,
+    business_address: row.business_address ?? null,
+    business_country: row.business_country ?? null,
     ships_to_region_ids: Array.isArray(row.ships_to_region_ids)
       ? row.ships_to_region_ids
       : [],
@@ -31,13 +40,19 @@ export async function getVendorForOwner(ownerId: string): Promise<Vendor | null>
   }
 
   const supabase = await createClient();
-  const { data } = await supabase
+
+  // Canonical column is owner_id (public.vendors has no user_id).
+  const { data, error } = await supabase
     .from("vendors")
     .select("*")
     .eq("owner_id", ownerId)
     .maybeSingle();
 
-  return data ? normalizeVendor(data as Vendor) : null;
+  if (error || !data) {
+    return null;
+  }
+
+  return normalizeVendor(data as Vendor);
 }
 
 export async function listVendorsForAdmin(status?: VendorStatus): Promise<Vendor[]> {
@@ -49,7 +64,8 @@ export async function listVendorsForAdmin(status?: VendorStatus): Promise<Vendor
   let query = supabase
     .from("vendors")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(200);
 
   if (status) {
     query = query.eq("status", status);
@@ -70,7 +86,8 @@ export async function listVendorsForKycAdmin(
   let query = supabase
     .from("vendors")
     .select("*")
-    .order("kyc_submitted_at", { ascending: false, nullsFirst: false });
+    .order("kyc_submitted_at", { ascending: false, nullsFirst: false })
+    .limit(200);
 
   if (kycStatus) {
     query = query.eq("kyc_status", kycStatus);

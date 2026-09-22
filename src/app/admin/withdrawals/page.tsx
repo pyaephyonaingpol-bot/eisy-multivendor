@@ -117,7 +117,7 @@ export default async function AdminWithdrawalsPage() {
   }
 
   if (!canAccessAdmin(session.role)) {
-    redirect("/");
+    redirect("/unauthorized?from=admin");
   }
 
   const [withdrawals, deposits, recent] = await Promise.all([

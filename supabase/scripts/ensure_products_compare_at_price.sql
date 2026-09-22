@@ -1,0 +1,3 @@
+-- DEPRECATED: run ensure_products_table_complete.sql instead.
+-- That single script adds compare_at_price plus images, currency, and all
+-- other required products columns, then NOTIFY pgrst, 'reload schema'.

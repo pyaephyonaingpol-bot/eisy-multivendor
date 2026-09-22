@@ -5,6 +5,7 @@ import { useActionState, useMemo, useState } from "react";
 import type { AdminOrderRow } from "@/lib/orders/queries";
 import {
   adminMarkOrderShipped,
+  adminRefundSupplierUnavailableOrder,
   adminReleaseOrderEscrow,
   adminResolveOrderDisputeRefund,
   adminResolveOrderDisputeRelease,
@@ -13,6 +14,7 @@ import {
 import {
   adminEscrowStatusBadgeClass,
   adminEscrowStatusLabel,
+  isSupplierUnavailableStatus,
   orderStatusLabel,
   paymentStatusLabel,
   tronscanTxUrl,
@@ -49,6 +51,8 @@ function OrderActions({ order }: { order: AdminOrderRow }) {
     adminResolveOrderDisputeRefund,
     initialActionState,
   );
+  const [stockRefundState, stockRefundAction, stockRefundPending] =
+    useActionState(adminRefundSupplierUnavailableOrder, initialActionState);
   const [resolveReleaseState, resolveReleaseAction, resolveReleasePending] =
     useActionState(adminResolveOrderDisputeRelease, initialActionState);
 
@@ -60,7 +64,9 @@ function OrderActions({ order }: { order: AdminOrderRow }) {
   const canRelease =
     order.payment_status === "paid" &&
     order.payout_status === "held" &&
-    order.escrow_status !== "disputed";
+    order.escrow_status !== "disputed" &&
+    !isSupplierUnavailableStatus(order.status);
+  const canStockRefund = isSupplierUnavailableStatus(order.status);
   const primaryDisputeId = order.dispute_ids[0] ?? null;
   const canResolveDispute =
     order.escrow_status === "disputed" && Boolean(primaryDisputeId);
@@ -72,6 +78,8 @@ function OrderActions({ order }: { order: AdminOrderRow }) {
     releaseState?.success ||
     refundState?.error ||
     refundState?.success ||
+    stockRefundState?.error ||
+    stockRefundState?.success ||
     resolveReleaseState?.error ||
     resolveReleaseState?.success;
 
@@ -79,6 +87,7 @@ function OrderActions({ order }: { order: AdminOrderRow }) {
     shipState?.error ||
       releaseState?.error ||
       refundState?.error ||
+      stockRefundState?.error ||
       resolveReleaseState?.error,
   );
 
@@ -107,6 +116,24 @@ function OrderActions({ order }: { order: AdminOrderRow }) {
               className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-900 hover:bg-emerald-100 disabled:opacity-50"
             >
               {releasePending ? "Releasing…" : "Release escrow"}
+            </button>
+          </form>
+        ) : null}
+
+        {canStockRefund ? (
+          <form action={stockRefundAction}>
+            <input type="hidden" name="order_id" value={order.id} />
+            <input
+              type="hidden"
+              name="note"
+              value="Admin refund — supplier out of stock / fulfillment failed"
+            />
+            <button
+              type="submit"
+              disabled={stockRefundPending}
+              className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-900 hover:bg-rose-100 disabled:opacity-50"
+            >
+              {stockRefundPending ? "Refunding…" : "Cancel & refund (OOS)"}
             </button>
           </form>
         ) : null}

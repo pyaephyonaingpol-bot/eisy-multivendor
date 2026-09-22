@@ -9,12 +9,16 @@ import {
   syncExternalInventory,
   type ExternalCatalogProduct,
   type ExternalSupplierKind,
-  type SupplierCredentials,
 } from "@/lib/suppliers";
+import { loadPlatformSupplierContext } from "@/lib/suppliers/platform-credentials";
+import {
+  toClientCatalogProducts,
+  toImportSourcePayload,
+  toSlimInventoryRaw,
+} from "@/lib/suppliers/catalog-dto";
 import {
   MIN_IMPORT_STOCK_QUANTITY,
   ONE_CLICK_IMPORT_MARKUP,
-  SUPPLIER_PROVIDER_SLUGS,
   meetsMinImportStock,
   productMatchesSourcingRegion,
   slugifyExternalName,
@@ -37,6 +41,174 @@ export type ExternalImportState = {
   oneClick?: boolean;
 } | null;
 
+function isSchemaCacheColumnError(
+  message: string | undefined,
+  column: string,
+) {
+  if (!message) return false;
+  const m = message.toLowerCase();
+  return (
+    m.includes(column.toLowerCase()) &&
+    (m.includes("schema cache") ||
+      m.includes("does not exist") ||
+      m.includes("could not find"))
+  );
+}
+
+/** Columns that may be missing on partial DBs; omit and retry when PostgREST rejects them. */
+const PRODUCT_SCHEMA_FALLBACK_COLUMNS = [
+  "compare_at_price",
+  "currency",
+  "images",
+  "specifications",
+  "product_type",
+  "download_url",
+  "download_label",
+  "category_id",
+  "origin_country_code",
+  "origin_region_id",
+  "ships_to_region_ids",
+  "is_dropship",
+  "source_product_id",
+  "price_usdt",
+  "title",
+  "catalog_kind",
+  "source_provider_kind",
+  "external_product_id",
+] as const;
+
+function stripProductSchemaColumn(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload: any,
+  column: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
+  if (!payload || typeof payload !== "object" || !(column in payload)) {
+    return payload;
+  }
+  const { [column]: _ignored, ...rest } = payload;
+  void _ignored;
+  return rest;
+}
+
+function applyProductSchemaCacheFallback(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload: any,
+  message: string | undefined,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): { payload: any; stripped: boolean } {
+  for (const column of PRODUCT_SCHEMA_FALLBACK_COLUMNS) {
+    if (
+      isSchemaCacheColumnError(message, column) &&
+      payload &&
+      typeof payload === "object" &&
+      column in payload
+    ) {
+      return {
+        payload: stripProductSchemaColumn(payload, column),
+        stripped: true,
+      };
+    }
+  }
+  return { payload, stripped: false };
+}
+
+/** Sanitize a USDT amount for products.price / products.price_usdt inserts. */
+function sanitizeUsdtPrice(
+  value: number | null | undefined,
+  fallback = 0.01,
+): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) {
+    return Math.round(fallback * 100) / 100;
+  }
+  return Math.round(n * 100) / 100;
+}
+
+/**
+ * Product write fields for import. Always sets every drifted NOT NULL column
+ * the live DB may require (price, price_usdt, title) plus currency.
+ */
+function productPriceFields(
+  sellPrice: number,
+  compareAtPriceUsdt: number | null | undefined,
+) {
+  const price = sanitizeUsdtPrice(sellPrice);
+  const fields: {
+    price: number;
+    price_usdt: number;
+    compare_at_price?: number | null;
+  } = { price, price_usdt: price };
+  if (compareAtPriceUsdt != null && Number.isFinite(compareAtPriceUsdt) && compareAtPriceUsdt > price) {
+    fields.compare_at_price = sanitizeUsdtPrice(compareAtPriceUsdt, price);
+  }
+  return fields;
+}
+
+/** Non-null listing fields shared by import insert + update payloads. */
+function importProductCoreFields(args: {
+  name: string;
+  description: string;
+  sellPrice: number;
+  compareAtPriceUsdt: number | null | undefined;
+  images: string[];
+  stockQuantity: number;
+  sku: string | null;
+}) {
+  const name = args.name.trim() || "Untitled product";
+  const description =
+    args.description.trim() ||
+    `${name} imported from supplier.`;
+  return {
+    name,
+    // Drifted DBs: title NOT NULL — mirror canonical name.
+    title: name,
+    description,
+    ...productPriceFields(args.sellPrice, args.compareAtPriceUsdt),
+    currency: "USDT",
+    sku: args.sku,
+    stock_quantity: Math.max(0, Math.floor(args.stockQuantity)),
+    images: Array.isArray(args.images) ? args.images : [],
+  };
+}
+
+/** Upsert the dedicated CJ import registry (separate from manual catalog). */
+async function upsertCjImportedProductRegistry(args: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any;
+  vendorId: string;
+  productId: string;
+  providerId: string | null | undefined;
+  remote: ExternalCatalogProduct;
+  externalVariantId: string | null;
+  externalSku: string | null;
+  supplierCostUsdt: number;
+}) {
+  if (args.remote.providerKind !== "cj_dropshipping") return;
+  const { error } = await args.supabase.from("cj_imported_products").upsert(
+    {
+      vendor_id: args.vendorId,
+      product_id: args.productId,
+      provider_id: args.providerId ?? null,
+      external_product_id: args.remote.externalProductId,
+      external_variant_id: args.externalVariantId,
+      external_sku: args.externalSku,
+      supplier_cost_usdt: sanitizeUsdtPrice(args.supplierCostUsdt),
+      source_payload: toImportSourcePayload(args.remote),
+      last_synced_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "product_id" },
+  );
+  // Older DBs may not have the table yet — ignore schema-cache misses.
+  if (
+    error &&
+    !/schema cache|does not exist|could not find/i.test(error.message ?? "")
+  ) {
+    console.warn("cj_imported_products upsert:", error.message);
+  }
+}
+
 function resolveImportSellPrice(
   formData: FormData,
   supplierCostUsdt: number,
@@ -44,13 +216,16 @@ function resolveImportSellPrice(
   const oneClickFlag =
     String(formData.get("one_click") ?? "").trim() === "1" ||
     String(formData.get("one_click") ?? "").trim() === "true";
-  const rawPrice = String(formData.get("price") ?? "").trim();
+  const rawPrice = String(
+    formData.get("price") ?? formData.get("price_usdt") ?? "",
+  ).trim();
   const parsed = rawPrice === "" ? NaN : Number(rawPrice);
+  const safeCost = sanitizeUsdtPrice(supplierCostUsdt);
 
   // Explicit sell price from preview / custom-price forms wins over one-click markup.
   if (Number.isFinite(parsed) && parsed > 0) {
     return {
-      price: Math.round(parsed * 100) / 100,
+      price: sanitizeUsdtPrice(parsed),
       oneClick: oneClickFlag && rawPrice === "",
     };
   }
@@ -60,10 +235,13 @@ function resolveImportSellPrice(
   }
 
   if (oneClickFlag) {
-    const price =
-      Math.round(Math.max(supplierCostUsdt, 0.01) * ONE_CLICK_IMPORT_MARKUP * 100) /
-      100;
+    const price = sanitizeUsdtPrice(safeCost * ONE_CLICK_IMPORT_MARKUP, safeCost);
     return { price, oneClick: true };
+  }
+
+  // Last resort: use supplier cost so NOT NULL price_usdt/price never receive null.
+  if (safeCost > 0) {
+    return { price: safeCost, oneClick: false };
   }
 
   return { error: "Enter a sell price greater than zero." };
@@ -73,14 +251,31 @@ function resolveImportListingCopy(
   formData: FormData,
   remote: ExternalCatalogProduct,
 ): { name: string; description: string } {
-  const nameOverride = String(formData.get("name") ?? "").trim();
+  const nameOverride = String(
+    formData.get("name") ?? formData.get("title") ?? "",
+  ).trim();
   const descriptionOverride = String(formData.get("description") ?? "").trim();
+
+  // Never insert a null/empty product title — prefer override, then CJ mapping,
+  // then a deterministic fallback from the external product id.
+  const rawName = nameOverride || remote.name?.trim() || "";
+  const sanitizedName =
+    rawName &&
+    rawName.toLowerCase() !== "null" &&
+    rawName.toLowerCase() !== "undefined"
+      ? rawName
+      : remote.externalProductId
+        ? `${supplierPlatformLabel(remote.providerKind)} product ${remote.externalProductId}`
+        : `${supplierPlatformLabel(remote.providerKind)} product`;
+
+  const description =
+    descriptionOverride ||
+    remote.description?.trim() ||
+    `${sanitizedName} imported from ${supplierPlatformLabel(remote.providerKind)}.`;
+
   return {
-    name: (nameOverride || remote.name).slice(0, 180),
-    description:
-      descriptionOverride ||
-      remote.description ||
-      `${remote.name} imported from ${supplierPlatformLabel(remote.providerKind)}.`,
+    name: sanitizedName.slice(0, 180),
+    description,
   };
 }
 
@@ -212,61 +407,28 @@ export async function saveSupplierCredentialsAction(
   return { success: "Supplier credentials saved." };
 }
 
-async function loadVendorCredentials(
-  vendorId: string,
-  kind: ExternalSupplierKind,
-): Promise<{ providerId: string; credentials: SupplierCredentials } | null> {
-  const supabase = await createClient();
-  const slug = SUPPLIER_PROVIDER_SLUGS[kind];
-  const { data: provider } = await supabase
-    .from("supplier_providers")
-    .select("id, kind, slug, supports_regions")
-    .eq("slug", slug)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (!provider) return null;
-
-  const { data: creds } = await supabase
-    .from("vendor_supplier_credentials")
-    .select(
-      "api_key, api_secret, access_token, refresh_token, account_email, metadata",
-    )
-    .eq("vendor_id", vendorId)
-    .eq("provider_id", provider.id)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  return {
-    providerId: provider.id,
-    credentials: {
-      apiKey: creds?.api_key,
-      apiSecret: creds?.api_secret,
-      accessToken: creds?.access_token,
-      refreshToken: creds?.refresh_token,
-      accountEmail: creds?.account_email,
-      metadata: (creds?.metadata ?? {}) as Record<string, unknown>,
-    },
-  };
+/** Platform-owned supplier context (provider id + resolved API credentials). */
+async function loadSupplierContext(kind: ExternalSupplierKind) {
+  return loadPlatformSupplierContext(kind);
 }
 
 export async function searchSupplierCatalogAction(
   kindRaw: string,
   query: string,
-): Promise<{ products: ExternalCatalogProduct[]; error?: string }> {
+): Promise<{ products: ReturnType<typeof toClientCatalogProducts>; error?: string }> {
   const kind = parseSupplierKind(kindRaw);
   if (!kind) return { products: [], error: "Unknown supplier platform." };
 
   const gate = await requireApprovedVendor();
   if ("error" in gate) return { products: [], error: gate.error };
 
-  const linked = await loadVendorCredentials(gate.vendor.id, kind);
+  const linked = await loadSupplierContext(kind);
   const products = await searchExternalProducts(
     kind,
     query,
     linked?.credentials ?? null,
   );
-  return { products };
+  return { products: toClientCatalogProducts(products) };
 }
 
 export async function importExternalSupplierProductAction(
@@ -287,9 +449,9 @@ export async function importExternalSupplierProductAction(
     return { error: "Select a supplier product to import." };
   }
 
-  // Credentials are optional in mock mode; provider rows may be absent until
-  // supplier migrations are applied to the project.
-  const linked = await loadVendorCredentials(gate.vendor.id, kind);
+  // Platform-owned API keys (env / platform_supplier_credentials). Vendors
+  // do not need their own CJ/DSers/POD credentials for catalog import.
+  const linked = await loadSupplierContext(kind);
   const remote =
     (await getExternalProduct(
       kind,
@@ -301,9 +463,34 @@ export async function importExternalSupplierProductAction(
   }
 
   const variant = resolveImportVariant(formData, remote);
-  if (!meetsMinImportStock(variant.stockQuantity)) {
+
+  let liveImportStock: number | null = null;
+  if (kind === "cj_dropshipping") {
+    const { assertCjImportVariantInStock } = await import(
+      "@/lib/suppliers/cj-live-stock"
+    );
+    const liveGate = await assertCjImportVariantInStock({
+      externalProductId: remote.externalProductId,
+      externalVariantId: variant.externalVariantId,
+      externalSku: variant.externalSku,
+      productName: remote.name,
+      credentials: linked?.credentials ?? null,
+    });
+    if (!liveGate.ok) {
+      return { error: liveGate.error };
+    }
+    if (liveGate.usedLive) {
+      liveImportStock = liveGate.liveStock;
+    }
+  }
+
+  const effectiveStock =
+    liveImportStock != null ? liveImportStock : variant.stockQuantity;
+  if (!meetsMinImportStock(effectiveStock)) {
     return {
-      error: `Supplier stock must be at least ${MIN_IMPORT_STOCK_QUANTITY} units before import (found ${variant.stockQuantity ?? 0}).`,
+      error: `Supplier stock must be at least ${MIN_IMPORT_STOCK_QUANTITY} units before import (found ${
+        effectiveStock == null ? "unknown" : effectiveStock
+      }).`,
     };
   }
 
@@ -323,10 +510,11 @@ export async function importExternalSupplierProductAction(
     return { error: priced.error };
   }
   const { price: sellPrice, oneClick } = priced;
+  const minCost = sanitizeUsdtPrice(variant.supplierCostUsdt);
 
-  if (sellPrice < variant.supplierCostUsdt) {
+  if (sellPrice + 1e-9 < minCost) {
     return {
-      error: `Sell price must be at least supplier cost (${variant.supplierCostUsdt} USDT).`,
+      error: `Sell price must be at least supplier cost (${minCost} USDT).`,
     };
   }
 
@@ -364,20 +552,49 @@ export async function importExternalSupplierProductAction(
     }
 
     if (existingImport?.product_id) {
-      const { error: updateError } = await supabase
-        .from("products")
-        .update({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- drifted title/price_usdt
+      const updatePayload: any = {
+        ...importProductCoreFields({
           name: listing.name,
           description: listing.description,
-          price: sellPrice,
-          compare_at_price: remote.compareAtPriceUsdt,
-          sku: variant.externalSku,
-          stock_quantity: variant.stockQuantity ?? 0,
+          sellPrice,
+          compareAtPriceUsdt: remote.compareAtPriceUsdt,
           images: productImages,
-          updated_at: new Date().toISOString(),
-        })
+          stockQuantity: effectiveStock ?? 0,
+          sku: variant.externalSku,
+        }),
+        catalog_kind: kind === "cj_dropshipping" ? "cj_import" : "manual",
+        is_dropship: true,
+        source_provider_kind: kind === "cj_dropshipping" ? "cj_dropshipping" : null,
+        external_product_id: remote.externalProductId,
+        updated_at: new Date().toISOString(),
+      };
+      let { error: updateError } = await supabase
+        .from("products")
+        .update(updatePayload)
         .eq("id", existingImport.product_id)
         .eq("vendor_id", gate.vendor.id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let fallbackPayload: any = updatePayload;
+
+      for (
+        let attempt = 0;
+        attempt < PRODUCT_SCHEMA_FALLBACK_COLUMNS.length;
+        attempt += 1
+      ) {
+        if (!updateError) break;
+        const next = applyProductSchemaCacheFallback(
+          fallbackPayload,
+          updateError.message,
+        );
+        if (!next.stripped) break;
+        fallbackPayload = next.payload;
+        ({ error: updateError } = await supabase
+          .from("products")
+          .update(fallbackPayload)
+          .eq("id", existingImport.product_id)
+          .eq("vendor_id", gate.vendor.id));
+      }
 
       if (updateError) {
         return { error: updateError.message };
@@ -388,12 +605,24 @@ export async function importExternalSupplierProductAction(
         .update({
           external_variant_id: variant.externalVariantId,
           external_sku: variant.externalSku,
-          source_payload: remote.raw,
+          source_payload: toImportSourcePayload(remote),
           last_synced_at: new Date().toISOString(),
         })
         .eq("id", existingImport.id);
 
+      await upsertCjImportedProductRegistry({
+        supabase,
+        vendorId: gate.vendor.id,
+        productId: existingImport.product_id,
+        providerId: linked?.providerId,
+        remote,
+        externalVariantId: variant.externalVariantId,
+        externalSku: variant.externalSku,
+        supplierCostUsdt: minCost,
+      });
+
       revalidatePath("/vendor/products");
+      revalidatePath("/vendor/dropship/imported");
       revalidatePath("/vendor/import");
       revalidatePath("/vendor/integrations");
       revalidatePath(`/vendor/sourcing/${existingImport.product_id}`);
@@ -416,25 +645,67 @@ export async function importExternalSupplierProductAction(
       .maybeSingle();
 
     if (existingBySku?.id) {
-      const { error: updateError } = await supabase
-        .from("products")
-        .update({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- drifted title/price_usdt
+      const updatePayload: any = {
+        ...importProductCoreFields({
           name: listing.name,
           description: listing.description,
-          price: sellPrice,
-          compare_at_price: remote.compareAtPriceUsdt,
-          stock_quantity: variant.stockQuantity ?? 0,
+          sellPrice,
+          compareAtPriceUsdt: remote.compareAtPriceUsdt,
           images: productImages,
-          updated_at: new Date().toISOString(),
-        })
+          stockQuantity: effectiveStock ?? 0,
+          sku: variant.externalSku,
+        }),
+        catalog_kind: kind === "cj_dropshipping" ? "cj_import" : "manual",
+        is_dropship: true,
+        source_provider_kind: kind === "cj_dropshipping" ? "cj_dropshipping" : null,
+        external_product_id: remote.externalProductId,
+        updated_at: new Date().toISOString(),
+      };
+      let { error: updateError } = await supabase
+        .from("products")
+        .update(updatePayload)
         .eq("id", existingBySku.id)
         .eq("vendor_id", gate.vendor.id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let fallbackPayload: any = updatePayload;
+
+      for (
+        let attempt = 0;
+        attempt < PRODUCT_SCHEMA_FALLBACK_COLUMNS.length;
+        attempt += 1
+      ) {
+        if (!updateError) break;
+        const next = applyProductSchemaCacheFallback(
+          fallbackPayload,
+          updateError.message,
+        );
+        if (!next.stripped) break;
+        fallbackPayload = next.payload;
+        ({ error: updateError } = await supabase
+          .from("products")
+          .update(fallbackPayload)
+          .eq("id", existingBySku.id)
+          .eq("vendor_id", gate.vendor.id));
+      }
 
       if (updateError) {
         return { error: updateError.message };
       }
 
+      await upsertCjImportedProductRegistry({
+        supabase,
+        vendorId: gate.vendor.id,
+        productId: existingBySku.id,
+        providerId: linked?.providerId,
+        remote,
+        externalVariantId: variant.externalVariantId,
+        externalSku: variant.externalSku,
+        supplierCostUsdt: minCost,
+      });
+
       revalidatePath("/vendor/products");
+      revalidatePath("/vendor/dropship/imported");
       revalidatePath("/vendor/integrations");
 
       return {
@@ -481,16 +752,18 @@ export async function importExternalSupplierProductAction(
   const catalogBefore = Number(quota.catalog_item_count ?? 0);
   const maxImports = Number(quota.max_import_items ?? 100);
 
-  // When quota RPCs are unavailable, enforce a local active-catalog cap of 100.
+  // When quota RPCs are unavailable, enforce a local CJ-import catalog cap.
+  // Manual / custom-sourced products never consume CJ import quota.
   if (!quotaSnapshot) {
     const { count } = await supabase
       .from("products")
       .select("id", { count: "exact", head: true })
       .eq("vendor_id", gate.vendor.id)
+      .eq("catalog_kind", "cj_import")
       .neq("status", "archived");
     if ((count ?? 0) >= maxImports) {
       return {
-        error: `Import limit reached (${count}/${maxImports}). Archive listings or upgrade your plan.`,
+        error: `CJ import limit reached (${count}/${maxImports}). Archive CJ listings or upgrade your plan. Manual products are unlimited.`,
       };
     }
   }
@@ -500,24 +773,53 @@ export async function importExternalSupplierProductAction(
   );
   const slug = `${slugBase}-${Date.now().toString(36).slice(-5)}`;
 
-  const { data: product, error: productError } = await supabase
-    .from("products")
-    .insert({
-      vendor_id: gate.vendor.id,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- drifted title/price_usdt
+  const insertPayload: any = {
+    vendor_id: gate.vendor.id,
+    slug,
+    ...importProductCoreFields({
       name: listing.name,
-      slug,
       description: listing.description,
-      price: sellPrice,
-      compare_at_price: remote.compareAtPriceUsdt,
-      currency: "USDT",
-      sku: variant.externalSku,
-      stock_quantity: variant.stockQuantity ?? 0,
-      status: "active",
+      sellPrice,
+      compareAtPriceUsdt: remote.compareAtPriceUsdt,
       images: productImages,
-      product_type: "physical",
-    })
+      stockQuantity: effectiveStock ?? 0,
+      sku: variant.externalSku,
+    }),
+    status: "active" as const,
+    product_type: "physical" as const,
+    is_dropship: true,
+    catalog_kind: kind === "cj_dropshipping" ? "cj_import" : "manual",
+    source_provider_kind: kind === "cj_dropshipping" ? "cj_dropshipping" : null,
+    external_product_id: remote.externalProductId,
+  };
+
+  let { data: product, error: productError } = await supabase
+    .from("products")
+    .insert(insertPayload)
     .select("id")
     .single();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let fallbackPayload: any = insertPayload;
+
+  for (
+    let attempt = 0;
+    attempt < PRODUCT_SCHEMA_FALLBACK_COLUMNS.length;
+    attempt += 1
+  ) {
+    if (!productError) break;
+    const next = applyProductSchemaCacheFallback(
+      fallbackPayload,
+      productError.message,
+    );
+    if (!next.stripped) break;
+    fallbackPayload = next.payload;
+    ({ data: product, error: productError } = await supabase
+      .from("products")
+      .insert(fallbackPayload)
+      .select("id")
+      .single());
+  }
 
   if (productError || !product) {
     return { error: productError?.message ?? "Failed to create product." };
@@ -572,22 +874,42 @@ export async function importExternalSupplierProductAction(
         .eq("vendor_id", gate.vendor.id);
     }
 
-    await supabase.from("external_product_imports").upsert(
-      {
-        vendor_id: gate.vendor.id,
-        provider_id: linked.providerId,
-        product_id: product.id,
-        external_product_id: remote.externalProductId,
-        external_variant_id: variant.externalVariantId,
-        external_sku: variant.externalSku,
-        source_payload: remote.raw,
-        last_synced_at: new Date().toISOString(),
-      },
-      { onConflict: "vendor_id,provider_id,external_product_id" },
-    );
+    const { error: importUpsertError } = await supabase
+      .from("external_product_imports")
+      .upsert(
+        {
+          vendor_id: gate.vendor.id,
+          provider_id: linked.providerId,
+          product_id: product.id,
+          external_product_id: remote.externalProductId,
+          external_variant_id: variant.externalVariantId,
+          external_sku: variant.externalSku,
+          source_payload: toImportSourcePayload(remote),
+          last_synced_at: new Date().toISOString(),
+        },
+        { onConflict: "vendor_id,provider_id,external_product_id" },
+      );
+    if (importUpsertError && !isMissingSchemaError(importUpsertError.message)) {
+      return {
+        error: `Product created but import tracking failed: ${importUpsertError.message}`,
+        productId: product.id,
+      };
+    }
   }
 
+  await upsertCjImportedProductRegistry({
+    supabase,
+    vendorId: gate.vendor.id,
+    productId: product.id,
+    providerId: linked?.providerId,
+    remote,
+    externalVariantId: variant.externalVariantId,
+    externalSku: variant.externalSku,
+    supplierCostUsdt: minCost,
+  });
+
   revalidatePath("/vendor/products");
+  revalidatePath("/vendor/dropship/imported");
   revalidatePath("/vendor/import");
   revalidatePath("/vendor/integrations");
   revalidatePath("/vendor/sourcing");
@@ -599,10 +921,12 @@ export async function importExternalSupplierProductAction(
   const priceNote = oneClick
     ? ` Listed at ${sellPrice.toFixed(2)} USDT (${Math.round((ONE_CLICK_IMPORT_MARKUP - 1) * 100)}% markup).`
     : ` Listed at ${sellPrice.toFixed(2)} USDT after preview review.`;
-  const quotaNote =
-    activeAfter < minActive
-      ? ` Active catalog ${activeAfter}/${minActive} toward the ${minActive}-item fee floor (${(minActive * itemFee).toFixed(0)} USDT/mo). Keep importing until you reach ${minActive} active items.`
-      : ` Catalog ${catalogAfter}/${maxImports} import slots used.`;
+  const isCjImport = kind === "cj_dropshipping";
+  const quotaNote = isCjImport
+    ? activeAfter < minActive
+      ? ` Active CJ catalog ${activeAfter}/${minActive} toward the ${minActive}-item CJ fee floor (${(minActive * itemFee).toFixed(0)} USDT/mo). Manual/custom products are exempt.`
+      : ` CJ catalog ${catalogAfter}/${maxImports} import slots used. Manual/custom products do not count.`
+    : ` Manual/custom listings are not subject to CJ import fees or fee floors.`;
 
   return {
     success: `Imported “${listing.name}” from ${platform} into your store.${priceNote}${quotaNote}`,
@@ -638,7 +962,7 @@ export async function syncExternalProductInventoryAction(
   const kind = parseSupplierKind(provider?.kind);
   if (!kind) return { error: "Unknown supplier kind." };
 
-  const linked = await loadVendorCredentials(gate.vendor.id, kind);
+  const linked = await loadSupplierContext(kind);
   const snapshot = await syncExternalInventory(
     kind,
     imported.external_product_id,
@@ -664,7 +988,7 @@ export async function syncExternalProductInventoryAction(
     .from("external_product_imports")
     .update({
       last_synced_at: new Date().toISOString(),
-      source_payload: snapshot.raw,
+      source_payload: toSlimInventoryRaw(snapshot),
       external_sku: snapshot.externalSku,
       external_variant_id: snapshot.externalVariantId,
     })

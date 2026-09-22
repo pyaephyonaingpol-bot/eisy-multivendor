@@ -36,16 +36,16 @@ export function ImportQuotaBanner({ quota, className }: Props) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-1">
           <p className="text-sm font-medium text-zinc-950">
-            Import quota · {quota.catalog_item_count} / {quota.max_import_items}{" "}
+            CJ import quota · {quota.catalog_item_count} / {quota.max_import_items}{" "}
             items
           </p>
           <p className="text-xs text-zinc-600 sm:text-sm">
             {quota.remaining_import_slots} slot
             {quota.remaining_import_slots === 1 ? "" : "s"} remaining (
             {limitSourceLabel(quota.limit_source)}, {quota.plan} plan). Active
-            listings: {quota.active_item_count}. Monthly fee floor:{" "}
-            {quota.min_active_items} × {quota.item_fee_usdt} USDT when any
-            listing is active.
+            CJ listings: {quota.active_item_count}. CJ monthly fee floor:{" "}
+            {quota.min_active_items} × {quota.item_fee_usdt} USDT when any CJ
+            listing is active. Manual / custom-sourced products are exempt.
           </p>
         </div>
         {quota.at_import_limit ? (

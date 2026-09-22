@@ -1,15 +1,35 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ImportQuotaBanner } from "@/components/import-limits/import-quota-banner";
+import { ComingSoonSupplierCard } from "@/components/suppliers/coming-soon-supplier-card";
 import { ExternalSupplierCatalogPanel } from "@/components/suppliers/external-supplier-catalog-panel";
-import { SupplierCredentialsForm } from "@/components/suppliers/supplier-credentials-form";
 import { getSessionProfile, canAccessVendor } from "@/lib/auth/session";
 import { getVendorImportQuota } from "@/lib/import-limits/queries";
-import { listVendorSupplierCredentials } from "@/lib/suppliers/actions";
-import { createClient } from "@/lib/supabase/server";
+import {
+  COMING_SOON_SUPPLIER_KINDS,
+  PRIMARY_SUPPLIER_KIND,
+} from "@/lib/suppliers/availability";
+import {
+  listLivePlatformSuppliers,
+  platformSupplierHasLiveKey,
+} from "@/lib/suppliers/platform-credentials";
+import {
+  supplierPlatformLabel,
+  type ExternalSupplierKind,
+} from "@/lib/suppliers/types";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 
 export const dynamic = "force-dynamic";
+
+const COMING_SOON_PANELS: Array<{
+  kind: ExternalSupplierKind;
+  label: string;
+}> = [
+  { kind: "dsers", label: "DSers / AliExpress" },
+  { kind: "spocket", label: "Spocket" },
+  { kind: "printful", label: "Printful (POD)" },
+  { kind: "printify", label: "Printify (POD)" },
+];
 
 export default async function VendorIntegrationsPage() {
   const session = await getSessionProfile();
@@ -22,7 +42,7 @@ export default async function VendorIntegrationsPage() {
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold tracking-tight">Integrations</h1>
         <p className="text-zinc-600">
-          Apply as a vendor before connecting CJ, DSers, Spocket, or POD suppliers.
+          Apply as a vendor before browsing the platform supplier catalog.
         </p>
         <Link href="/vendor/apply" className="underline">
           Apply as a vendor
@@ -36,183 +56,127 @@ export default async function VendorIntegrationsPage() {
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold tracking-tight">Integrations</h1>
         <p className="text-zinc-600">
-          Your store must be approved before connecting supplier platforms.
+          Your store must be approved before importing from the supplier catalog.
         </p>
       </div>
     );
   }
 
-  const supabase = await createClient();
-  const { data: providers } = await supabase
-    .from("supplier_providers")
-    .select("id, name, kind, slug")
-    .in("kind", ["cj_dropshipping", "dsers", "spocket", "print_on_demand"])
-    .eq("is_active", true)
-    .order("name");
+  const quota = await getVendorImportQuota(vendor.id);
+  const configured = (await listLivePlatformSuppliers()).filter(
+    (kind) => kind === PRIMARY_SUPPLIER_KIND,
+  );
+  const mode = configured.length > 0 ? "live" : "mock";
+  const hasCj = await platformSupplierHasLiveKey(PRIMARY_SUPPLIER_KIND);
 
-  const [credentials, quota] = await Promise.all([
-    listVendorSupplierCredentials(),
-    getVendorImportQuota(vendor.id),
-  ]);
+  const quotaHints = quota
+    ? {
+        minActiveItems: quota.min_active_items,
+        maxImportItems: quota.max_import_items,
+        catalogItemCount: quota.catalog_item_count,
+        activeItemCount: quota.active_item_count,
+        remainingImportSlots: quota.remaining_import_slots,
+        itemFeeUsdt: quota.item_fee_usdt,
+        atImportLimit: quota.at_import_limit,
+        meetsMinimum: quota.meets_minimum,
+      }
+    : null;
 
   return (
     <div className="space-y-8">
       <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-sky-800">
+          Dropshipping workspace
+        </p>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Supplier integrations
+          Supplier catalog
         </h1>
         <p className="max-w-2xl text-zinc-600">
-          Connect <strong>CJ Dropshipping</strong>,{" "}
-          <strong>DSers / AliExpress</strong>, <strong>Spocket</strong>, and{" "}
-          <strong>POD (Printful / Printify)</strong> to search catalogs, import
-          products with supplier SKUs, sync inventory, and auto-route paid
-          orders to the supplier API.
+          Browse the platform&apos;s CJ Dropshipping catalog and one-click import
+          products into your store. API keys are configured by the platform —
+          you do not need your own supplier accounts. DSers, Spocket, and POD
+          sources are coming soon.
         </p>
         <p className="text-sm text-zinc-500">
-          Without live API keys the portal uses a safe mock catalog so you can
-          still exercise import + fulfillment routing end-to-end.
+          <Link href="/vendor/dropship" className="font-medium underline">
+            Dropshipping hub
+          </Link>
+          {" · "}
+          Prefer region filters on{" "}
+          <Link href="/vendor/sourcing" className="font-medium underline">
+            Product sourcing
+          </Link>
+          .
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-3 text-sm text-emerald-950 sm:px-4">
+        <p className="font-semibold text-emerald-900">Platform-managed sources</p>
+        <p className="mt-1 text-emerald-900/90">
+          Primary source: <strong>CJ Dropshipping</strong>
+          {" · "}
+          Catalog mode: <strong>{mode}</strong>
+          {configured.length > 0 ? (
+            <>
+              {" "}
+              · Live:{" "}
+              {configured.map((k) => supplierPlatformLabel(k)).join(", ")}
+            </>
+          ) : (
+            <> · Using safe mock catalog until an admin configures the CJ API key.</>
+          )}
+        </p>
+        <p className="mt-2">
+          Prefer the sourcing workspace with region filters on{" "}
+          <Link href="/vendor/sourcing" className="font-medium underline">
+            Product sourcing
+          </Link>
+          .
         </p>
       </div>
 
       {quota ? <ImportQuotaBanner quota={quota} /> : null}
 
       <div className="rounded-xl border border-sky-200 bg-sky-50/70 px-3 py-3 text-sm text-sky-950 sm:px-4">
-        <p className="font-semibold text-sky-900">Unified sourcing workspace</p>
+        <p className="font-semibold text-sky-900">Preview & one-click Import to Store</p>
         <p className="mt-1 text-sky-900/90">
-          Prefer the multi-supplier catalog with source tabs, region filters, and
-          fast-dispatch badges on{" "}
-          <a href="/vendor/sourcing" className="font-medium underline">
-            Product sourcing
-          </a>
-          .
+          Search CJ below, open <strong>Preview</strong>, then{" "}
+          <strong>Import to Store</strong>. One-click import uses a default 35%
+          markup. Imports count toward your catalog cap
+          {quota ? ` (${quota.max_import_items})` : ""}.
         </p>
       </div>
-
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-3 text-sm text-emerald-950 sm:px-4">
-        <p className="font-semibold text-emerald-900">Preview & one-click Import to Store</p>
-        <p className="mt-1 text-emerald-900/90">
-          Search CJ, DSers, Spocket, or POD below, open <strong>Preview</strong> to review images,
-          variants, and description (and tweak title, copy, or price), then click{" "}
-          <strong>Import to Store</strong>. Quick one-click import still uses a default
-          35% markup. New imports are blocked at your maximum catalog cap
-          {quota ? ` (${quota.max_import_items})` : ""}. Stay at or above{" "}
-          {quota?.min_active_items ?? 10} active items to clear the monthly fee
-          floor — confirmation in Preview shows your {quota?.min_active_items ?? 10}
-          -item progress.
-        </p>
-      </div>
-
-      <SupplierCredentialsForm
-        providers={providers ?? []}
-        existing={credentials.rows ?? []}
-      />
 
       <ExternalSupplierCatalogPanel
-        providerKind="cj_dropshipping"
+        providerKind={PRIMARY_SUPPLIER_KIND}
         providerLabel="CJ Dropshipping"
         importDisabled={quota?.at_import_limit ?? false}
-        quota={
-          quota
-            ? {
-                minActiveItems: quota.min_active_items,
-                maxImportItems: quota.max_import_items,
-                catalogItemCount: quota.catalog_item_count,
-                activeItemCount: quota.active_item_count,
-                remainingImportSlots: quota.remaining_import_slots,
-                itemFeeUsdt: quota.item_fee_usdt,
-                atImportLimit: quota.at_import_limit,
-                meetsMinimum: quota.meets_minimum,
-              }
-            : null
-        }
-      />
-      <ExternalSupplierCatalogPanel
-        providerKind="dsers"
-        providerLabel="DSers / AliExpress"
-        importDisabled={quota?.at_import_limit ?? false}
-        quota={
-          quota
-            ? {
-                minActiveItems: quota.min_active_items,
-                maxImportItems: quota.max_import_items,
-                catalogItemCount: quota.catalog_item_count,
-                activeItemCount: quota.active_item_count,
-                remainingImportSlots: quota.remaining_import_slots,
-                itemFeeUsdt: quota.item_fee_usdt,
-                atImportLimit: quota.at_import_limit,
-                meetsMinimum: quota.meets_minimum,
-              }
-            : null
-        }
+        quota={quotaHints}
       />
 
-      <ExternalSupplierCatalogPanel
-        providerKind="spocket"
-        providerLabel="Spocket"
-        importDisabled={quota?.at_import_limit ?? false}
-        quota={
-          quota
-            ? {
-                minActiveItems: quota.min_active_items,
-                maxImportItems: quota.max_import_items,
-                catalogItemCount: quota.catalog_item_count,
-                activeItemCount: quota.active_item_count,
-                remainingImportSlots: quota.remaining_import_slots,
-                itemFeeUsdt: quota.item_fee_usdt,
-                atImportLimit: quota.at_import_limit,
-                meetsMinimum: quota.meets_minimum,
-              }
-            : null
-        }
-      />
-      <ExternalSupplierCatalogPanel
-        providerKind="printful"
-        providerLabel="Printful (POD)"
-        importDisabled={quota?.at_import_limit ?? false}
-        quota={
-          quota
-            ? {
-                minActiveItems: quota.min_active_items,
-                maxImportItems: quota.max_import_items,
-                catalogItemCount: quota.catalog_item_count,
-                activeItemCount: quota.active_item_count,
-                remainingImportSlots: quota.remaining_import_slots,
-                itemFeeUsdt: quota.item_fee_usdt,
-                atImportLimit: quota.at_import_limit,
-                meetsMinimum: quota.meets_minimum,
-              }
-            : null
-        }
-      />
-      <ExternalSupplierCatalogPanel
-        providerKind="printify"
-        providerLabel="Printify (POD)"
-        importDisabled={quota?.at_import_limit ?? false}
-        quota={
-          quota
-            ? {
-                minActiveItems: quota.min_active_items,
-                maxImportItems: quota.max_import_items,
-                catalogItemCount: quota.catalog_item_count,
-                activeItemCount: quota.active_item_count,
-                remainingImportSlots: quota.remaining_import_slots,
-                itemFeeUsdt: quota.item_fee_usdt,
-                atImportLimit: quota.at_import_limit,
-                meetsMinimum: quota.meets_minimum,
-              }
-            : null
-        }
-      />
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+          Coming soon
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {COMING_SOON_PANELS.filter((panel) =>
+            COMING_SOON_SUPPLIER_KINDS.includes(panel.kind),
+          ).map((panel) => (
+            <ComingSoonSupplierCard key={panel.kind} label={panel.label} />
+          ))}
+        </div>
+      </div>
 
       <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-        After checkout payment, orders with CJ / DSers / Spocket / POD routes enter{" "}
-        <code className="rounded bg-white px-1">supplier_fulfillment_jobs</code>
-        .         Process them via{" "}
+        Paid orders with CJ supplier routes are fulfilled with the platform&apos;s
+        source APIs via{" "}
         <code className="rounded bg-white px-1">
           POST /api/cron/fulfill-supplier-orders
-        </code>{" "}
-        (Bearer CRON_SECRET; also runs daily at 03:00 UTC, and immediately after
-        paid checkout).
+        </code>
+        .
+        {hasCj
+          ? null
+          : " Configure the CJ key under Admin → Supplier APIs or platform env vars."}
       </div>
     </div>
   );

@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { SupplierUnavailableRefundForm } from "@/components/orders/supplier-unavailable-refund-form";
 import { VendorFulfillmentForm } from "@/components/orders/vendor-fulfillment-form";
 import { redirect } from "next/navigation";
 import { getSessionProfile } from "@/lib/auth/session";
 import { formatMoney } from "@/lib/money";
-import { listOrdersForVendor } from "@/lib/orders/queries";
+import { listManualOrdersForVendor } from "@/lib/orders/queries";
 import {
+  isSupplierUnavailableStatus,
   payoutStatusBadgeClass,
   payoutStatusLabel,
 } from "@/lib/orders/status";
@@ -24,6 +26,9 @@ export default async function VendorOrdersPage() {
   if (!vendor) {
     return (
       <div className="space-y-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          My Store
+        </p>
         <h1 className="text-2xl font-semibold tracking-tight">Vendor orders</h1>
         <p className="text-zinc-600">
           Submit a vendor application before you can receive orders.
@@ -38,17 +43,18 @@ export default async function VendorOrdersPage() {
     );
   }
 
-  const orders = await listOrdersForVendor(vendor.id);
+  const orders = await listManualOrdersForVendor(vendor.id);
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Vendor orders</h1>
+        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          Independent Vendor Portal
+        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
         <p className="text-zinc-600">
-          Fulfillment orders route to the supplier. Dropship sales you made appear
-          here as seller orders; supplier stock and fulfillment stay with the
-          original vendor. USDT earnings stay in escrow until the order is
-          delivered (carrier sync or buyer confirmation).
+          Custom-sourced orders you fulfill yourself. CJ orders are in the CJ
+          Dropshipping Portal.
         </p>
       </div>
 
@@ -135,15 +141,25 @@ export default async function VendorOrdersPage() {
                   </li>
                 ))}
               </ul>
-              {order.role === "fulfillment" || order.role === "both" ? (
-                <VendorFulfillmentForm
+              {isSupplierUnavailableStatus(order.status) ? (
+                <SupplierUnavailableRefundForm
                   orderId={order.id}
-                  currentStatus={order.status}
-                  trackingNumber={order.tracking_number}
-                  trackingCarrier={order.tracking_carrier}
-                  trackingUrl={order.tracking_url}
-                  supplierOrderRef={order.supplier_order_ref}
+                  status={order.status}
+                  paymentStatus={order.payment_status}
+                  fulfillmentError={order.fulfillment_sync_error}
                 />
+              ) : null}
+              {order.role === "fulfillment" || order.role === "both" ? (
+                isSupplierUnavailableStatus(order.status) ? null : (
+                  <VendorFulfillmentForm
+                    orderId={order.id}
+                    currentStatus={order.status}
+                    trackingNumber={order.tracking_number}
+                    trackingCarrier={order.tracking_carrier}
+                    trackingUrl={order.tracking_url}
+                    supplierOrderRef={order.supplier_order_ref}
+                  />
+                )
               ) : null}
             </li>
           ))}

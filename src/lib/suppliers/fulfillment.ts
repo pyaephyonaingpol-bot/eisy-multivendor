@@ -1,5 +1,9 @@
 import { createServiceClient } from "@/lib/supabase/admin";
-import { resolveAdapterKindFromProvider } from "@/lib/suppliers/auth";
+import {
+  resolveAdapterKindFromProvider,
+  resolveSupplierCredentials,
+} from "@/lib/suppliers/auth";
+import { loadPlatformCredentialsFromDb } from "@/lib/suppliers/platform-credentials";
 import {
   createExternalFulfillmentOrder,
   type ExternalSupplierKind,
@@ -29,31 +33,44 @@ function asShipTo(address: Record<string, unknown> | null | undefined) {
   };
 }
 
+/** Resolve platform-owned credentials (DB → env). Vendor keys are not required. */
 async function loadCredentials(
-  vendorId: string | null,
+  _vendorId: string | null,
   providerId: string | null,
+  adapterKind: ExternalSupplierKind | null,
 ): Promise<SupplierCredentials | null> {
-  if (!vendorId || !providerId) return null;
-  const supabase = createServiceClient();
-  const { data } = await supabase
-    .from("vendor_supplier_credentials")
-    .select(
-      "api_key, api_secret, access_token, refresh_token, account_email, metadata",
-    )
-    .eq("vendor_id", vendorId)
-    .eq("provider_id", providerId)
-    .eq("is_active", true)
-    .maybeSingle();
+  if (!adapterKind) return null;
 
-  if (!data) return null;
-  return {
-    apiKey: data.api_key,
-    apiSecret: data.api_secret,
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token,
-    accountEmail: data.account_email,
-    metadata: (data.metadata ?? {}) as Record<string, unknown>,
-  };
+  let platformFromDb: SupplierCredentials | null = null;
+  if (providerId) {
+    try {
+      const supabase = createServiceClient();
+      const { data } = await supabase
+        .from("platform_supplier_credentials")
+        .select(
+          "api_key, api_secret, access_token, refresh_token, account_email, metadata",
+        )
+        .eq("provider_id", providerId)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (data) {
+        platformFromDb = {
+          apiKey: data.api_key,
+          apiSecret: data.api_secret,
+          accessToken: data.access_token,
+          refreshToken: data.refresh_token,
+          accountEmail: data.account_email,
+          metadata: (data.metadata ?? {}) as Record<string, unknown>,
+        };
+      }
+    } catch {
+      platformFromDb = await loadPlatformCredentialsFromDb(adapterKind);
+    }
+  } else {
+    platformFromDb = await loadPlatformCredentialsFromDb(adapterKind);
+  }
+
+  return resolveSupplierCredentials(adapterKind, null, platformFromDb);
 }
 
 async function resolveJobAdapterKind(
@@ -248,6 +265,7 @@ export async function processSupplierFulfillmentJobs(limit = 20): Promise<{
       const credentials = await loadCredentials(
         order?.seller_vendor_id ?? order?.vendor_id ?? null,
         job.provider_id,
+        kind,
       );
 
       const request = await buildFulfillmentRequest(job.order_id, kind);
@@ -295,17 +313,64 @@ export async function processSupplierFulfillmentJobs(limit = 20): Promise<{
           supplier_order_ref: outcome.supplierOrderRef,
         });
       } else {
-        await supabase.rpc("complete_supplier_fulfillment_job", {
-          p_job_id: job.id,
-          p_status: "failed",
-          p_supplier_order_ref: null,
-          p_response: { ...outcome.raw, adapter_kind: kind },
-          p_error: outcome.error ?? "Supplier create order failed",
-        });
+        const issue =
+          outcome.status === "out_of_stock" ||
+          (outcome.error ?? "").toLowerCase().includes("out of stock") ||
+          (outcome.error ?? "").toLowerCase().includes("stock ")
+            ? "out_of_stock"
+            : "fulfillment_failed";
+
+        const issueError =
+          outcome.status === "shipping_unavailable" ||
+          (outcome.error ?? "").toLowerCase().includes("does not ship") ||
+          (outcome.error ?? "").toLowerCase().includes("shipping unavailable")
+            ? (outcome.error ??
+              "Shipping Unavailable — CJ does not ship to this region")
+            : (outcome.error ?? "Supplier create order failed");
+
+        // Flag the order, write vendor/admin alerts, and mark the job failed.
+        const { error: markError } = await supabase.rpc(
+          "mark_order_supplier_stock_issue",
+          {
+            p_order_id: job.order_id,
+            p_job_id: job.id,
+            p_issue: issue,
+            p_error: issueError,
+            p_payload: {
+              ...outcome.raw,
+              adapter_kind: kind,
+              issue,
+              shipping_unavailable:
+                outcome.status === "shipping_unavailable" ||
+                issueError.toLowerCase().includes("ship"),
+            },
+          },
+        );
+
+        if (markError) {
+          // Fallback: still complete the job so it does not retry forever.
+          await supabase.rpc("complete_supplier_fulfillment_job", {
+            p_job_id: job.id,
+            p_status: "failed",
+            p_supplier_order_ref: null,
+            p_response: { ...outcome.raw, adapter_kind: kind, issue },
+            p_error: outcome.error ?? markError.message,
+          });
+          await supabase
+            .from("orders")
+            .update({
+              status: issue,
+              fulfillment_sync_status: "error",
+              fulfillment_sync_error: issueError.slice(0, 500),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", job.order_id);
+        }
+
         failed += 1;
         results.push({
           job_id: job.id,
-          status: "failed",
+          status: issue,
           adapter_kind: kind,
           error: outcome.error,
         });

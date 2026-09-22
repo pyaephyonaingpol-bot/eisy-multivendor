@@ -1,5 +1,6 @@
-import Link from "next/link";
+import { Suspense } from "react";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
+import { VendorPortalNav } from "@/components/vendors/vendor-portal-nav";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { getRequestLocale } from "@/lib/i18n/locale";
 
@@ -10,45 +11,64 @@ export default async function VendorLayout({
 }) {
   const locale = await getRequestLocale();
   const t = getDictionary(locale);
-  const links = [
-    { href: "/vendor/dashboard", label: t.vendorNav.overview },
-    { href: "/vendor/settings", label: t.vendorNav.storeBranding },
-    { href: "/vendor/apply", label: t.vendorNav.application },
+
+  // Independent Vendor — custom-source ops only (no CJ links).
+  const vendorLinks = [
     { href: "/vendor/products", label: t.vendorNav.products },
-    { href: "/vendor/sourcing", label: t.vendorNav.sourcing },
-    { href: "/vendor/import", label: t.vendorNav.import },
-    { href: "/vendor/integrations", label: t.vendorNav.integrations },
-    { href: "/vendor/fees", label: t.vendorNav.fees },
-    { href: "/vendor/wallet", label: t.vendorNav.wallet },
+    { href: "/vendor/settings", label: t.vendorNav.store },
     { href: "/vendor/orders", label: t.vendorNav.orders },
+    { href: "/vendor/tracking", label: t.vendorNav.tracking },
+    { href: "/vendor/disputes", label: t.vendorNav.disputes },
+    { href: "/vendor/wallet?portal=vendor", label: t.vendorNav.wallet },
+  ];
+
+  // CJ Dropshipping — CJ workflow + fees + wallet (no Independent Vendor links).
+  const dropshipLinks = [
+    { href: "/vendor/sourcing", label: t.vendorNav.catalog },
+    {
+      href: "/vendor/dropship/imported",
+      label: t.vendorNav.importedProducts,
+    },
+    { href: "/vendor/dropship/orders", label: t.vendorNav.cjOrders },
+    { href: "/vendor/dropship/tracking", label: t.vendorNav.cjTracking },
+    { href: "/vendor/dropship/disputes", label: t.vendorNav.cjDisputes },
+    { href: "/vendor/fees", label: t.vendorNav.fees },
+    { href: "/vendor/wallet?portal=cj", label: t.vendorNav.wallet },
   ];
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 px-4 py-6 md:flex-row md:gap-8 md:py-8">
-      <aside className="w-full shrink-0 space-y-3 md:w-52 md:space-y-4">
+      <aside className="w-full shrink-0 space-y-3 md:w-56 md:space-y-4">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold">{t.vendorNav.title}</p>
+          <div>
+            <p className="text-sm font-semibold text-zinc-950">
+              {t.vendorNav.title}
+            </p>
+            <p className="text-xs text-zinc-500">
+              One portal at a time — menus never mix
+            </p>
+          </div>
           <LanguageSwitcher compact />
         </div>
-        <nav className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 text-sm text-zinc-600 [scrollbar-width:none] md:flex-col md:gap-2 md:overflow-visible md:pb-0 [&::-webkit-scrollbar]:hidden">
-          {links.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="whitespace-nowrap rounded-full border border-zinc-200 bg-white px-3 py-1.5 hover:border-zinc-300 hover:text-zinc-950 md:rounded-none md:border-0 md:bg-transparent md:px-0 md:py-0"
-            >
-              {item.label}
-            </Link>
-          ))}
-          <Link
-            href="/"
-            className="whitespace-nowrap rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-zinc-400 hover:text-zinc-950 md:rounded-none md:border-0 md:bg-transparent md:px-0 md:pb-0 md:pt-4"
-          >
-            {t.vendorNav.backToStorefront}
-          </Link>
-        </nav>
+        <Suspense
+          fallback={
+            <div className="h-40 animate-pulse rounded-xl bg-zinc-100" />
+          }
+        >
+          <VendorPortalNav
+            vendorTitle={t.vendorNav.vendorSection}
+            dropshipTitle={t.vendorNav.dropshipSection}
+            vendorLinks={vendorLinks}
+            dropshipLinks={dropshipLinks}
+            vendorHomeHref="/vendor/dashboard"
+            dropshipHomeHref="/vendor/dropship"
+            accountHref="/vendor/profile"
+            accountLabel={t.vendorNav.profile}
+            backLabel={t.vendorNav.backToStorefront}
+          />
+        </Suspense>
       </aside>
-      <section className="min-w-0 flex-1">{children}</section>
+      <section className="min-w-0 flex-1 space-y-4">{children}</section>
     </div>
   );
 }

@@ -9,6 +9,9 @@ import {
 } from "@/components/suppliers/supplier-product-preview-modal";
 import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
 import {
+  PRIMARY_SUPPLIER_KIND,
+} from "@/lib/suppliers/availability";
+import {
   kindsForSourceTab,
   type SupplierSourceTab,
 } from "@/lib/suppliers";
@@ -81,7 +84,9 @@ export function UnifiedSupplierSourcingCatalog({
   quota = null,
 }: Props) {
   const { t } = useI18n();
-  const [sourceTab, setSourceTab] = useState<SupplierSourceTab>("all");
+  const [sourceTab, setSourceTab] = useState<SupplierSourceTab>(
+    PRIMARY_SUPPLIER_KIND,
+  );
   const [query, setQuery] = useState("wireless earbuds");
   const [regionCode, setRegionCode] = useState(
     regions.find((region) => region.code === "MM")?.code ??
@@ -152,9 +157,9 @@ export function UnifiedSupplierSourcingCatalog({
     setPreviewSuccess(null);
     startSearch(async () => {
       try {
-        // Always fetch all sources so tab clicks can filter instantly.
+        // CJ-only catalog while other suppliers are Coming Soon.
         const params = new URLSearchParams({
-          source: "all",
+          source: PRIMARY_SUPPLIER_KIND,
           q: query,
           region: regionCode,
         });

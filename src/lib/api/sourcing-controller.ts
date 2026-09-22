@@ -13,13 +13,12 @@ import {
   searchExternalProductsForTab,
 } from "@/lib/suppliers";
 import { importExternalSupplierProductAction } from "@/lib/suppliers/actions";
-import {
-  SUPPLIER_PROVIDER_SLUGS,
-  type ExternalCatalogProduct,
-  type ExternalSupplierKind,
-  type SupplierCredentials,
+import { toClientCatalogProduct } from "@/lib/suppliers/catalog-dto";
+import type {
+  ExternalCatalogProduct,
+  ExternalSupplierKind,
+  SupplierCredentials,
 } from "@/lib/suppliers/types";
-import { createClient } from "@/lib/supabase/server";
 import { getVendorForOwner, isVendorKycApproved } from "@/lib/vendors/queries";
 
 export type SourcingControllerResult<T> =
@@ -45,45 +44,18 @@ async function requireApprovedVendorGate(): Promise<
 }
 
 async function loadCredentialsForKind(
-  vendorId: string,
   kind: ExternalSupplierKind,
 ): Promise<SupplierCredentials | null> {
-  const supabase = await createClient();
-  const slug = SUPPLIER_PROVIDER_SLUGS[kind];
-  const { data: provider } = await supabase
-    .from("supplier_providers")
-    .select("id")
-    .eq("slug", slug)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (!provider) return null;
-
-  const { data: creds } = await supabase
-    .from("vendor_supplier_credentials")
-    .select(
-      "api_key, api_secret, access_token, refresh_token, account_email, metadata",
-    )
-    .eq("vendor_id", vendorId)
-    .eq("provider_id", provider.id)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (!creds) return null;
-
-  return {
-    apiKey: creds.api_key,
-    apiSecret: creds.api_secret,
-    accessToken: creds.access_token,
-    refreshToken: creds.refresh_token,
-    accountEmail: creds.account_email,
-    metadata: (creds.metadata ?? {}) as Record<string, unknown>,
-  };
+  const { loadPlatformSupplierContext } = await import(
+    "@/lib/suppliers/platform-credentials"
+  );
+  const linked = await loadPlatformSupplierContext(kind);
+  return linked?.credentials ?? null;
 }
 
 function withSpeedMeta(product: ExternalCatalogProduct) {
   return {
-    ...product,
+    ...toClientCatalogProduct(product),
     shipping_speed_tags: shippingSpeedTagsForProduct(product),
   };
 }
@@ -127,7 +99,7 @@ export async function searchSourcingCatalog(input: {
       sourceRaw &&
       !["all", "pod"].includes(String(sourceRaw).toLowerCase())
     ) {
-      const credentials = await loadCredentialsForKind(gate.vendor.id, singleKind);
+      const credentials = await loadCredentialsForKind(singleKind);
       products = await searchExternalProducts(
         singleKind,
         query,
@@ -149,10 +121,7 @@ export async function searchSourcingCatalog(input: {
       > = {};
       await Promise.all(
         kinds.map(async (kind) => {
-          credentialsByKind[kind] = await loadCredentialsForKind(
-            gate.vendor.id,
-            kind,
-          );
+          credentialsByKind[kind] = await loadCredentialsForKind(kind);
         }),
       );
       products = await searchExternalProductsForTab(sourceTab, query, {
@@ -191,6 +160,8 @@ export async function importSourcingProduct(input: {
   external_product_id?: string;
   region_code?: string;
   price?: number | string;
+  /** Alias for price — some clients send the drifted column name. */
+  price_usdt?: number | string;
   name?: string;
   description?: string;
   external_variant_id?: string;
@@ -222,6 +193,8 @@ export async function importSourcingProduct(input: {
   formData.set("region_code", String(input.region_code ?? "GLOBAL"));
   if (input.price != null && input.price !== "") {
     formData.set("price", String(input.price));
+  } else if (input.price_usdt != null && input.price_usdt !== "") {
+    formData.set("price_usdt", String(input.price_usdt));
   }
   if (input.name) formData.set("name", input.name);
   if (input.description) formData.set("description", input.description);

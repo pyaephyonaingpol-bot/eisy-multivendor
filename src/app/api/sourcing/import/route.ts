@@ -45,5 +45,13 @@ export async function POST(request: Request) {
     return jsonError(result.error, statusFromMessage(result.error) || result.status);
   }
 
-  return jsonOk(result.data);
+  return jsonOk({
+    ...result.data,
+    catalog_kind:
+      String(body.provider_kind ?? body.provider ?? "")
+        .toLowerCase()
+        .includes("cj")
+        ? "cj_import"
+        : "manual",
+  });
 }

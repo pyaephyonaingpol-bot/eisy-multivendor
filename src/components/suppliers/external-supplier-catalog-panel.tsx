@@ -147,19 +147,20 @@ export function ExternalSupplierCatalogPanel({
       ) : null}
       {belowMin && !atLimit ? (
         <p className="text-sm text-amber-800">
-          You have {quota?.activeItemCount} active item
-          {(quota?.activeItemCount ?? 0) === 1 ? "" : "s"}. Dropshippers are
-          billed for at least {minActive} active items (
-          {minActive * (quota?.itemFeeUsdt ?? 1)} USDT/mo). Keep importing to reach
-          the fee floor.
+          You have {quota?.activeItemCount} active CJ import
+          {(quota?.activeItemCount ?? 0) === 1 ? "" : "s"}. CJ Dropshipping is
+          billed for at least {minActive} active CJ items (
+          {minActive * (quota?.itemFeeUsdt ?? 1)} USDT/mo). Manual/custom
+          products are exempt — keep importing CJ SKUs to clear the fee floor.
         </p>
       ) : null}
 
       {products.length === 0 ? (
         <p className="text-sm text-zinc-500">
-          Run a search to load {providerLabel} products
+          Run a search to load {providerLabel} products from the platform
+          catalog
           {process.env.NODE_ENV === "development"
-            ? " (mock catalog when credentials are unset)."
+            ? " (mock data when platform API keys are unset)."
             : "."}
         </p>
       ) : (
@@ -300,7 +301,7 @@ export function ExternalSupplierCatalogPanel({
             setPreviewId(null);
             setPreviewSuccess(
               success ??
-                `Imported via Preview into your store (product ${productId.slice(0, 8)}…). Keep building toward ${minActive} active items for the fee floor.`,
+                `Imported via Preview into your store (product ${productId.slice(0, 8)}…). CJ imports count toward the ${minActive}-item CJ fee floor; manual/custom products do not.`,
             );
           }}
         />

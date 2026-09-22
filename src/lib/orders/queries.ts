@@ -5,11 +5,29 @@ import {
   type AdminEscrowStatus,
 } from "@/lib/orders/status";
 import type {
+  FulfillmentChannel,
   Order,
   OrderFulfillmentEvent,
   OrderItem,
   Vendor,
 } from "@/lib/types/database";
+
+function normalizeOrder(row: Order): Order {
+  const channel =
+    (row as Order & { fulfillment_channel?: FulfillmentChannel | null })
+      .fulfillment_channel === "cj"
+      ? "cj"
+      : "manual";
+  const sellerVendorId =
+    row.seller_vendor_id ??
+    (row as Order & { seller_vendor_id?: string | null }).seller_vendor_id ??
+    row.vendor_id;
+  return {
+    ...row,
+    fulfillment_channel: channel,
+    seller_vendor_id: sellerVendorId,
+  };
+}
 
 export type VendorOrderRow = Order & {
   items: OrderItem[];
@@ -95,7 +113,7 @@ async function attachVendorsAndItems(
   );
 
   return orders.map((order) => ({
-    ...order,
+    ...normalizeOrder(order),
     items: itemsByOrder.get(order.id) ?? [],
     seller: vendorsById.get(order.seller_vendor_id) ?? null,
     fulfillment: vendorsById.get(order.vendor_id) ?? null,
@@ -161,20 +179,48 @@ export async function getOrderForCustomer(
 
 export async function listOrdersForVendor(
   vendorId: string,
+  options?: { fulfillmentChannel?: FulfillmentChannel },
 ): Promise<VendorOrderRow[]> {
   if (!getSupabasePublicEnv()) {
     return [];
   }
 
   const supabase = await createClient();
-  const { data: orderRows } = await supabase
+  let query = supabase
     .from("orders")
     .select("*")
     .or(`vendor_id.eq.${vendorId},seller_vendor_id.eq.${vendorId}`)
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(100);
 
-  const orders = (orderRows as Order[] | null) ?? [];
+  if (options?.fulfillmentChannel) {
+    query = query.eq("fulfillment_channel", options.fulfillmentChannel);
+  }
+
+  const { data: orderRows, error } = await query;
+
+  let orders = ((orderRows as Order[] | null) ?? []).map(normalizeOrder);
+
+  // Older DBs without fulfillment_channel: load all then classify in memory.
+  if (error && /fulfillment_channel/i.test(error.message)) {
+    const { data: legacy } = await supabase
+      .from("orders")
+      .select("*")
+      .or(`vendor_id.eq.${vendorId},seller_vendor_id.eq.${vendorId}`)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    orders = ((legacy as Order[] | null) ?? []).map(normalizeOrder);
+    if (options?.fulfillmentChannel) {
+      orders = await filterOrdersByChannelFallback(
+        orders,
+        options.fulfillmentChannel,
+      );
+    }
+  } else if (error) {
+    console.warn("listOrdersForVendor:", error.message);
+    return [];
+  }
+
   if (orders.length === 0) {
     return [];
   }
@@ -198,6 +244,15 @@ export async function listOrdersForVendor(
     const list = itemsByOrder.get(item.order_id) ?? [];
     list.push(item);
     itemsByOrder.set(item.order_id, list);
+  }
+
+  // Legacy fallback: classify using line items / CJ registry when channel missing.
+  if (options?.fulfillmentChannel && orders.some((o) => !o.fulfillment_channel)) {
+    orders = await classifyOrdersWithItems(
+      orders,
+      itemsByOrder,
+      options.fulfillmentChannel,
+    );
   }
 
   const vendorsById = new Map(
@@ -224,11 +279,115 @@ export async function listOrdersForVendor(
   });
 }
 
+/** Manual / local custom orders only. */
+export async function listManualOrdersForVendor(
+  vendorId: string,
+): Promise<VendorOrderRow[]> {
+  return listOrdersForVendor(vendorId, { fulfillmentChannel: "manual" });
+}
+
+/** CJ Dropshipping fulfillment orders only. */
+export async function listCjOrdersForVendor(
+  vendorId: string,
+): Promise<VendorOrderRow[]> {
+  return listOrdersForVendor(vendorId, { fulfillmentChannel: "cj" });
+}
+
+async function filterOrdersByChannelFallback(
+  orders: Order[],
+  channel: FulfillmentChannel,
+): Promise<Order[]> {
+  const supabase = await createClient();
+  const orderIds = orders.map((o) => o.id);
+  if (orderIds.length === 0) return [];
+
+  const [{ data: items }, { data: cjRows }, { data: jobs }] = await Promise.all([
+    supabase
+      .from("order_items")
+      .select("order_id, product_id, listing_product_id, supplier_provider_id")
+      .in("order_id", orderIds),
+    supabase
+      .from("cj_imported_products")
+      .select("product_id")
+      .limit(5000),
+    supabase
+      .from("supplier_fulfillment_jobs")
+      .select("order_id, provider_kind")
+      .in("order_id", orderIds),
+  ]);
+
+  const cjProductIds = new Set(
+    ((cjRows as { product_id: string }[] | null) ?? []).map((r) => r.product_id),
+  );
+  const cjOrderIds = new Set<string>();
+  for (const item of (items as Array<{
+    order_id: string;
+    product_id: string | null;
+    listing_product_id: string | null;
+  }> | null) ?? []) {
+    const pid = item.listing_product_id ?? item.product_id;
+    if (pid && cjProductIds.has(pid)) cjOrderIds.add(item.order_id);
+  }
+  for (const job of (jobs as Array<{
+    order_id: string;
+    provider_kind: string | null;
+  }> | null) ?? []) {
+    if (job.provider_kind === "cj_dropshipping") cjOrderIds.add(job.order_id);
+  }
+
+  return orders.filter((order) => {
+    const isCj =
+      order.fulfillment_channel === "cj" || cjOrderIds.has(order.id);
+    return channel === "cj" ? isCj : !isCj;
+  });
+}
+
+async function classifyOrdersWithItems(
+  orders: Order[],
+  itemsByOrder: Map<string, OrderItem[]>,
+  channel: FulfillmentChannel,
+): Promise<Order[]> {
+  const supabase = await createClient();
+  const productIds = [
+    ...new Set(
+      [...itemsByOrder.values()]
+        .flat()
+        .map((i) => i.listing_product_id ?? i.product_id)
+        .filter(Boolean) as string[],
+    ),
+  ];
+  const cjIds = new Set<string>();
+  if (productIds.length > 0) {
+    const { data } = await supabase
+      .from("products")
+      .select("id, catalog_kind")
+      .in("id", productIds);
+    for (const row of (data as Array<{
+      id: string;
+      catalog_kind: string | null;
+    }> | null) ?? []) {
+      if (row.catalog_kind === "cj_import") cjIds.add(row.id);
+    }
+  }
+
+  return orders.filter((order) => {
+    const items = itemsByOrder.get(order.id) ?? [];
+    const isCj =
+      order.fulfillment_channel === "cj" ||
+      items.some((item) => {
+        const pid = item.listing_product_id ?? item.product_id;
+        return Boolean(pid && cjIds.has(pid));
+      });
+    return channel === "cj" ? isCj : !isCj;
+  });
+}
+
 export async function listOrdersForAdmin(opts?: {
   payoutStatus?: Order["payout_status"];
   status?: Order["status"];
   escrowStatus?: AdminEscrowStatus;
   vendorId?: string;
+  fulfillmentChannel?: FulfillmentChannel;
   q?: string;
   limit?: number;
 }): Promise<AdminOrderRow[]> {
@@ -273,9 +432,12 @@ export async function listOrdersForAdmin(opts?: {
       `seller_vendor_id.eq.${opts.vendorId},vendor_id.eq.${opts.vendorId}`,
     );
   }
+  if (opts?.fulfillmentChannel) {
+    query = query.eq("fulfillment_channel", opts.fulfillmentChannel);
+  }
 
   const { data: orderRows } = await query;
-  let orders = (orderRows as Order[] | null) ?? [];
+  let orders = ((orderRows as Order[] | null) ?? []).map(normalizeOrder);
   if (orders.length === 0) {
     return [];
   }

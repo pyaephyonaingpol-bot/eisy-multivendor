@@ -107,6 +107,10 @@ export default async function AdminDashboardPage() {
           Fees
         </Link>
         {" · "}
+        <Link href="/admin/integrations" className="underline">
+          Supplier APIs
+        </Link>
+        {" · "}
         <Link href="/admin/categories" className="underline">
           Categories
         </Link>

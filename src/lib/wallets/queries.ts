@@ -54,7 +54,9 @@ export async function listWalletTransactionsForUser(
   }));
 }
 
-export async function listPendingWalletTransactions(): Promise<WalletTransaction[]> {
+export async function listPendingWalletTransactions(
+  limit = 100,
+): Promise<WalletTransaction[]> {
   if (!getSupabasePublicEnv()) {
     return [];
   }
@@ -65,7 +67,8 @@ export async function listPendingWalletTransactions(): Promise<WalletTransaction
     .select("*")
     .eq("status", "pending")
     .in("tx_type", ["deposit", "withdrawal"])
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .limit(Math.min(200, Math.max(1, limit)));
 
   return ((data as WalletTransaction[] | null) ?? []).map((row) => ({
     ...row,
@@ -121,7 +124,9 @@ async function attachProfileMeta(
   });
 }
 
-export async function listPendingWithdrawals(): Promise<AdminWalletTransaction[]> {
+export async function listPendingWithdrawals(
+  limit = 100,
+): Promise<AdminWalletTransaction[]> {
   if (!getSupabasePublicEnv()) {
     return [];
   }
@@ -132,12 +137,15 @@ export async function listPendingWithdrawals(): Promise<AdminWalletTransaction[]
     .select("*")
     .eq("status", "pending")
     .eq("tx_type", "withdrawal")
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .limit(Math.min(200, Math.max(1, limit)));
 
   return attachProfileMeta((data as WalletTransaction[] | null) ?? []);
 }
 
-export async function listPendingDeposits(): Promise<AdminWalletTransaction[]> {
+export async function listPendingDeposits(
+  limit = 100,
+): Promise<AdminWalletTransaction[]> {
   if (!getSupabasePublicEnv()) {
     return [];
   }
@@ -148,7 +156,8 @@ export async function listPendingDeposits(): Promise<AdminWalletTransaction[]> {
     .select("*")
     .eq("status", "pending")
     .eq("tx_type", "deposit")
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .limit(Math.min(200, Math.max(1, limit)));
 
   return attachProfileMeta((data as WalletTransaction[] | null) ?? []);
 }

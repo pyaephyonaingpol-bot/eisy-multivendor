@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/admin";
 import { collectLogoFile, uploadVendorLogo } from "@/lib/vendors/branding";
 import { collectKycDocumentFile, uploadVendorKycDocument } from "@/lib/vendors/kyc";
 import { getVendorForOwner } from "@/lib/vendors/queries";
@@ -13,6 +14,21 @@ export type VendorActionState = {
   success?: string;
 } | null;
 
+/** Update a vendor row owned by the authenticated user (canonical owner_id). */
+async function updateOwnedVendor(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  vendorId: string,
+  userId: string,
+  values: Record<string, unknown>,
+) {
+  return supabase
+    .from("vendors")
+    .update(values)
+    .eq("id", vendorId)
+    .eq("owner_id", userId);
+}
+
 function normalizeSlug(value: string) {
   return value
     .toLowerCase()
@@ -22,18 +38,187 @@ function normalizeSlug(value: string) {
     .slice(0, 60);
 }
 
+/** Ensure public.profiles row exists for the auth user (owner_id / id FK target). */
+async function ensureApplicantProfile(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  userClient: any,
+  user: { id: string; email?: string | null },
+): Promise<{ error: string | null }> {
+  const { error: rpcError } = await userClient.rpc("ensure_own_profile");
+  if (!rpcError) {
+    return { error: null };
+  }
+
+  // Fallback: upsert a minimal profile via service role when RPC is missing.
+  try {
+    const serviceClient = createServiceClient();
+    const email = user.email?.trim() || `${user.id}@users.local`;
+    const { error: upsertError } = await serviceClient.from("profiles").upsert(
+      {
+        id: user.id,
+        email,
+        role: "customer",
+      },
+      { onConflict: "id" },
+    );
+    if (upsertError) {
+      return {
+        error:
+          upsertError.message ||
+          "Could not create your profile. Try signing out and back in.",
+      };
+    }
+    return { error: null };
+  } catch {
+    return {
+      error:
+        rpcError.message ||
+        "Could not create your profile. Try signing out and back in.",
+    };
+  }
+}
+
+/** Insert a pending vendor row. id = owner_id = auth user (1:1 store). */
+async function insertVendorApplication(options: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  userClient: any;
+  userId: string;
+  name: string;
+  storeName: string;
+  slug: string;
+  description: string | null;
+  usdtPayoutAddress: string;
+}): Promise<{ error: string | null }> {
+  const {
+    userClient,
+    userId,
+    name,
+    storeName,
+    slug,
+    description,
+    usdtPayoutAddress,
+  } = options;
+
+  // Prefer service role so RLS / missing insert policies cannot block apply.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let serviceClient: any = null;
+  try {
+    serviceClient = createServiceClient();
+  } catch {
+    serviceClient = null;
+  }
+
+  const clients = [serviceClient, userClient].filter(Boolean);
+
+  // Live DBs often FK vendors.id → auth.users/profiles (constraint vendors_id_key).
+  // One store per owner: use the authenticated user id as vendors.id AND owner_id.
+  const row = {
+    id: userId,
+    owner_id: userId,
+    name,
+    store_name: storeName,
+    slug,
+    description,
+    status: "pending" as const,
+    usdt_payout_address: usdtPayoutAddress,
+    contact_email: "",
+    telegram_handle: "",
+  };
+
+  let lastMessage: string | null = null;
+
+  for (const client of clients) {
+    const { error } = await client.from("vendors").insert(row);
+    if (!error) {
+      return { error: null };
+    }
+    const message = String(error.message ?? "Failed to create vendor application.");
+    lastMessage = message;
+
+    // Already applied — treat as success for idempotent resubmits.
+    if (/already have a vendor|duplicate key|unique constraint|vendors_id_key/i.test(message)) {
+      const existing = await getVendorForOwner(userId);
+      if (existing) {
+        return { error: null };
+      }
+    }
+
+    // If an unexpected column is missing from schema cache, retry without
+    // the optional profile fields (keep required apply fields).
+    if (/could not find the '(contact_email|telegram_handle)' column/i.test(message)) {
+      const minimal = {
+        id: userId,
+        owner_id: userId,
+        name,
+        store_name: storeName,
+        slug,
+        description,
+        status: "pending" as const,
+        usdt_payout_address: usdtPayoutAddress,
+      };
+      const retry = await client.from("vendors").insert(minimal);
+      if (!retry.error) {
+        return { error: null };
+      }
+      lastMessage = String(
+        retry.error.message ?? "Failed to create vendor application.",
+      );
+    }
+  }
+
+  return { error: lastMessage ?? "Failed to create vendor application." };
+}
+
+async function promoteProfileToVendor(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  userClient: any,
+  userId: string,
+) {
+  // Best-effort: protect_profile_role may block non-RPC updates.
+  const { error: userErr } = await userClient
+    .from("profiles")
+    .update({ role: "vendor" })
+    .eq("id", userId)
+    .eq("role", "customer");
+
+  if (!userErr) {
+    return;
+  }
+
+  try {
+    const serviceClient = createServiceClient();
+    await serviceClient
+      .from("profiles")
+      .update({ role: "vendor" })
+      .eq("id", userId)
+      .eq("role", "customer");
+  } catch {
+    // Middleware also allows /vendor/* when a vendors row exists.
+  }
+}
+
 export async function applyForVendor(
   _prev: VendorActionState,
   formData: FormData,
 ): Promise<VendorActionState> {
   const name = String(formData.get("name") ?? "").trim();
+  // Form uses "name" as the store display name; accept store_name if present.
+  const storeName = String(
+    formData.get("store_name") ?? formData.get("name") ?? "",
+  ).trim();
   const slugInput = String(formData.get("slug") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
-  const slug = normalizeSlug(slugInput || name);
+  const usdtPayoutAddress = String(
+    formData.get("usdt_payout_address") ?? "",
+  ).trim();
+  const slug = normalizeSlug(slugInput || storeName || name);
 
-  if (!name) {
+  if (!name && !storeName) {
     return { error: "Store name is required." };
   }
+
+  const resolvedName = name || storeName;
+  const resolvedStoreName = storeName || name;
 
   if (!slug) {
     return { error: "Store URL slug is required." };
@@ -41,6 +226,16 @@ export async function applyForVendor(
 
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
     return { error: "Slug must use lowercase letters, numbers, and hyphens." };
+  }
+
+  if (
+    usdtPayoutAddress &&
+    !/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(usdtPayoutAddress)
+  ) {
+    return {
+      error:
+        "USDT payout address must be a valid TRC-20 address (starts with T).",
+    };
   }
 
   const supabase = await createClient();
@@ -52,15 +247,34 @@ export async function applyForVendor(
     return { error: "You must be signed in to apply." };
   }
 
-  const { error } = await supabase.rpc("apply_for_vendor", {
-    p_name: name,
-    p_slug: slug,
-    p_description: description || null,
+  const existing = await getVendorForOwner(user.id);
+  if (existing) {
+    redirect("/vendor/dashboard");
+  }
+
+  // owner_id / id must reference public.profiles (and auth.users via profiles).
+  const profileReady = await ensureApplicantProfile(supabase, user);
+  if (profileReady.error) {
+    return { error: profileReady.error };
+  }
+
+  // One store per owner: vendors.id = auth user id so live FKs like
+  // vendors_id_key (id → auth.users/profiles) are satisfied.
+  const inserted = await insertVendorApplication({
+    userClient: supabase,
+    userId: user.id,
+    name: resolvedName,
+    storeName: resolvedStoreName,
+    slug,
+    description: description || null,
+    usdtPayoutAddress,
   });
 
-  if (error) {
-    return { error: error.message };
+  if (inserted.error) {
+    return { error: inserted.error };
   }
+
+  await promoteProfileToVendor(supabase, user.id);
 
   revalidatePath("/vendor/dashboard");
   revalidatePath("/vendor/apply");
@@ -162,17 +376,13 @@ export async function updateVendorStoreBranding(
     }
   }
 
-  const { error } = await supabase
-    .from("vendors")
-    .update({
-      name,
-      slug,
-      description: description || null,
-      logo_url: logoUrl,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", vendor.id)
-    .eq("owner_id", user.id);
+  const { error } = await updateOwnedVendor(supabase, vendor.id, user.id, {
+    name,
+    slug,
+    description: description || null,
+    logo_url: logoUrl,
+    updated_at: new Date().toISOString(),
+  });
 
   if (error) {
     return { error: error.message };
@@ -198,6 +408,9 @@ export async function submitVendorKyc(
   const documentType = String(formData.get("document_type") ?? "").trim().toLowerCase();
   const legalName = String(formData.get("legal_name") ?? "").trim();
   const documentNumber = String(formData.get("document_number") ?? "").trim();
+  const usdtPayoutAddress = String(
+    formData.get("usdt_payout_address") ?? "",
+  ).trim();
 
   if (!["passport", "national_id", "trade_license"].includes(documentType)) {
     return { error: "Choose passport, national ID, or trade license." };
@@ -205,6 +418,16 @@ export async function submitVendorKyc(
 
   if (!legalName) {
     return { error: "Legal name is required." };
+  }
+
+  if (
+    usdtPayoutAddress &&
+    !/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(usdtPayoutAddress)
+  ) {
+    return {
+      error:
+        "USDT payout address must be a valid TRC-20 address (34 chars, starts with T).",
+    };
   }
 
   const supabase = await createClient();
@@ -234,6 +457,22 @@ export async function submitVendorKyc(
     return { error: "Upload a passport, ID card, or trade license document." };
   }
 
+  if (usdtPayoutAddress) {
+    const { error: payoutError } = await supabase.rpc(
+      "update_vendor_contact_profile",
+      {
+        p_vendor_id: vendor.id,
+        p_store_name: null,
+        p_contact_email: null,
+        p_telegram_handle: null,
+        p_usdt_payout_address: usdtPayoutAddress,
+      },
+    );
+    if (payoutError) {
+      return { error: payoutError.message };
+    }
+  }
+
   const uploaded = await uploadVendorKycDocument(vendor.id, file);
   if (uploaded.error || !uploaded.path) {
     return { error: uploaded.error ?? "Could not upload KYC document." };
@@ -252,6 +491,8 @@ export async function submitVendorKyc(
   }
 
   revalidatePath("/vendor/settings");
+  revalidatePath("/vendor/profile");
+  revalidatePath("/vendor/kyc");
   revalidatePath("/vendor/dashboard");
   revalidatePath("/vendor/products");
   revalidatePath("/vendor/wallet");
@@ -288,6 +529,8 @@ export async function reviewVendorKyc(
   revalidatePath("/admin/vendors");
   revalidatePath("/admin/dashboard");
   revalidatePath("/vendor/settings");
+  revalidatePath("/vendor/profile");
+  revalidatePath("/vendor/kyc");
   revalidatePath("/vendor/dashboard");
   revalidatePath("/vendor/products");
   revalidatePath("/vendor/wallet");
@@ -337,14 +580,10 @@ export async function updateVendorShippingRegions(
     shipsToRegionIds = regionIds.filter((id) => valid.has(id));
   }
 
-  const { error } = await supabase
-    .from("vendors")
-    .update({
-      ships_to_region_ids: shipsToRegionIds,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", vendor.id)
-    .eq("owner_id", user.id);
+  const { error } = await updateOwnedVendor(supabase, vendor.id, user.id, {
+    ships_to_region_ids: shipsToRegionIds,
+    updated_at: new Date().toISOString(),
+  });
 
   if (error) {
     return { error: error.message };
@@ -368,15 +607,46 @@ export async function updateVendorContactProfile(
   _prev: VendorActionState,
   formData: FormData,
 ): Promise<VendorActionState> {
+  return updateVendorProfile(_prev, formData);
+}
+
+export async function updateVendorProfile(
+  _prev: VendorActionState,
+  formData: FormData,
+): Promise<VendorActionState> {
   const storeName = String(formData.get("store_name") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
   const contactEmail = String(formData.get("contact_email") ?? "").trim();
+  const contactPhone = String(formData.get("contact_phone") ?? "").trim();
   const telegramHandle = String(formData.get("telegram_handle") ?? "").trim();
+  const businessLegalName = String(
+    formData.get("business_legal_name") ?? "",
+  ).trim();
+  const businessRegistrationNumber = String(
+    formData.get("business_registration_number") ?? "",
+  ).trim();
+  const businessAddress = String(
+    formData.get("business_address") ?? "",
+  ).trim();
+  const businessCountry = String(
+    formData.get("business_country") ?? "",
+  ).trim();
   const usdtPayoutAddress = String(
     formData.get("usdt_payout_address") ?? "",
   ).trim();
 
   if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
     return { error: "Enter a valid contact email." };
+  }
+
+  if (
+    usdtPayoutAddress &&
+    !/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(usdtPayoutAddress)
+  ) {
+    return {
+      error:
+        "USDT payout address must be a valid TRC-20 address (34 chars, starts with T).",
+    };
   }
 
   const supabase = await createClient();
@@ -390,24 +660,53 @@ export async function updateVendorContactProfile(
 
   const vendor = await getVendorForOwner(user.id);
   if (!vendor) {
-    return { error: "Create a store before editing contact details." };
+    return { error: "Create a store before editing your profile." };
   }
 
-  const { error } = await supabase.rpc("update_vendor_contact_profile", {
+  const { error } = await supabase.rpc("update_vendor_profile", {
     p_vendor_id: vendor.id,
     p_store_name: storeName || null,
-    p_contact_email: contactEmail || null,
+    p_description: description,
+    p_contact_email: contactEmail,
+    p_contact_phone: contactPhone,
     p_telegram_handle: telegramHandle,
+    p_business_legal_name: businessLegalName,
+    p_business_registration_number: businessRegistrationNumber,
+    p_business_address: businessAddress,
+    p_business_country: businessCountry,
     p_usdt_payout_address: usdtPayoutAddress,
   });
 
   if (error) {
-    return { error: error.message };
+    // Fallback when migration 047 is not applied yet.
+    if (
+      error.message.toLowerCase().includes("function") ||
+      error.message.toLowerCase().includes("could not find")
+    ) {
+      const { error: legacyError } = await supabase.rpc(
+        "update_vendor_contact_profile",
+        {
+          p_vendor_id: vendor.id,
+          p_store_name: storeName || null,
+          p_contact_email: contactEmail || null,
+          p_telegram_handle: telegramHandle,
+          p_usdt_payout_address: usdtPayoutAddress,
+        },
+      );
+      if (legacyError) return { error: legacyError.message };
+    } else {
+      return { error: error.message };
+    }
   }
 
+  revalidatePath("/vendor/profile");
+  revalidatePath("/vendor/profile/email");
+  revalidatePath("/vendor/profile/phone");
+  revalidatePath("/vendor/profile/address");
+  revalidatePath("/vendor/kyc");
   revalidatePath("/vendor/settings");
   revalidatePath("/admin/orders");
   revalidatePath("/admin/transactions");
 
-  return { success: "Contact and payout details saved." };
+  return { success: "Vendor profile saved." };
 }

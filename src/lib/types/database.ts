@@ -11,6 +11,10 @@ export type VendorKycDocumentType =
   | "trade_license";
 export type ProductStatus = "draft" | "active" | "archived";
 export type ProductType = "physical" | "digital";
+/** Vendor catalog workflow: manual listings vs CJ Dropshipping imports. */
+export type ProductCatalogKind = "manual" | "cj_import";
+/** Order / dispute workflow: local custom fulfillment vs CJ API. */
+export type FulfillmentChannel = "manual" | "cj";
 export type OrderStatus =
   | "pending"
   | "paid"
@@ -18,7 +22,9 @@ export type OrderStatus =
   | "shipped"
   | "delivered"
   | "cancelled"
-  | "refunded";
+  | "refunded"
+  | "out_of_stock"
+  | "fulfillment_failed";
 export type OrderPayoutStatus =
   | "held"
   | "released"
@@ -84,6 +90,22 @@ export type VendorSupplierCredential = {
   updated_at: string;
 };
 
+/** Platform-owned supplier API keys (admin-configured). */
+export type PlatformSupplierCredential = {
+  id: string;
+  provider_id: string;
+  api_key: string | null;
+  api_secret: string | null;
+  access_token: string | null;
+  refresh_token: string | null;
+  account_email: string | null;
+  metadata: Record<string, unknown>;
+  is_active: boolean;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ExternalProductImport = {
   id: string;
   vendor_id: string;
@@ -95,6 +117,22 @@ export type ExternalProductImport = {
   source_payload: Record<string, unknown>;
   last_synced_at: string | null;
   created_at: string;
+};
+
+/** Dedicated registry row for CJ Dropshipping imports (never used for manual products). */
+export type CjImportedProduct = {
+  id: string;
+  vendor_id: string;
+  product_id: string;
+  provider_id: string | null;
+  external_product_id: string;
+  external_variant_id: string | null;
+  external_sku: string | null;
+  supplier_cost_usdt: number;
+  source_payload: Record<string, unknown>;
+  last_synced_at: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type SupplierFulfillmentJob = {
@@ -216,7 +254,13 @@ export type Vendor = {
   /** Public store / brand name (falls back to `name`). */
   store_name?: string | null;
   contact_email?: string | null;
+  contact_phone?: string | null;
   telegram_handle?: string | null;
+  /** Registered business / company legal name. */
+  business_legal_name?: string | null;
+  business_registration_number?: string | null;
+  business_address?: string | null;
+  business_country?: string | null;
   /** USDT TRC-20 payout wallet for seller withdrawals. */
   usdt_payout_address?: string | null;
   /** Optional unique HD-derived TRC-20 deposit address for this vendor. */
@@ -262,9 +306,15 @@ export type Product = {
   product_type: ProductType;
   download_url: string | null;
   download_label: string | null;
-  /** Original supplier product when this row is a dropship listing. */
+  /** Original supplier product when this row is a marketplace dropship listing. */
   source_product_id: string | null;
   is_dropship: boolean;
+  /**
+   * Catalog workflow partition:
+   * - manual: vendor-created (or marketplace-copied) products
+   * - cj_import: imported from CJ Dropshipping (see cj_imported_products)
+   */
+  catalog_kind: ProductCatalogKind;
   /** ISO country code for the listing's primary warehouse / origin. */
   origin_country_code: string | null;
   /** Primary sourcing region for this listing. */
@@ -407,7 +457,7 @@ export type Order = {
   shipping_address: Record<string, unknown> | null;
   buyer_region_id: string | null;
   buyer_country_code: string | null;
-  /** 3% platform commission on dropship GMV (0 for direct sales). */
+  /** Universal platform commission on GMV (default 10% for manual + CJ). */
   platform_commission_usdt: number;
   tracking_number: string | null;
   tracking_carrier: string | null;
@@ -421,6 +471,12 @@ export type Order = {
   fulfillment_sync_status: FulfillmentSyncStatus;
   fulfillment_synced_at: string | null;
   fulfillment_sync_error: string | null;
+  /**
+   * Workflow partition:
+   * - manual: vendor ships / tracks locally
+   * - cj: CJ Dropshipping API fulfillment + tracking
+   */
+  fulfillment_channel: FulfillmentChannel;
   created_at: string;
   updated_at: string;
 };
@@ -464,6 +520,26 @@ export type Dispute = {
   resolution_note: string | null;
   resolved_by: string | null;
   resolved_at: string | null;
+  /** Mirrors order.fulfillment_channel for CJ vs manual complaint queues. */
+  fulfillment_channel: FulfillmentChannel;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CjOrderFulfillment = {
+  id: string;
+  order_id: string;
+  vendor_id: string | null;
+  seller_vendor_id: string | null;
+  provider_id: string | null;
+  supplier_order_ref: string | null;
+  tracking_number: string | null;
+  tracking_carrier: string | null;
+  tracking_url: string | null;
+  last_sync_status: string | null;
+  last_sync_error: string | null;
+  last_synced_at: string | null;
+  source_payload: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 };
@@ -804,6 +880,13 @@ export type Database = {
         Update: Partial<VendorSupplierCredential>;
         Relationships: [];
       };
+      platform_supplier_credentials: {
+        Row: PlatformSupplierCredential;
+        Insert: Partial<PlatformSupplierCredential> &
+          Pick<PlatformSupplierCredential, "provider_id">;
+        Update: Partial<PlatformSupplierCredential>;
+        Relationships: [];
+      };
       external_product_imports: {
         Row: ExternalProductImport;
         Insert: Partial<ExternalProductImport> &
@@ -812,6 +895,23 @@ export type Database = {
             "vendor_id" | "provider_id" | "external_product_id"
           >;
         Update: Partial<ExternalProductImport>;
+        Relationships: [];
+      };
+      cj_imported_products: {
+        Row: CjImportedProduct;
+        Insert: Partial<CjImportedProduct> &
+          Pick<
+            CjImportedProduct,
+            "vendor_id" | "product_id" | "external_product_id"
+          >;
+        Update: Partial<CjImportedProduct>;
+        Relationships: [];
+      };
+      cj_order_fulfillments: {
+        Row: CjOrderFulfillment;
+        Insert: Partial<CjOrderFulfillment> &
+          Pick<CjOrderFulfillment, "order_id">;
+        Update: Partial<CjOrderFulfillment>;
         Relationships: [];
       };
       supplier_fulfillment_jobs: {
@@ -867,6 +967,22 @@ export type Database = {
           p_store_name?: string | null;
           p_contact_email?: string | null;
           p_telegram_handle?: string | null;
+          p_usdt_payout_address?: string | null;
+        };
+        Returns: Vendor;
+      };
+      update_vendor_profile: {
+        Args: {
+          p_vendor_id: string;
+          p_store_name?: string | null;
+          p_description?: string | null;
+          p_contact_email?: string | null;
+          p_contact_phone?: string | null;
+          p_telegram_handle?: string | null;
+          p_business_legal_name?: string | null;
+          p_business_registration_number?: string | null;
+          p_business_address?: string | null;
+          p_business_country?: string | null;
           p_usdt_payout_address?: string | null;
         };
         Returns: Vendor;
@@ -929,6 +1045,18 @@ export type Database = {
           p_role: UserRole;
         };
         Returns: Profile;
+      };
+      ensure_own_profile: {
+        Args: Record<string, never>;
+        Returns: Profile;
+      };
+      ensure_bootstrap_admin_profile: {
+        Args: { p_email?: string };
+        Returns: Profile;
+      };
+      get_my_role: {
+        Args: Record<string, never>;
+        Returns: string | null;
       };
       release_order_escrow: {
         Args: {
@@ -1220,6 +1348,23 @@ export type Database = {
           p_error?: string | null;
         };
         Returns: SupplierFulfillmentJob;
+      };
+      mark_order_supplier_stock_issue: {
+        Args: {
+          p_order_id: string;
+          p_job_id?: string | null;
+          p_issue?: string | null;
+          p_error?: string | null;
+          p_payload?: Record<string, unknown> | null;
+        };
+        Returns: Order;
+      };
+      refund_order_supplier_unavailable: {
+        Args: {
+          p_order_id: string;
+          p_note?: string | null;
+        };
+        Returns: Order;
       };
       request_wallet_deposit: {
         Args: {

@@ -39,15 +39,15 @@ export function ImportLimitSettingsForm({
           Import limits &amp; tiers
         </h2>
         <p className="text-sm text-zinc-600">
-          Cap how many CJ/DSers and marketplace dropship products each account
-          can keep (active + draft). The minimum active items matches the 1 USDT
-          inventory fee floor.
+          Cap how many CJ Dropshipping imports each account can keep (active +
+          draft). Manual / custom-sourced products are unlimited and never count
+          toward this cap or the CJ inventory fee floor.
         </p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm text-zinc-700">
-          Min active items (fee floor)
+          Min active CJ items (fee floor)
           <input
             name="min_billable_items"
             type="number"
@@ -58,7 +58,7 @@ export function ImportLimitSettingsForm({
           />
         </label>
         <label className="text-sm text-zinc-700">
-          System default max imports
+          System default max CJ imports
           <input
             name="default_max_import_items"
             type="number"

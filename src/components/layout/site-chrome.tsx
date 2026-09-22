@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
+import { AdminDashboardLink } from "@/components/layout/admin-dashboard-link";
 import { getSessionProfile } from "@/lib/auth/session";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { getRequestLocale } from "@/lib/i18n/locale";
@@ -17,6 +18,7 @@ export async function Header() {
     { href: "/cart", label: t.nav.cart },
     { href: "/orders", label: t.nav.orders },
     { href: "/account/wallet", label: t.nav.wallet },
+    { href: "/profile", label: t.nav.profile },
   ];
 
   return (
@@ -39,6 +41,9 @@ export async function Header() {
               {item.label}
             </Link>
           ))}
+          <AdminDashboardLink className="hover:text-zinc-950">
+            {t.nav.adminDashboard}
+          </AdminDashboardLink>
           <LanguageSwitcher compact />
           {session ? (
             <div className="flex items-center gap-3">
@@ -80,6 +85,9 @@ export async function Header() {
             {item.label}
           </Link>
         ))}
+        <AdminDashboardLink className="whitespace-nowrap rounded-full bg-zinc-50 px-3 py-1 hover:bg-zinc-100 hover:text-zinc-950">
+          {t.nav.adminDashboard}
+        </AdminDashboardLink>
       </nav>
     </header>
   );
@@ -95,12 +103,9 @@ export async function Footer() {
           © 2026 {t.brand.full} · USDT
         </p>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <Link
-            href="/admin/dashboard"
-            className="text-xs text-zinc-400 transition hover:text-zinc-600"
-          >
+          <AdminDashboardLink className="text-xs text-zinc-400 transition hover:text-zinc-600">
             {t.nav.adminDashboard}
-          </Link>
+          </AdminDashboardLink>
           <Link
             href="/vendor/dashboard"
             className="text-xs text-zinc-400 transition hover:text-zinc-600"

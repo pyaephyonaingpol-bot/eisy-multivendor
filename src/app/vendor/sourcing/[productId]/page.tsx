@@ -42,6 +42,11 @@ export default async function VendorSourcingDetailPage({
     notFound();
   }
 
+  // Regional routes & logistics are CJ Dropshipping only.
+  if (product.catalog_kind !== "cj_import" && !product.is_dropship) {
+    redirect("/vendor/products");
+  }
+
   const [routes, regions, providers] = await Promise.all([
     listProductSupplierRoutes(
       product.is_dropship && product.source_product_id
@@ -55,13 +60,13 @@ export default async function VendorSourcingDetailPage({
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <p className="text-sm font-medium uppercase tracking-wide text-zinc-500">
-          Sourcing
+        <p className="text-sm font-medium uppercase tracking-wide text-sky-800">
+          CJ Dropshipping · Logistics
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">{product.name}</h1>
         <p className="max-w-2xl text-zinc-600">
-          Route this catalog SKU to nearby CJ Dropshipping, DSers, Print-on-Demand, or
-          internal warehouses by buyer region. Checkout still settles in USDT only.
+          Route this CJ import by buyer region and set shipping estimates.
+          Independent Vendor / custom-source products do not use this tool.
         </p>
       </div>
 

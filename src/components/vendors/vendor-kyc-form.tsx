@@ -131,6 +131,28 @@ function VendorKycFormFields({ vendor }: VendorKycFormProps) {
           </div>
 
           <div className="space-y-2">
+            <label
+              htmlFor="usdt_payout_address"
+              className="text-sm font-medium text-zinc-700"
+            >
+              USDT TRC-20 payout address
+            </label>
+            <input
+              id="usdt_payout_address"
+              name="usdt_payout_address"
+              defaultValue={
+                vendor.usdt_payout_address || vendor.usdt_deposit_address || ""
+              }
+              className="w-full rounded-lg border border-zinc-200 px-3 py-2 font-mono text-xs"
+              placeholder="T…"
+            />
+            <p className="text-xs text-zinc-500">
+              Required for withdrawals after KYC approval. You can also manage
+              this on your vendor profile.
+            </p>
+          </div>
+
+          <div className="space-y-2">
             <label htmlFor="document" className="text-sm font-medium text-zinc-700">
               Document file
             </label>

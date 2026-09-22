@@ -1,11 +1,18 @@
+import { unstable_cache } from "next/cache";
+import { createAnonClient } from "@/lib/supabase/anon";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabasePublicEnv } from "@/lib/supabase/env";
 import { normalizeProductSpecifications } from "@/lib/products/specifications";
 import { getBuyerSourcingContext } from "@/lib/sourcing/queries";
-import type { Product, Vendor } from "@/lib/types/database";
+import type { Product, ProductCatalogKind, Vendor } from "@/lib/types/database";
 import { DEFAULT_BUYER_COUNTRY } from "@/lib/sourcing/constants";
 
 function normalizeProduct(row: Product): Product {
+  const catalogKind =
+    (row as Product & { catalog_kind?: ProductCatalogKind | null }).catalog_kind ===
+    "cj_import"
+      ? "cj_import"
+      : "manual";
   return {
     ...row,
     images: Array.isArray(row.images) ? row.images : [],
@@ -14,7 +21,8 @@ function normalizeProduct(row: Product): Product {
     ),
     product_type: row.product_type ?? "physical",
     source_product_id: row.source_product_id ?? null,
-    is_dropship: Boolean(row.is_dropship),
+    is_dropship: Boolean(row.is_dropship) || catalogKind === "cj_import",
+    catalog_kind: catalogKind,
     origin_country_code:
       (row as Product & { origin_country_code?: string | null }).origin_country_code ??
       null,
@@ -40,12 +48,13 @@ export type PublicProductSummary = PublicProductDetail;
 async function filterDeliverableProducts(
   products: Product[],
   countryCode: string,
+  supabaseClient?: Awaited<ReturnType<typeof createClient>>,
 ): Promise<Product[]> {
   if (products.length === 0) {
     return [];
   }
 
-  const supabase = await createClient();
+  const supabase = supabaseClient ?? (await createClient());
   const { data, error } = await supabase.rpc("filter_deliverable_product_ids", {
     p_product_ids: products.map((product) => product.id),
     p_country_code: countryCode || DEFAULT_BUYER_COUNTRY,
@@ -63,12 +72,13 @@ async function filterDeliverableProducts(
 
 async function withPublicVendorMeta(
   products: Product[],
+  supabaseClient?: Awaited<ReturnType<typeof createClient>>,
 ): Promise<PublicProductSummary[]> {
   if (products.length === 0) {
     return [];
   }
 
-  const supabase = await createClient();
+  const supabase = supabaseClient ?? (await createClient());
   const vendorIds = [...new Set(products.map((product) => product.vendor_id))];
   const sourceIds = [
     ...new Set(
@@ -175,36 +185,120 @@ export async function listPublicProductsForCountry(
     return [];
   }
 
-  const supabase = await createClient();
-  // Over-fetch so region filtering still fills the requested page size.
-  const fetchLimit = Math.min(Math.max(limit * 4, limit), 200);
-  const { data: productRows } = await supabase
-    .from("products")
-    .select("*")
-    .eq("status", "active")
-    .order("created_at", { ascending: false })
-    .limit(fetchLimit);
+  const safeLimit = Math.min(Math.max(limit, 1), 48);
+  const safeCountry = (countryCode || DEFAULT_BUYER_COUNTRY).toUpperCase();
 
-  const products = await filterDeliverableProducts(
-    ((productRows as Product[] | null) ?? []).map(normalizeProduct),
-    countryCode || DEFAULT_BUYER_COUNTRY,
+  const cached = unstable_cache(
+    async () => {
+      const supabase = createAnonClient();
+      // Over-fetch so region filtering still fills the requested page size.
+      const fetchLimit = Math.min(Math.max(safeLimit * 4, safeLimit), 200);
+      const { data: productRows } = await supabase
+        .from("products")
+        .select("*")
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(fetchLimit);
+
+      const products = await filterDeliverableProducts(
+        ((productRows as Product[] | null) ?? []).map(normalizeProduct),
+        safeCountry,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        supabase as any,
+      );
+      return withPublicVendorMeta(
+        products.slice(0, safeLimit),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        supabase as any,
+      );
+    },
+    [`public-products-${safeCountry}-${safeLimit}`],
+    { revalidate: 60, tags: ["public-products"] },
   );
-  return withPublicVendorMeta(products.slice(0, limit));
+
+  return cached();
 }
 
-export async function listProductsForVendor(vendorId: string): Promise<Product[]> {
+export async function listProductsForVendor(
+  vendorId: string,
+  options?: {
+    page?: number;
+    pageSize?: number;
+    /** When set, only return that catalog workflow partition. */
+    catalogKind?: ProductCatalogKind;
+  },
+): Promise<Product[]> {
   if (!getSupabasePublicEnv()) {
     return [];
   }
 
+  const { normalizePageParams } = await import("@/lib/db/pagination");
+  const { from, to } = normalizePageParams(options, {
+    pageSize: 100,
+    maxPageSize: 200,
+  });
+
   const supabase = await createClient();
-  const { data } = await supabase
+  let query = supabase
     .from("products")
     .select("*")
     .eq("vendor_id", vendorId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
+
+  if (options?.catalogKind) {
+    query = query.eq("catalog_kind", options.catalogKind);
+  }
+
+  const { data, error } = await query;
+
+  // Older DBs without catalog_kind: fall back and filter in memory.
+  if (error && /catalog_kind/i.test(error.message)) {
+    const { data: legacy } = await supabase
+      .from("products")
+      .select("*")
+      .eq("vendor_id", vendorId)
+      .order("created_at", { ascending: false })
+      .range(from, to);
+    const rows = ((legacy as Product[] | null) ?? []).map(normalizeProduct);
+    if (!options?.catalogKind) return rows;
+    if (options.catalogKind === "cj_import") {
+      return rows.filter(
+        (product) =>
+          product.catalog_kind === "cj_import" ||
+          (product.is_dropship && !product.source_product_id),
+      );
+    }
+    return rows.filter(
+      (product) =>
+        product.catalog_kind !== "cj_import" &&
+        !(product.is_dropship && !product.source_product_id),
+    );
+  }
 
   return ((data as Product[] | null) ?? []).map(normalizeProduct);
+}
+
+/** Manual vendor catalog only (excludes CJ Dropshipping imports). */
+export async function listManualProductsForVendor(
+  vendorId: string,
+  options?: { page?: number; pageSize?: number },
+): Promise<Product[]> {
+  return listProductsForVendor(vendorId, {
+    ...options,
+    catalogKind: "manual",
+  });
+}
+
+/** CJ Dropshipping imports only. */
+export async function listCjImportedProductsForVendor(
+  vendorId: string,
+  options?: { page?: number; pageSize?: number },
+): Promise<Product[]> {
+  return listProductsForVendor(vendorId, {
+    ...options,
+    catalogKind: "cj_import",
+  });
 }
 
 export async function getVendorProductById(

@@ -106,15 +106,15 @@ export function HomePromoBanner({
       <div className="relative z-10 mx-auto flex min-h-[min(70vh,36rem)] w-full max-w-6xl flex-col justify-end px-4 pb-16 pt-16 sm:min-h-[min(68vh,34rem)] sm:justify-center sm:px-8 sm:pb-20 sm:pt-20">
         <div
           key={`copy-${slide.id}-${animKey}`}
-          className="market-fade-up max-w-2xl space-y-5 sm:space-y-6"
+          className="market-fade-up max-w-full space-y-5 sm:max-w-2xl sm:space-y-6"
         >
-          <p className="font-display text-4xl font-medium tracking-tight text-white sm:text-5xl lg:text-6xl">
+          <p className="break-words font-display text-4xl font-medium tracking-tight text-white sm:text-5xl lg:text-6xl">
             {brandName}
           </p>
-          <h1 className="max-w-xl text-xl font-medium leading-snug tracking-tight text-white/95 sm:text-2xl lg:text-3xl">
+          <h1 className="max-w-full break-words text-xl font-medium leading-snug tracking-tight text-white/95 sm:max-w-xl sm:text-2xl lg:text-3xl">
             {slide.title}
           </h1>
-          <p className="max-w-lg text-sm leading-relaxed text-white/75 sm:text-base">
+          <p className="max-w-full break-words text-sm leading-relaxed text-white/75 sm:max-w-lg sm:text-base">
             {slide.description}
           </p>
           <div className="flex flex-wrap gap-3 pt-1">

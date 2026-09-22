@@ -28,9 +28,9 @@ export function FeaturedProductRail({ products }: FeaturedProductRailProps) {
             >
               <Link
                 href={`/products/${product.id}`}
-                className="flex h-full flex-col overflow-hidden rounded-xl border border-[var(--market-line)] bg-[var(--market-surface)]"
+                className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-[var(--market-line)] bg-[var(--market-surface)]"
               >
-                <div className="aspect-[4/5] bg-[#ebe6dc]">
+                <div className="aspect-[4/5] w-full overflow-hidden bg-[#ebe6dc]">
                   {image ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -44,14 +44,14 @@ export function FeaturedProductRail({ products }: FeaturedProductRailProps) {
                     </div>
                   )}
                 </div>
-                <div className="space-y-1 p-3">
-                  <p className="line-clamp-2 text-sm font-semibold text-[var(--market-ink)]">
+                <div className="min-w-0 space-y-1 p-3">
+                  <p className="line-clamp-2 break-words text-sm font-semibold text-[var(--market-ink)]">
                     {product.name}
                   </p>
                   {product.vendor?.status === "approved" && product.vendor ? (
                     <SoldByBadge vendor={product.vendor} as="text" />
                   ) : null}
-                  <p className="text-sm font-semibold text-[var(--market-ink)]">
+                  <p className="break-words text-sm font-semibold text-[var(--market-ink)]">
                     {formatMoney(Number(product.price), MARKETPLACE_CURRENCY)}
                   </p>
                 </div>

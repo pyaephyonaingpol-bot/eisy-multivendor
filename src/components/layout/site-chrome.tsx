@@ -23,11 +23,11 @@ export async function Header() {
   ];
 
   return (
-    <header className="border-b border-zinc-200 bg-white">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:h-16">
+    <header className="w-full max-w-[100vw] overflow-x-hidden border-b border-zinc-200 bg-white">
+      <div className="mx-auto flex h-14 w-full min-w-0 max-w-6xl items-center justify-between gap-3 px-4 sm:h-16">
         <Link
           href="/"
-          className="truncate text-base font-semibold tracking-tight sm:text-lg"
+          className="min-w-0 truncate text-base font-semibold tracking-tight sm:text-lg"
         >
           <span className="sm:hidden">{t.brand.short}</span>
           <span className="hidden sm:inline">{t.brand.full}</span>

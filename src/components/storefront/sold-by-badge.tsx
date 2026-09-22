@@ -39,14 +39,14 @@ export function SoldByBadge({
           {vendor.name.slice(0, 1).toUpperCase()}
         </span>
       )}
-      <span className={`${textSize} text-zinc-600`}>
+      <span className={`${textSize} min-w-0 break-words text-zinc-600`}>
         Sold by{" "}
-        <span className="font-medium text-zinc-900">{vendor.name}</span>
+        <span className="break-words font-medium text-zinc-900">{vendor.name}</span>
       </span>
     </>
   );
 
-  const classes = `inline-flex max-w-full items-center gap-1.5 ${className}`.trim();
+  const classes = `inline-flex max-w-full min-w-0 items-center gap-1.5 ${className}`.trim();
 
   if (as === "text") {
     return <span className={classes}>{content}</span>;

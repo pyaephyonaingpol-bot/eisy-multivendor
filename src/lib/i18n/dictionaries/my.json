@@ -93,7 +93,10 @@
       "cj": "CJ Dropshipping",
       "spocket": "Spocket",
       "pod": "POD"
-    }
+    },
+    "loadMore": "ထပ်မံ ကြည့်ရန်",
+    "loadingMore": "ထပ်မံ ဖွင့်နေသည်…",
+    "showingCount": "ပစ္စည်း {count} ခု ပြသနေသည်"
   },
   "escrow": {
     "title": "အပ်ငွေ",

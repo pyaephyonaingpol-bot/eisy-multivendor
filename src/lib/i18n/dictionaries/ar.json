@@ -93,7 +93,10 @@
       "cj": "CJ Dropshipping",
       "spocket": "Spocket",
       "pod": "POD"
-    }
+    },
+    "loadMore": "تحميل المزيد من المنتجات",
+    "loadingMore": "جارٍ التحميل…",
+    "showingCount": "عرض {count} منتجًا"
   },
   "escrow": {
     "title": "الضمان",

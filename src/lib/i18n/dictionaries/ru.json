@@ -93,7 +93,10 @@
       "cj": "CJ Dropshipping",
       "spocket": "Spocket",
       "pod": "POD"
-    }
+    },
+    "loadMore": "Загрузить ещё товары",
+    "loadingMore": "Загрузка…",
+    "showingCount": "Показано товаров: {count}"
   },
   "escrow": {
     "title": "Эскроу",

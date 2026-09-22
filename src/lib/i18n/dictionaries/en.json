@@ -93,7 +93,10 @@
       "cj": "CJ Dropshipping",
       "spocket": "Spocket",
       "pod": "POD"
-    }
+    },
+    "loadMore": "Load more products",
+    "loadingMore": "Loading more…",
+    "showingCount": "Showing {count} products"
   },
   "escrow": {
     "title": "Escrow",

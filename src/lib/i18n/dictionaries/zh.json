@@ -93,7 +93,10 @@
       "cj": "CJ Dropshipping",
       "spocket": "Spocket",
       "pod": "POD"
-    }
+    },
+    "loadMore": "加载更多商品",
+    "loadingMore": "正在加载更多…",
+    "showingCount": "显示 {count} 件商品"
   },
   "escrow": {
     "title": "托管",

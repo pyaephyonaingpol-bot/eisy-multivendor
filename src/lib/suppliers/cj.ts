@@ -49,16 +49,25 @@ function credentialsHaveKey(credentials?: SupplierCredentials | null): boolean {
   );
 }
 
-function mockCatalog(query: string): ExternalCatalogProduct[] {
+/** Mock page size — live CJ listV2 hard-caps `size` at 100. */
+const CJ_MOCK_PAGE_SIZE = 24;
+/** Mock pages available so Load more can be exercised without live keys. */
+const CJ_MOCK_TOTAL_PAGES = 5;
+
+function mockCatalog(query: string, page = 1): ExternalCatalogProduct[] {
   const q = query.trim() || "gadget";
-  return [1, 2, 3].map((n) => {
+  const safePage = Math.max(1, Math.floor(page) || 1);
+  const startN = (safePage - 1) * CJ_MOCK_PAGE_SIZE + 1;
+  return Array.from({ length: CJ_MOCK_PAGE_SIZE }, (_, index) => {
+    const n = startN + index;
     const seed = `cj-${q.slice(0, 8)}-${n}`.replace(/\s+/g, "-");
     const images = [
       `https://picsum.photos/seed/${seed}-a/800/800`,
       `https://picsum.photos/seed/${seed}-b/800/800`,
       `https://picsum.photos/seed/${seed}-c/800/800`,
     ];
-    const base = Number((4.5 + n * 1.25).toFixed(2));
+    const base = Number((4.5 + (n % 12) * 1.25).toFixed(2));
+    const stockFactor = (n % 8) + 1;
     return {
       providerKind: "cj_dropshipping" as const,
       externalProductId: `CJ-MOCK-${q.slice(0, 12).toUpperCase()}-${n}`,
@@ -79,8 +88,8 @@ function mockCatalog(query: string): ExternalCatalogProduct[] {
       imageUrl: images[0],
       images,
       priceUsdt: base,
-      compareAtPriceUsdt: Number((7 + n * 1.5).toFixed(2)),
-      stockQuantity: 50 * n,
+      compareAtPriceUsdt: Number((7 + (n % 12) * 1.5).toFixed(2)),
+      stockQuantity: 50 * stockFactor,
       warehouseCountry: "CN",
       shippingDaysMin: 5,
       shippingDaysMax: 15,
@@ -90,7 +99,7 @@ function mockCatalog(query: string): ExternalCatalogProduct[] {
           externalSku: `CJ-SKU-MOCK-${n}-BLK-S`,
           label: "Black / S",
           priceUsdt: base,
-          stockQuantity: 30 * n,
+          stockQuantity: 30 * stockFactor,
           imageUrl: images[0],
         },
         {
@@ -98,7 +107,7 @@ function mockCatalog(query: string): ExternalCatalogProduct[] {
           externalSku: `CJ-SKU-MOCK-${n}-BLK-M`,
           label: "Black / M",
           priceUsdt: base,
-          stockQuantity: 28 * n,
+          stockQuantity: 28 * stockFactor,
           imageUrl: images[0],
         },
         {
@@ -106,7 +115,7 @@ function mockCatalog(query: string): ExternalCatalogProduct[] {
           externalSku: `CJ-SKU-MOCK-${n}-BLK-L`,
           label: "Black / L",
           priceUsdt: Number((base + 0.2).toFixed(2)),
-          stockQuantity: 22 * n,
+          stockQuantity: 22 * stockFactor,
           imageUrl: images[0],
         },
         {
@@ -114,7 +123,7 @@ function mockCatalog(query: string): ExternalCatalogProduct[] {
           externalSku: `CJ-SKU-MOCK-${n}-WHT-S`,
           label: "White / S",
           priceUsdt: Number((base + 0.4).toFixed(2)),
-          stockQuantity: 20 * n,
+          stockQuantity: 20 * stockFactor,
           imageUrl: images[1],
         },
         {
@@ -122,7 +131,7 @@ function mockCatalog(query: string): ExternalCatalogProduct[] {
           externalSku: `CJ-SKU-MOCK-${n}-WHT-M`,
           label: "White / M",
           priceUsdt: Number((base + 0.4).toFixed(2)),
-          stockQuantity: 18 * n,
+          stockQuantity: 18 * stockFactor,
           imageUrl: images[1],
         },
         {
@@ -130,13 +139,17 @@ function mockCatalog(query: string): ExternalCatalogProduct[] {
           externalSku: `CJ-SKU-MOCK-${n}-BLU-L`,
           label: "Blue / L",
           priceUsdt: Number((base + 0.6).toFixed(2)),
-          stockQuantity: 15 * n,
+          stockQuantity: 15 * stockFactor,
           imageUrl: images[2],
         },
       ],
-      raw: { mock: true, query: q, n },
+      raw: { mock: true, query: q, n, page: safePage },
     };
   });
+}
+
+function mockCatalogHasMore(page: number): boolean {
+  return Math.max(1, Math.floor(page) || 1) < CJ_MOCK_TOTAL_PAGES;
 }
 
 function isCjSuccessCode(code: unknown): boolean {
@@ -1022,13 +1035,21 @@ function maybeMockFallback<T>(
 }
 
 /** Max page size allowed by CJ listV2 (`size` ≤ 100). */
-const CJ_LIST_V2_PAGE_SIZE = 100;
-/** Classic list allows up to 200; keep 100 for balanced latency. */
+export const CJ_LIST_V2_PAGE_SIZE = 100;
+/** Classic list allows up to 200; keep aligned with listV2 for UI paging. */
 const CJ_LIST_V1_PAGE_SIZE = 100;
-/** Soft target for a rich first-page catalog response. */
-const CJ_SEARCH_TARGET_RESULTS = 100;
-/** Extra listV2 pages to pull for the requested page window. */
-const CJ_SEARCH_MAX_EXTRA_PAGES = 2;
+/**
+ * Products to collect per UI catalog page.
+ * CJ listV2 hard-caps at 100, so one UI page == one CJ API page.
+ * Raising this above 100 would require fetching multiple CJ pages per request
+ * and remapping `page` → startPage carefully for Load more.
+ */
+export const CJ_CATALOG_PAGE_SIZE = CJ_LIST_V2_PAGE_SIZE;
+/**
+ * Soft fill target when the primary keyword is sparse (synonym / classic list).
+ * Must stay ≤ CJ_CATALOG_PAGE_SIZE so Load more page mapping stays 1:1.
+ */
+const CJ_SEARCH_TARGET_RESULTS = CJ_CATALOG_PAGE_SIZE;
 
 const CJ_KEYWORD_SYNONYMS: Record<string, string[]> = {
   earbud: ["earbuds", "earphone", "earphones", "headset", "headphones"],
@@ -1165,62 +1186,58 @@ async function fetchCjListV1Page(
   return extractCjProductRows(json);
 }
 
+export type CjCatalogSearchPage = {
+  products: ExternalCatalogProduct[];
+  hasMore: boolean;
+  page: number;
+  pageSize: number;
+};
+
 /**
- * Pull one or more listV2 pages for a keyword until the target is met or
- * pages are exhausted.
+ * Paginated CJ catalog search. Each `page` maps 1:1 to a CJ listV2 `page`
+ * (max 100 products). Pass page=2,3,… from the UI Load more control.
  */
-async function collectCjRowsForKeyword(
-  credentials: SupplierCredentials | null | undefined,
-  keyWord: string,
-  startPage: number,
-  target: number,
-): Promise<Record<string, unknown>[]> {
-  const collected: Record<string, unknown>[] = [];
-  let page = Math.max(1, startPage);
-  let pagesFetched = 0;
-  let totalPages: number | null = null;
-
-  while (collected.length < target && pagesFetched <= CJ_SEARCH_MAX_EXTRA_PAGES) {
-    if (totalPages != null && page > totalPages) break;
-    const result = await fetchCjListV2Page(credentials, keyWord, page);
-    totalPages = result.totalPages ?? totalPages;
-    if (result.rows.length === 0) break;
-    collected.push(...result.rows);
-    pagesFetched += 1;
-    page += 1;
-    if (result.rows.length < CJ_LIST_V2_PAGE_SIZE) break;
-  }
-
-  return collected;
-}
-
-export async function searchCjProducts(
+export async function searchCjProductsPage(
   query: string,
   credentials?: SupplierCredentials | null,
   page = 1,
-): Promise<ExternalCatalogProduct[]> {
+): Promise<CjCatalogSearchPage> {
+  const startPage = Math.max(1, Math.floor(page) || 1);
+  const pageSize = CJ_CATALOG_PAGE_SIZE;
+
   if (!useLiveSupplierApi("cj_dropshipping", credentials)) {
-    return mockCatalog(query);
+    return {
+      products: mockCatalog(query, startPage),
+      hasMore: mockCatalogHasMore(startPage),
+      page: startPage,
+      pageSize: CJ_MOCK_PAGE_SIZE,
+    };
   }
 
   try {
     const keywords = expandCjSearchKeywords(query);
-    const startPage = Math.max(1, page);
     const allRows: Record<string, unknown>[] = [];
+    let primaryPageWasFull = false;
+    let totalPages: number | null = null;
 
-    // Primary keyword: multi-page listV2 for a dense first screen.
+    // Primary keyword: exactly the requested CJ listV2 page (1:1 with UI page).
     const primary = keywords[0] ?? "";
-    allRows.push(
-      ...(await collectCjRowsForKeyword(
-        credentials,
-        primary,
-        startPage,
-        CJ_SEARCH_TARGET_RESULTS,
-      )),
+    const primaryResult = await fetchCjListV2Page(
+      credentials,
+      primary,
+      startPage,
+      CJ_LIST_V2_PAGE_SIZE,
     );
+    allRows.push(...primaryResult.rows);
+    totalPages = primaryResult.totalPages;
+    primaryPageWasFull = primaryResult.rows.length >= CJ_LIST_V2_PAGE_SIZE;
 
-    // Secondary keywords fill gaps when the exact term is sparse.
-    if (dedupeCjRows(allRows).length < CJ_SEARCH_TARGET_RESULTS) {
+    // Secondary keywords fill gaps when the exact term is sparse (page 1 only
+    // so Load more stays aligned with primary listV2 pagination).
+    if (
+      startPage === 1 &&
+      dedupeCjRows(allRows).length < CJ_SEARCH_TARGET_RESULTS
+    ) {
       const extras = keywords.slice(1);
       await Promise.all(
         extras.map(async (keyword) => {
@@ -1240,8 +1257,11 @@ export async function searchCjProducts(
       );
     }
 
-    // Classic list (productNameEn) as an additional fuzzy channel.
-    if (dedupeCjRows(allRows).length < CJ_SEARCH_TARGET_RESULTS) {
+    // Classic list (productNameEn) as an additional fuzzy channel (page 1).
+    if (
+      startPage === 1 &&
+      dedupeCjRows(allRows).length < CJ_SEARCH_TARGET_RESULTS
+    ) {
       try {
         const classic = await fetchCjListV1Page(
           credentials,
@@ -1270,12 +1290,41 @@ export async function searchCjProducts(
       }
     }
 
-    return dedupeCjRows(allRows)
+    const products = dedupeCjRows(allRows)
       .map((row) => mapCjProduct(row))
-      .filter((p) => Boolean(p.externalProductId));
+      .filter((p) => Boolean(p.externalProductId))
+      .slice(0, pageSize);
+
+    const hasMore =
+      primaryPageWasFull ||
+      (totalPages != null && startPage < totalPages) ||
+      products.length >= pageSize;
+
+    return { products, hasMore, page: startPage, pageSize };
   } catch (error) {
-    return maybeMockFallback(credentials, error, () => mockCatalog(query));
+    const products = maybeMockFallback(credentials, error, () =>
+      mockCatalog(query, startPage),
+    );
+    const usedMock = products.some(
+      (product) =>
+        (product.raw as { mock?: boolean } | undefined)?.mock === true,
+    );
+    return {
+      products,
+      hasMore: usedMock ? mockCatalogHasMore(startPage) : false,
+      page: startPage,
+      pageSize: usedMock ? CJ_MOCK_PAGE_SIZE : pageSize,
+    };
   }
+}
+
+export async function searchCjProducts(
+  query: string,
+  credentials?: SupplierCredentials | null,
+  page = 1,
+): Promise<ExternalCatalogProduct[]> {
+  const result = await searchCjProductsPage(query, credentials, page);
+  return result.products;
 }
 
 export async function getCjProduct(
@@ -1290,7 +1339,8 @@ export async function getCjProduct(
         .replace(/^CJ-MOCK-/i, "")
         .replace(/-\d+$/, "")
         .trim() || "detail";
-    const catalog = mockCatalog(queryHint);
+    const mockPage = Math.max(1, Math.ceil(n / CJ_MOCK_PAGE_SIZE));
+    const catalog = mockCatalog(queryHint, mockPage);
     const hit =
       catalog.find((p) => p.externalProductId === externalProductId) ??
       catalog.find((p) => p.externalProductId.endsWith(`-${n}`)) ??

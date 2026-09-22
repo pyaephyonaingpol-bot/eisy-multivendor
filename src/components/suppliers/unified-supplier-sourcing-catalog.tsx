@@ -106,7 +106,10 @@ export function UnifiedSupplierSourcingCatalog({
   );
   const [previewSuccess, setPreviewSuccess] = useState<string | null>(null);
   const [pendingSearch, startSearch] = useTransition();
+  const [pendingMore, startLoadMore] = useTransition();
   const [hasSearched, setHasSearched] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
 
   const atLimit = importDisabled || quota?.atImportLimit === true;
   const minActive = quota?.minActiveItems ?? 10;
@@ -153,16 +156,37 @@ export function UnifiedSupplierSourcingCatalog({
         (!previewKind || product.providerKind === previewKind),
     ) ?? null;
 
-  function runSearch() {
+  function mergeCatalog(
+    existing: ExternalCatalogProduct[],
+    incoming: ExternalCatalogProduct[],
+  ) {
+    const seen = new Set(
+      existing.map(
+        (product) => `${product.providerKind}:${product.externalProductId}`,
+      ),
+    );
+    const merged = [...existing];
+    for (const product of incoming) {
+      const key = `${product.providerKind}:${product.externalProductId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(product);
+    }
+    return merged;
+  }
+
+  function runSearch(nextPage = 1, append = false) {
     setError(null);
-    setPreviewSuccess(null);
-    startSearch(async () => {
+    if (!append) setPreviewSuccess(null);
+    const run = append ? startLoadMore : startSearch;
+    run(async () => {
       try {
         // CJ-only catalog while other suppliers are Coming Soon.
         const params = new URLSearchParams({
           source: PRIMARY_SUPPLIER_KIND,
           q: query,
           region: regionCode,
+          page: String(nextPage),
         });
         const response = await fetch(`/api/suppliers/catalog?${params}`);
         const payload = (await response.json()) as {
@@ -171,16 +195,22 @@ export function UnifiedSupplierSourcingCatalog({
           products?: ExternalCatalogProduct[];
           usedMock?: boolean;
           catalogMode?: "mock" | "live";
+          hasMore?: boolean;
+          page?: number;
         };
         if (!response.ok || payload.ok === false) {
           setError(payload.error ?? t("sourcing.searchFailed"));
-          setCatalog([]);
-          setUsedMock(false);
+          if (!append) {
+            setCatalog([]);
+            setUsedMock(false);
+            setHasMore(false);
+            setPage(1);
+          }
           setHasSearched(true);
           return;
         }
         const products = payload.products ?? [];
-        setCatalog(products);
+        setCatalog((prev) => (append ? mergeCatalog(prev, products) : products));
         setUsedMock(
           payload.usedMock === true ||
             payload.catalogMode === "mock" ||
@@ -190,19 +220,30 @@ export function UnifiedSupplierSourcingCatalog({
                 String(product.externalProductId ?? "").includes("-MOCK-"),
             ),
         );
+        setPage(payload.page ?? nextPage);
+        setHasMore(payload.hasMore === true);
         setHasSearched(true);
       } catch {
         setError(t("sourcing.catalogUnreachable"));
-        setCatalog([]);
-        setUsedMock(false);
+        if (!append) {
+          setCatalog([]);
+          setUsedMock(false);
+          setHasMore(false);
+          setPage(1);
+        }
         setHasSearched(true);
       }
     });
   }
 
+  function loadMore() {
+    if (!hasMore || pendingSearch || pendingMore) return;
+    runSearch(page + 1, true);
+  }
+
   // Seed mock/placeholder catalog on mount so dropshippers can toggle tabs immediately.
   useEffect(() => {
-    runSearch();
+    runSearch(1, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only seed load
   }, []);
 
@@ -248,7 +289,7 @@ export function UnifiedSupplierSourcingCatalog({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === "Enter") runSearch();
+              if (event.key === "Enter") runSearch(1, false);
             }}
             placeholder={t("sourcing.searchPlaceholder")}
             className="mt-1 w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm"
@@ -288,7 +329,7 @@ export function UnifiedSupplierSourcingCatalog({
         </label>
         <button
           type="button"
-          onClick={runSearch}
+          onClick={() => runSearch(1, false)}
           disabled={pendingSearch}
           className="min-h-11 w-full rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 sm:col-span-2 lg:col-span-1 lg:w-auto"
         >
@@ -407,6 +448,26 @@ export function UnifiedSupplierSourcingCatalog({
           })}
         </ul>
       )}
+
+      {hasSearched && hasMore ? (
+        <div className="flex flex-col items-center gap-2 pt-1">
+          <p className="text-xs text-zinc-500">
+            {t("sourcing.showingCount", { count: catalog.length })}
+          </p>
+          <button
+            type="button"
+            onClick={loadMore}
+            disabled={pendingMore || pendingSearch}
+            className="min-h-11 w-full max-w-xs rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
+          >
+            {pendingMore ? t("sourcing.loadingMore") : t("sourcing.loadMore")}
+          </button>
+        </div>
+      ) : hasSearched && catalog.length > 0 ? (
+        <p className="pt-1 text-center text-xs text-zinc-500">
+          {t("sourcing.showingCount", { count: catalog.length })}
+        </p>
+      ) : null}
 
       {previewId && previewKind ? (
         <SupplierProductPreviewModal

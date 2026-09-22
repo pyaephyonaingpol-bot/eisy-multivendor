@@ -93,7 +93,10 @@
       "cj": "CJ Dropshipping",
       "spocket": "Spocket",
       "pod": "POD"
-    }
+    },
+    "loadMore": "Weitere Produkte laden",
+    "loadingMore": "Weitere werden geladen…",
+    "showingCount": "{count} Produkte angezeigt"
   },
   "escrow": {
     "title": "Treuhand",

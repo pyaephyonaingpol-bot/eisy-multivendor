@@ -16,7 +16,10 @@ import {
 } from "@/lib/auth/errors";
 import { lockBodyScroll } from "@/lib/dom/lock-body-scroll";
 import { createClient } from "@/lib/supabase/client";
-import { getSupabasePublicEnv } from "@/lib/supabase/env";
+import {
+  getSupabaseConfigError,
+  getSupabasePublicEnv,
+} from "@/lib/supabase/env";
 
 export type AuthModalMode = "signin" | "signup" | "forgot";
 
@@ -126,7 +129,7 @@ export function AuthModal({
     setError(null);
     setMessage(null);
     if (!getSupabasePublicEnv()) {
-      setError("Authentication is not configured.");
+      setError(getSupabaseConfigError());
       return;
     }
     setGooglePending(true);
@@ -158,7 +161,7 @@ export function AuthModal({
     setError(null);
     setMessage(null);
     if (!getSupabasePublicEnv()) {
-      setError("Authentication is not configured.");
+      setError(getSupabaseConfigError());
       return;
     }
     const normalizedEmail = normalizeAuthEmail(email);

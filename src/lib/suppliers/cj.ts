@@ -825,19 +825,39 @@ async function fetchCjVariantsByPid(
   });
 
   const data = json.data ?? json.result ?? json;
+  const record = asRecord(data);
   const rows = Array.isArray(data)
     ? data
-    : Array.isArray(asRecord(data)?.list)
-      ? (asRecord(data)!.list as unknown[])
-      : Array.isArray(asRecord(data)?.variants)
-        ? (asRecord(data)!.variants as unknown[])
-        : [];
+    : Array.isArray(record?.list)
+      ? (record!.list as unknown[])
+      : Array.isArray(record?.variants)
+        ? (record!.variants as unknown[])
+        : Array.isArray(record?.productVariants)
+          ? (record!.productVariants as unknown[])
+          : Array.isArray(record?.productVariantList)
+            ? (record!.productVariantList as unknown[])
+            : Array.isArray(record?.content)
+              ? (record!.content as unknown[])
+              : [];
 
   const variants: ExternalProductVariant[] = [];
   const seen = new Set<string>();
   for (const item of rows) {
     const variantRow = asRecord(item);
     if (!variantRow) continue;
+    // Nested productList-style blocks occasionally appear.
+    const nestedList = variantRow.productList;
+    if (Array.isArray(nestedList)) {
+      for (const nested of nestedList) {
+        const nestedRow = asRecord(nested);
+        if (!nestedRow) continue;
+        const mappedNested = mapCjVariant(nestedRow, null, fallbackPriceUsdt);
+        if (!mappedNested || seen.has(mappedNested.externalVariantId)) continue;
+        seen.add(mappedNested.externalVariantId);
+        variants.push(mappedNested);
+      }
+      continue;
+    }
     const mapped = mapCjVariant(variantRow, null, fallbackPriceUsdt);
     if (!mapped || seen.has(mapped.externalVariantId)) continue;
     seen.add(mapped.externalVariantId);

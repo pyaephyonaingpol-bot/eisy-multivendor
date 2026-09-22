@@ -408,7 +408,8 @@ export function SupplierProductPreviewModal({
                   {!showSkeleton && (product?.variants?.length ?? 0) > 0 ? (
                     <p className="text-[11px] text-zinc-500">
                       {product!.variants!.length} option
-                      {product!.variants!.length === 1 ? "" : "s"}
+                      {product!.variants!.length === 1 ? "" : "s"} · all
+                      imported together
                     </p>
                   ) : null}
                 </div>
@@ -420,8 +421,12 @@ export function SupplierProductPreviewModal({
                   </div>
                 ) : (product?.variants?.length ?? 0) > 0 ? (
                   <div className="space-y-2">
+                    <p className="text-xs text-zinc-600">
+                      Import keeps every color/size under this one product.
+                      Choose the default option buyers see first:
+                    </p>
                     <label className="block space-y-1">
-                      <span className="sr-only">Select color / size</span>
+                      <span className="sr-only">Select default color / size</span>
                       <select
                         value={selectedVariant?.externalVariantId ?? ""}
                         onChange={(event) => {
@@ -723,7 +728,7 @@ export function SupplierProductPreviewModal({
           <p className="break-words text-[11px] text-zinc-500">
             {confirmOpen
               ? "Confirm the import details below."
-              : "Import uses your edited title, description, selling price, compare price, and selected variant."}
+              : "Import saves every color/size under one product. Your selection is only the default option."}
           </p>
           {!confirmOpen ? (
             <button
@@ -742,6 +747,9 @@ export function SupplierProductPreviewModal({
                 {formatMoney(parsedSell, MARKETPLACE_CURRENCY)}
                 {editComparePrice.trim() !== "" && compareOk
                   ? ` (compare ${formatMoney(parsedCompare, MARKETPLACE_CURRENCY)})`
+                  : ""}
+                {(product?.variants?.length ?? 0) > 1
+                  ? ` with all ${product!.variants!.length} color/size options`
                   : ""}
                 ?
               </p>

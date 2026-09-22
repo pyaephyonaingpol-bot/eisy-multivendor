@@ -114,7 +114,7 @@ export function BuyerBottomNav() {
   return (
     <nav
       aria-label="Buyer marketplace"
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--market-line)] bg-[var(--market-surface)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
+      className="fixed-shell fixed bottom-0 z-50 border-t border-[var(--market-line)] bg-[var(--market-surface)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
     >
       <ul className="mx-auto grid h-16 max-w-6xl grid-cols-5 px-1">
         {tabs.map((tab) => {

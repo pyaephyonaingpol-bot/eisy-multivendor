@@ -19,6 +19,7 @@ import type {
 } from "@/lib/suppliers/types";
 import { ONE_CLICK_IMPORT_MARKUP } from "@/lib/suppliers/types";
 import { MARKETPLACE_CURRENCY, formatMoney } from "@/lib/money";
+import { lockBodyScroll } from "@/lib/dom/lock-body-scroll";
 
 export type PreviewQuotaHints = {
   minActiveItems: number;
@@ -225,6 +226,11 @@ export function SupplierProductPreviewModal({
     }
   }, [importState?.success, importState?.productId, onImported, onClose]);
 
+  useEffect(() => {
+    if (!open) return;
+    return lockBodyScroll();
+  }, [open]);
+
   const images = useMemo(() => {
     if (!product) return [] as string[];
     const list = [product.imageUrl, ...(product.images ?? [])].filter(
@@ -300,7 +306,7 @@ export function SupplierProductPreviewModal({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4"
+      className="fixed inset-0 z-[70] box-border flex w-full max-w-full items-end justify-center bg-black/50 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}

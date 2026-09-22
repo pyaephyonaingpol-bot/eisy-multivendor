@@ -23,7 +23,7 @@ export async function Header() {
   ];
 
   return (
-    <header className="w-full max-w-[100vw] overflow-x-hidden border-b border-zinc-200 bg-white">
+    <header className="w-full max-w-full overflow-x-hidden border-b border-zinc-200 bg-white">
       <div className="mx-auto flex h-14 w-full min-w-0 max-w-6xl items-center justify-between gap-3 px-4 sm:h-16">
         <Link
           href="/"

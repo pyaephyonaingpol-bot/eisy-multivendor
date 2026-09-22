@@ -26,7 +26,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-full w-full max-w-[100vw] flex-col overflow-x-hidden">
+    <div className="flex min-h-full w-full max-w-full flex-col overflow-x-hidden">
       <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-1 flex-col gap-4 overflow-x-hidden px-4 py-6 md:flex-row md:gap-8 md:py-8">
         <aside className="w-full min-w-0 shrink-0 space-y-3 md:w-48 md:space-y-4">
           <p className="text-sm font-semibold">Admin</p>

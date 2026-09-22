@@ -25,6 +25,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // Keyboard overlays content so layout width does not jump when it opens.
+  interactiveWidget: "overlays-content",
 };
 
 export default async function RootLayout({
@@ -44,7 +46,7 @@ export default async function RootLayout({
     >
       <body
         suppressHydrationWarning
-        className="flex min-h-full w-full max-w-[100vw] flex-col overflow-x-hidden bg-[var(--background)] text-[var(--foreground)]"
+        className="flex min-h-full w-full max-w-full flex-col overflow-x-hidden bg-[var(--background)] text-[var(--foreground)]"
       >
         <LanguageProvider locale={locale}>{children}</LanguageProvider>
       </body>

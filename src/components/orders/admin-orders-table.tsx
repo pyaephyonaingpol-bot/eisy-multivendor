@@ -198,7 +198,7 @@ function OrderDetailModal({
     : null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[100] box-border flex w-full max-w-full items-end justify-center sm:items-center sm:p-4">
       <button
         type="button"
         className="absolute inset-0 bg-zinc-950/50"

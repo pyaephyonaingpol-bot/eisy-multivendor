@@ -14,6 +14,7 @@ import {
   isLikelyExistingAccount,
   normalizeAuthEmail,
 } from "@/lib/auth/errors";
+import { lockBodyScroll } from "@/lib/dom/lock-body-scroll";
 import { createClient } from "@/lib/supabase/client";
 import { getSupabasePublicEnv } from "@/lib/supabase/env";
 
@@ -96,15 +97,14 @@ export function AuthModal({
 
   useEffect(() => {
     if (!open) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockBodyScroll();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
     dialogRef.current?.querySelector<HTMLElement>("button, input")?.focus();
     return () => {
-      document.body.style.overflow = previous;
+      unlock();
       window.removeEventListener("keydown", onKey);
     };
   }, [open, onClose]);
@@ -268,7 +268,7 @@ export function AuthModal({
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-[9999] box-border flex w-full max-w-full items-center justify-center bg-black/60 p-4"
       role="presentation"
     >
       <button

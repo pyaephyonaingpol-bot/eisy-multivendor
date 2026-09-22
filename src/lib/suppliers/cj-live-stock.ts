@@ -172,33 +172,28 @@ export async function assertCjLiveStockForCartItems(
   if (productIds.length === 0) return { ok: true };
 
   const supabase = createServiceClient();
+  const { loadImportRegistryByProductIds } = await import(
+    "@/lib/suppliers/import-registry"
+  );
 
-  const [{ data: imports }, { data: products }, { data: cjProviders }] =
+  const [{ data: products }, { data: cjProviders }, importByProduct] =
     await Promise.all([
-      supabase
-        .from("external_product_imports")
-        .select(
-          "product_id, external_product_id, external_variant_id, external_sku, provider_id",
-        )
-        .in("product_id", productIds),
       supabase.from("products").select("id, name, sku").in("id", productIds),
       supabase
         .from("supplier_providers")
         .select("id, kind, slug")
-        .or("kind.eq.cj_dropshipping,slug.eq.cj-dropshipping,slug.eq.cj_dropshipping"),
+        .or(
+          "kind.eq.cj_dropshipping,slug.eq.cj-dropshipping,slug.eq.cj_dropshipping",
+        ),
+      loadImportRegistryByProductIds(supabase, productIds),
     ]);
 
   const cjProviderIds = new Set((cjProviders ?? []).map((p) => p.id));
-  if (cjProviderIds.size === 0 && !(imports ?? []).length) {
+  if (cjProviderIds.size === 0 && importByProduct.size === 0) {
     return { ok: true };
   }
 
   const productById = new Map((products ?? []).map((p) => [p.id, p]));
-  const importByProduct = new Map(
-    (imports ?? [])
-      .filter((row) => row.product_id && cjProviderIds.has(row.provider_id))
-      .map((row) => [row.product_id as string, row]),
-  );
 
   if (importByProduct.size === 0) {
     return { ok: true };
@@ -208,7 +203,8 @@ export async function assertCjLiveStockForCartItems(
   for (const item of items) {
     qtyByProduct.set(
       item.product_id,
-      (qtyByProduct.get(item.product_id) ?? 0) + Math.max(0, Number(item.quantity) || 0),
+      (qtyByProduct.get(item.product_id) ?? 0) +
+        Math.max(0, Number(item.quantity) || 0),
     );
   }
 
@@ -217,6 +213,13 @@ export async function assertCjLiveStockForCartItems(
   for (const [productId, quantity] of qtyByProduct) {
     const imported = importByProduct.get(productId);
     if (!imported) continue;
+    if (
+      imported.provider_id &&
+      cjProviderIds.size > 0 &&
+      !cjProviderIds.has(imported.provider_id)
+    ) {
+      continue;
+    }
 
     const product = productById.get(productId);
     const result = await verifyCjLiveVariantStock(

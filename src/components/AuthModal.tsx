@@ -17,7 +17,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { getSupabasePublicEnv } from "@/lib/supabase/env";
 
-export type AuthModalMode = "signin" | "signup";
+export type AuthModalMode = "signin" | "signup" | "forgot";
 
 type AuthModalProps = {
   open: boolean;
@@ -116,6 +116,12 @@ export function AuthModal({
     return `${origin}/auth/callback?next=${encodeURIComponent(next)}`;
   }, [nextPath]);
 
+  const passwordResetRedirectTo = useCallback(() => {
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : "";
+    return `${origin}/auth/callback?next=${encodeURIComponent("/update-password")}`;
+  }, []);
+
   const continueWithGoogle = async () => {
     setError(null);
     setMessage(null);
@@ -156,6 +162,38 @@ export function AuthModal({
       return;
     }
     const normalizedEmail = normalizeAuthEmail(email);
+
+    if (mode === "forgot") {
+      if (!normalizedEmail) {
+        setError("Email is required.");
+        return;
+      }
+      setPending(true);
+      try {
+        const supabase = createClient();
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+          normalizedEmail,
+          { redirectTo: passwordResetRedirectTo() },
+        );
+        if (resetError) {
+          setError(formatAuthError(resetError.message));
+          return;
+        }
+        setMessage(
+          "If an Auth account exists for that email, a password reset link has been sent. Open the link to choose a new password.",
+        );
+      } catch (err) {
+        setError(
+          formatAuthError(
+            err instanceof Error ? err.message : "Could not send reset email.",
+          ),
+        );
+      } finally {
+        setPending(false);
+      }
+      return;
+    }
+
     if (!normalizedEmail || !password) {
       setError("Email and password are required.");
       return;
@@ -226,43 +264,6 @@ export function AuthModal({
     }
   };
 
-  const onForgotPassword = async () => {
-    setError(null);
-    setMessage(null);
-    const normalizedEmail = normalizeAuthEmail(email);
-    if (!normalizedEmail) {
-      setError("Enter your email above, then tap Forgot password.");
-      return;
-    }
-    if (!getSupabasePublicEnv()) {
-      setError("Authentication is not configured.");
-      return;
-    }
-    setPending(true);
-    try {
-      const supabase = createClient();
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        normalizedEmail,
-        { redirectTo: redirectTo() },
-      );
-      if (resetError) {
-        setError(formatAuthError(resetError.message));
-        return;
-      }
-      setMessage(
-        "If an Auth account exists for that email, a password reset link has been sent.",
-      );
-    } catch (err) {
-      setError(
-        formatAuthError(
-          err instanceof Error ? err.message : "Could not send reset email.",
-        ),
-      );
-    } finally {
-      setPending(false);
-    }
-  };
-
   if (!open) return null;
 
   return (
@@ -290,10 +291,16 @@ export function AuthModal({
               id={titleId}
               className="text-lg font-semibold tracking-tight text-zinc-950"
             >
-              {mode === "signin" ? "Sign in" : "Create account"}
+              {mode === "signin"
+                ? "Sign in"
+                : mode === "signup"
+                  ? "Create account"
+                  : "Reset password"}
             </h2>
             <p className="mt-0.5 text-sm text-zinc-500">
-              Welcome to Eisy Myanmar
+              {mode === "forgot"
+                ? "We will email you a reset link"
+                : "Welcome to Eisy Myanmar"}
             </p>
           </div>
           <button
@@ -317,54 +324,65 @@ export function AuthModal({
         </div>
 
         <div className="overflow-y-auto px-5 py-5">
-          <div className="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1 text-sm font-medium">
-            <button
-              type="button"
-              onClick={() => {
-                setMode("signin");
-                setError(null);
-                setMessage(null);
-              }}
-              className={`rounded-lg px-3 py-2 transition ${
-                mode === "signin"
-                  ? "bg-white text-zinc-950 shadow-sm"
-                  : "text-zinc-600 hover:text-zinc-950"
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("signup");
-                setError(null);
-                setMessage(null);
-              }}
-              className={`rounded-lg px-3 py-2 transition ${
-                mode === "signup"
-                  ? "bg-white text-zinc-950 shadow-sm"
-                  : "text-zinc-600 hover:text-zinc-950"
-              }`}
-            >
-              Sign Up
-            </button>
-          </div>
+          {mode !== "forgot" ? (
+            <>
+              <div className="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1 text-sm font-medium">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("signin");
+                    setError(null);
+                    setMessage(null);
+                  }}
+                  className={`rounded-lg px-3 py-2 transition ${
+                    mode === "signin"
+                      ? "bg-white text-zinc-950 shadow-sm"
+                      : "text-zinc-600 hover:text-zinc-950"
+                  }`}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("signup");
+                    setError(null);
+                    setMessage(null);
+                  }}
+                  className={`rounded-lg px-3 py-2 transition ${
+                    mode === "signup"
+                      ? "bg-white text-zinc-950 shadow-sm"
+                      : "text-zinc-600 hover:text-zinc-950"
+                  }`}
+                >
+                  Sign Up
+                </button>
+              </div>
 
-          <button
-            type="button"
-            onClick={continueWithGoogle}
-            disabled={googlePending || pending}
-            className="flex w-full items-center justify-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:opacity-60"
-          >
-            <GoogleLogo />
-            {googlePending ? "Redirecting to Google…" : "Continue with Google"}
-          </button>
+              <button
+                type="button"
+                onClick={continueWithGoogle}
+                disabled={googlePending || pending}
+                className="flex w-full items-center justify-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:opacity-60"
+              >
+                <GoogleLogo />
+                {googlePending
+                  ? "Redirecting to Google…"
+                  : "Continue with Google"}
+              </button>
 
-          <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-wide text-zinc-400">
-            <span className="h-px flex-1 bg-zinc-200" />
-            or email
-            <span className="h-px flex-1 bg-zinc-200" />
-          </div>
+              <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-wide text-zinc-400">
+                <span className="h-px flex-1 bg-zinc-200" />
+                or email
+                <span className="h-px flex-1 bg-zinc-200" />
+              </div>
+            </>
+          ) : (
+            <p className="mb-4 text-sm text-zinc-600">
+              Enter your account email. If it exists in Supabase Auth, you will
+              receive a link to choose a new password.
+            </p>
+          )}
 
           <form onSubmit={onSubmit} className="space-y-3">
             {mode === "signup" ? (
@@ -395,34 +413,38 @@ export function AuthModal({
                 placeholder="you@example.com"
               />
             </label>
-            <label className="block space-y-1.5 text-sm">
-              <span className="font-medium text-zinc-700">Password</span>
-              <input
-                type="password"
-                name="password"
-                autoComplete={
-                  mode === "signin" ? "current-password" : "new-password"
-                }
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none ring-zinc-950 focus:ring-2"
-                placeholder="••••••••"
-              />
-            </label>
-
-            {mode === "signin" ? (
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={onForgotPassword}
-                  disabled={pending || googlePending}
-                  className="text-xs font-medium text-zinc-600 underline-offset-2 hover:text-zinc-950 hover:underline disabled:opacity-60"
-                >
-                  Forgot password?
-                </button>
-              </div>
+            {mode !== "forgot" ? (
+              <label className="block space-y-1.5 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-zinc-700">Password</span>
+                  {mode === "signin" ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode("forgot");
+                        setError(null);
+                        setMessage(null);
+                      }}
+                      className="text-xs font-medium text-zinc-600 underline-offset-2 hover:text-zinc-950 hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  ) : null}
+                </div>
+                <input
+                  type="password"
+                  name="password"
+                  autoComplete={
+                    mode === "signin" ? "current-password" : "new-password"
+                  }
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none ring-zinc-950 focus:ring-2"
+                  placeholder="••••••••"
+                />
+              </label>
             ) : null}
 
             {error ? (
@@ -444,12 +466,30 @@ export function AuthModal({
               {pending
                 ? mode === "signin"
                   ? "Signing in…"
-                  : "Creating account…"
+                  : mode === "signup"
+                    ? "Creating account…"
+                    : "Sending reset link…"
                 : mode === "signin"
                   ? "Sign in with email"
-                  : "Sign up with email"}
+                  : mode === "signup"
+                    ? "Sign up with email"
+                    : "Send reset link"}
             </button>
           </form>
+
+          {mode === "forgot" ? (
+            <button
+              type="button"
+              onClick={() => {
+                setMode("signin");
+                setError(null);
+                setMessage(null);
+              }}
+              className="mt-4 w-full text-center text-sm text-zinc-600 underline-offset-2 hover:text-zinc-950 hover:underline"
+            >
+              Back to sign in
+            </button>
+          ) : null}
 
           <p className="mt-4 text-center text-xs text-zinc-500">
             By continuing you agree to Eisy Myanmar&apos;s terms of use.

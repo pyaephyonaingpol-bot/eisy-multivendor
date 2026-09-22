@@ -236,7 +236,9 @@ export async function requestPasswordReset(
     const origin = await getSiteOrigin();
     const supabase = await createClient();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: origin ? `${origin}/auth/callback?next=/profile` : undefined,
+      redirectTo: origin
+        ? `${origin}/auth/callback?next=${encodeURIComponent("/update-password")}`
+        : undefined,
     });
 
     if (error) {
@@ -245,12 +247,64 @@ export async function requestPasswordReset(
 
     return {
       success:
-        "If an Auth account exists for that email, a password reset link has been sent.",
+        "If an Auth account exists for that email, a password reset link has been sent. Open the link to choose a new password.",
     };
   } catch (error) {
     return {
       error: formatAuthError(
         error instanceof Error ? error.message : "Could not send reset email.",
+      ),
+    };
+  }
+}
+
+export async function updatePassword(
+  _prev: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const password = String(formData.get("password") ?? "");
+  const confirm = String(formData.get("confirm_password") ?? "");
+
+  if (!password || !confirm) {
+    return { error: "Enter and confirm your new password." };
+  }
+
+  if (password.length < 8) {
+    return { error: "Password must be at least 8 characters." };
+  }
+
+  if (password !== confirm) {
+    return { error: "Passwords do not match." };
+  }
+
+  if (!getSupabasePublicEnv()) {
+    return { error: getSupabaseConfigError() };
+  }
+
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return {
+        error:
+          "Your reset session expired. Request a new link from Forgot password on the sign-in page.",
+      };
+    }
+
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      return { error: formatAuthError(error.message) };
+    }
+
+    return { success: "Password updated. You can keep using your account." };
+  } catch (error) {
+    return {
+      error: formatAuthError(
+        error instanceof Error ? error.message : "Could not update password.",
       ),
     };
   }

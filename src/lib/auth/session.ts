@@ -43,22 +43,15 @@ export async function getSessionProfile(): Promise<SessionProfile | null> {
       // RPC may be missing until migration 031 is applied.
     }
 
+    // Profile must match auth.users.id — never attach another row by email alone
+    // (that would mix identities when auth ↔ profiles drifted).
     const { data } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", user.id)
       .maybeSingle();
 
-    let profile = (data as Profile | null) ?? null;
-
-    if (!profile && user.email) {
-      const { data: byEmail } = await supabase
-        .from("profiles")
-        .select("*")
-        .ilike("email", user.email.trim())
-        .maybeSingle();
-      profile = (byEmail as Profile | null) ?? null;
-    }
+    const profile = (data as Profile | null) ?? null;
 
     const role =
       (await resolveUserRole({

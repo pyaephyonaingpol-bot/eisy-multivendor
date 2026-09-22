@@ -110,6 +110,11 @@ export function UnifiedSupplierSourcingCatalog({
   const [hasSearched, setHasSearched] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [totalMatches, setTotalMatches] = useState<number | null>(null);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [relatedCategories, setRelatedCategories] = useState<
+    { id: string; name: string }[]
+  >([]);
 
   const atLimit = importDisabled || quota?.atImportLimit === true;
   const minActive = quota?.minActiveItems ?? 10;
@@ -175,9 +180,17 @@ export function UnifiedSupplierSourcingCatalog({
     return merged;
   }
 
-  function runSearch(nextPage = 1, append = false) {
+  function runSearch(
+    nextPage = 1,
+    append = false,
+    overrides?: { categoryId?: string | null },
+  ) {
     setError(null);
     if (!append) setPreviewSuccess(null);
+    const activeCategoryId =
+      overrides && "categoryId" in overrides
+        ? overrides.categoryId
+        : categoryId;
     const run = append ? startLoadMore : startSearch;
     run(async () => {
       try {
@@ -188,6 +201,9 @@ export function UnifiedSupplierSourcingCatalog({
           region: regionCode,
           page: String(nextPage),
         });
+        if (activeCategoryId) {
+          params.set("categoryId", activeCategoryId);
+        }
         const response = await fetch(`/api/suppliers/catalog?${params}`);
         const payload = (await response.json()) as {
           ok?: boolean;
@@ -197,6 +213,8 @@ export function UnifiedSupplierSourcingCatalog({
           catalogMode?: "mock" | "live";
           hasMore?: boolean;
           page?: number;
+          total?: number | null;
+          relatedCategories?: { id: string; name: string }[];
         };
         if (!response.ok || payload.ok === false) {
           setError(payload.error ?? t("sourcing.searchFailed"));
@@ -205,6 +223,8 @@ export function UnifiedSupplierSourcingCatalog({
             setUsedMock(false);
             setHasMore(false);
             setPage(1);
+            setTotalMatches(null);
+            setRelatedCategories([]);
           }
           setHasSearched(true);
           return;
@@ -222,6 +242,12 @@ export function UnifiedSupplierSourcingCatalog({
         );
         setPage(payload.page ?? nextPage);
         setHasMore(payload.hasMore === true);
+        if (!append) {
+          setTotalMatches(
+            typeof payload.total === "number" ? payload.total : null,
+          );
+          setRelatedCategories(payload.relatedCategories ?? []);
+        }
         setHasSearched(true);
       } catch {
         setError(t("sourcing.catalogUnreachable"));
@@ -230,6 +256,8 @@ export function UnifiedSupplierSourcingCatalog({
           setUsedMock(false);
           setHasMore(false);
           setPage(1);
+          setTotalMatches(null);
+          setRelatedCategories([]);
         }
         setHasSearched(true);
       }
@@ -239,6 +267,13 @@ export function UnifiedSupplierSourcingCatalog({
   function loadMore() {
     if (!hasMore || pendingSearch || pendingMore) return;
     runSearch(page + 1, true);
+  }
+
+  function selectCategory(nextCategoryId: string | null) {
+    setCategoryId(nextCategoryId);
+    setPreviewId(null);
+    setPreviewKind(null);
+    runSearch(1, false, { categoryId: nextCategoryId });
   }
 
   // Seed mock/placeholder catalog on mount so dropshippers can toggle tabs immediately.
@@ -289,7 +324,10 @@ export function UnifiedSupplierSourcingCatalog({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === "Enter") runSearch(1, false);
+              if (event.key === "Enter") {
+                setCategoryId(null);
+                runSearch(1, false, { categoryId: null });
+              }
             }}
             placeholder={t("sourcing.searchPlaceholder")}
             className="mt-1 w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm"
@@ -329,13 +367,53 @@ export function UnifiedSupplierSourcingCatalog({
         </label>
         <button
           type="button"
-          onClick={() => runSearch(1, false)}
+          onClick={() => {
+            setCategoryId(null);
+            runSearch(1, false, { categoryId: null });
+          }}
           disabled={pendingSearch}
           className="min-h-11 w-full rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 sm:col-span-2 lg:col-span-1 lg:w-auto"
         >
           {pendingSearch ? t("sourcing.searching") : t("sourcing.searchButton")}
         </button>
       </div>
+
+      {relatedCategories.length > 0 || categoryId ? (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-zinc-600">
+            {t("sourcing.relatedCategories")}
+          </p>
+          <div className="flex max-w-full flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => selectCategory(null)}
+              disabled={pendingSearch || pendingMore}
+              className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium ${
+                !categoryId
+                  ? "border-zinc-900 bg-zinc-900 text-white"
+                  : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+              }`}
+            >
+              {t("sourcing.allCategories")}
+            </button>
+            {relatedCategories.map((category) => (
+              <button
+                key={category.id}
+                type="button"
+                onClick={() => selectCategory(category.id)}
+                disabled={pendingSearch || pendingMore}
+                className={`max-w-full truncate rounded-lg border px-2.5 py-1.5 text-xs font-medium ${
+                  categoryId === category.id
+                    ? "border-zinc-900 bg-zinc-900 text-white"
+                    : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                }`}
+              >
+                {category.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {error ? (
         <p className="text-sm text-red-600" role="alert">
@@ -452,7 +530,12 @@ export function UnifiedSupplierSourcingCatalog({
       {hasSearched && hasMore ? (
         <div className="flex flex-col items-center gap-2 pt-1">
           <p className="text-xs text-zinc-500">
-            {t("sourcing.showingCount", { count: catalog.length })}
+            {totalMatches != null && totalMatches > catalog.length
+              ? t("sourcing.showingCountOfTotal", {
+                  count: catalog.length,
+                  total: totalMatches,
+                })
+              : t("sourcing.showingCount", { count: catalog.length })}
           </p>
           <button
             type="button"
@@ -465,7 +548,12 @@ export function UnifiedSupplierSourcingCatalog({
         </div>
       ) : hasSearched && catalog.length > 0 ? (
         <p className="pt-1 text-center text-xs text-zinc-500">
-          {t("sourcing.showingCount", { count: catalog.length })}
+          {totalMatches != null && totalMatches > catalog.length
+            ? t("sourcing.showingCountOfTotal", {
+                count: catalog.length,
+                total: totalMatches,
+              })
+            : t("sourcing.showingCount", { count: catalog.length })}
         </p>
       ) : null}
 

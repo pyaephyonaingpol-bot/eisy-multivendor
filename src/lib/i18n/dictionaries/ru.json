@@ -96,7 +96,10 @@
     },
     "loadMore": "Загрузить ещё товары",
     "loadingMore": "Загрузка…",
-    "showingCount": "Показано товаров: {count}"
+    "showingCount": "Показано товаров: {count}",
+    "relatedCategories": "Связанные категории CJ",
+    "allCategories": "Все",
+    "showingCountOfTotal": "Показано {count} из {total}"
   },
   "escrow": {
     "title": "Эскроу",

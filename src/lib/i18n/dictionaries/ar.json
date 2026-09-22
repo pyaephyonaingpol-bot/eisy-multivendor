@@ -96,7 +96,10 @@
     },
     "loadMore": "تحميل المزيد من المنتجات",
     "loadingMore": "جارٍ التحميل…",
-    "showingCount": "عرض {count} منتجًا"
+    "showingCount": "عرض {count} منتجًا",
+    "relatedCategories": "فئات CJ ذات الصلة",
+    "allCategories": "الكل",
+    "showingCountOfTotal": "عرض {count} من {total} منتجًا"
   },
   "escrow": {
     "title": "الضمان",

@@ -96,7 +96,10 @@
     },
     "loadMore": "Load more products",
     "loadingMore": "Loading more…",
-    "showingCount": "Showing {count} products"
+    "showingCount": "Showing {count} products",
+    "relatedCategories": "Related CJ categories",
+    "allCategories": "All",
+    "showingCountOfTotal": "Showing {count} of {total} products"
   },
   "escrow": {
     "title": "Escrow",

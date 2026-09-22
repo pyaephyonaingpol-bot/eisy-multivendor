@@ -53,6 +53,12 @@ export async function GET(request: Request) {
     searchParams.get("q") ?? searchParams.get("query") ?? "",
   ).trim();
   const page = Number(searchParams.get("page") ?? "1") || 1;
+  const categoryId = String(
+    searchParams.get("categoryId") ??
+      searchParams.get("category_id") ??
+      searchParams.get("category") ??
+      "",
+  ).trim();
   const regionCode = String(
     searchParams.get("region") ?? searchParams.get("region_code") ?? "",
   )
@@ -61,6 +67,7 @@ export async function GET(request: Request) {
 
   const singleKind = parseSupplierKind(sourceRaw);
   const sourceTab = parseSourceTab(sourceRaw);
+  const searchOptions = { categoryId: categoryId || null };
 
   try {
     if (
@@ -74,6 +81,7 @@ export async function GET(request: Request) {
         query,
         credentials,
         page,
+        searchOptions,
       );
       // hasMore is based on the unfiltered supplier page so region filters
       // do not hide later pages that may still match.
@@ -94,9 +102,12 @@ export async function GET(request: Request) {
         source: sourceTab,
         query,
         region: regionCode || null,
+        categoryId: pageResult.categoryId ?? (categoryId || null),
         page: pageResult.page,
         pageSize: pageResult.pageSize,
         hasMore: pageResult.hasMore,
+        total: pageResult.total ?? null,
+        relatedCategories: pageResult.relatedCategories ?? [],
         count: clientProducts.length,
         products: clientProducts,
         platformManaged: true,
@@ -123,6 +134,7 @@ export async function GET(request: Request) {
         query,
         credentialsByKind[onlyKind] ?? null,
         page,
+        searchOptions,
       );
       let products = pageResult.products;
       if (regionCode) {
@@ -144,9 +156,12 @@ export async function GET(request: Request) {
         source: sourceTab,
         query,
         region: regionCode || null,
+        categoryId: pageResult.categoryId ?? (categoryId || null),
         page: pageResult.page,
         pageSize: pageResult.pageSize,
         hasMore: pageResult.hasMore,
+        total: pageResult.total ?? null,
+        relatedCategories: pageResult.relatedCategories ?? [],
         count: clientProducts.length,
         products: clientProducts,
         platformManaged: true,
@@ -175,8 +190,11 @@ export async function GET(request: Request) {
       source: sourceTab,
       query,
       region: regionCode || null,
+      categoryId: categoryId || null,
       page,
       hasMore: clientProducts.length >= 20,
+      total: null,
+      relatedCategories: [],
       count: clientProducts.length,
       products: clientProducts,
       platformManaged: true,

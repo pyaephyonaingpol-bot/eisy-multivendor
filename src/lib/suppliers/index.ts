@@ -138,9 +138,10 @@ export async function searchExternalProductsPage(
   query: string,
   credentials?: SupplierCredentials | null,
   page = 1,
+  options?: { categoryId?: string | null },
 ): Promise<CjCatalogSearchPage> {
   if (kind === "cj_dropshipping") {
-    return searchCjProductsPage(query, credentials, page);
+    return searchCjProductsPage(query, credentials, page, options);
   }
   const products = await searchExternalProducts(
     kind,
@@ -153,6 +154,9 @@ export async function searchExternalProductsPage(
     hasMore: products.length >= 20,
     page: Math.max(1, Math.floor(page) || 1),
     pageSize: products.length || 20,
+    total: null,
+    relatedCategories: [],
+    categoryId: options?.categoryId ?? null,
   };
 }
 

@@ -96,7 +96,10 @@
     },
     "loadMore": "Cargar más productos",
     "loadingMore": "Cargando más…",
-    "showingCount": "Mostrando {count} productos"
+    "showingCount": "Mostrando {count} productos",
+    "relatedCategories": "Categorías CJ relacionadas",
+    "allCategories": "Todas",
+    "showingCountOfTotal": "Mostrando {count} de {total} productos"
   },
   "escrow": {
     "title": "Depósito",

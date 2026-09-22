@@ -96,7 +96,10 @@
     },
     "loadMore": "Charger plus de produits",
     "loadingMore": "Chargement…",
-    "showingCount": "{count} produits affichés"
+    "showingCount": "{count} produits affichés",
+    "relatedCategories": "Catégories CJ associées",
+    "allCategories": "Tous",
+    "showingCountOfTotal": "{count} produits sur {total} affichés"
   },
   "escrow": {
     "title": "Séquestre",

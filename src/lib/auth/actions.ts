@@ -3,6 +3,11 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { isBootstrapAdminEmail } from "@/lib/auth/constants";
+import {
+  formatAuthError,
+  isLikelyExistingAccount,
+  normalizeAuthEmail,
+} from "@/lib/auth/errors";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseConfigError, getSupabasePublicEnv } from "@/lib/supabase/env";
 import type { UserRole } from "@/lib/types/database";
@@ -34,11 +39,26 @@ async function getSiteOrigin() {
   return host ? `${proto}://${host}` : undefined;
 }
 
+async function ensureProfileAfterAuth(supabase: {
+  rpc: (
+    fn: "ensure_own_profile",
+  ) => PromiseLike<{ error: { message: string } | null }>;
+}) {
+  try {
+    const { error } = await supabase.rpc("ensure_own_profile");
+    if (error) {
+      console.warn("ensure_own_profile:", error.message);
+    }
+  } catch {
+    // RPC may be missing until the linkage migration is applied.
+  }
+}
+
 export async function login(
   _prev: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
-  const email = String(formData.get("email") ?? "").trim();
+  const email = normalizeAuthEmail(String(formData.get("email") ?? ""));
   const password = String(formData.get("password") ?? "");
   const next = safeNextPath(formData.get("next"));
 
@@ -55,11 +75,15 @@ export async function login(
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      return { error: error.message };
+      return { error: formatAuthError(error.message) };
     }
+
+    await ensureProfileAfterAuth(supabase);
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : "Sign-in failed. Please try again.",
+      error: formatAuthError(
+        error instanceof Error ? error.message : "Sign-in failed. Please try again.",
+      ),
     };
   }
 
@@ -71,7 +95,7 @@ export async function register(
   formData: FormData,
 ): Promise<AuthActionState> {
   const fullName = String(formData.get("full_name") ?? "").trim();
-  const email = String(formData.get("email") ?? "").trim();
+  const email = normalizeAuthEmail(String(formData.get("email") ?? ""));
   const password = String(formData.get("password") ?? "");
   const role = signupRole(formData.get("role"));
   const saveDelivery =
@@ -125,7 +149,18 @@ export async function register(
     });
 
     if (error) {
-      return { error: error.message };
+      return { error: formatAuthError(error.message) };
+    }
+
+    if (isLikelyExistingAccount(data.user)) {
+      return {
+        error:
+          "An account with this email already exists. Sign in instead, or reset your password.",
+      };
+    }
+
+    if (data.session) {
+      await ensureProfileAfterAuth(supabase);
     }
 
     // Persist optional default delivery address when we already have a session.
@@ -170,7 +205,9 @@ export async function register(
     }
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : "Registration failed. Please try again.",
+      error: formatAuthError(
+        error instanceof Error ? error.message : "Registration failed. Please try again.",
+      ),
     };
   }
 
@@ -179,6 +216,44 @@ export async function register(
   }
 
   redirect(role === "vendor" ? "/vendor/apply" : "/");
+}
+
+export async function requestPasswordReset(
+  _prev: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const email = normalizeAuthEmail(String(formData.get("email") ?? ""));
+
+  if (!email) {
+    return { error: "Email is required." };
+  }
+
+  if (!getSupabasePublicEnv()) {
+    return { error: getSupabaseConfigError() };
+  }
+
+  try {
+    const origin = await getSiteOrigin();
+    const supabase = await createClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: origin ? `${origin}/auth/callback?next=/profile` : undefined,
+    });
+
+    if (error) {
+      return { error: formatAuthError(error.message) };
+    }
+
+    return {
+      success:
+        "If an Auth account exists for that email, a password reset link has been sent.",
+    };
+  } catch (error) {
+    return {
+      error: formatAuthError(
+        error instanceof Error ? error.message : "Could not send reset email.",
+      ),
+    };
+  }
 }
 
 export async function signOut(): Promise<void> {

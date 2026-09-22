@@ -9,6 +9,11 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import {
+  formatAuthError,
+  isLikelyExistingAccount,
+  normalizeAuthEmail,
+} from "@/lib/auth/errors";
 import { createClient } from "@/lib/supabase/client";
 import { getSupabasePublicEnv } from "@/lib/supabase/env";
 
@@ -150,40 +155,109 @@ export function AuthModal({
       setError("Authentication is not configured.");
       return;
     }
+    const normalizedEmail = normalizeAuthEmail(email);
+    if (!normalizedEmail || !password) {
+      setError("Email and password are required.");
+      return;
+    }
     setPending(true);
     try {
       const supabase = createClient();
       if (mode === "signin") {
         const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
+          email: normalizedEmail,
           password,
         });
         if (signInError) {
-          setError(signInError.message);
+          setError(formatAuthError(signInError.message));
           return;
+        }
+        try {
+          await supabase.rpc("ensure_own_profile");
+        } catch {
+          // Self-heal may be unavailable until the linkage migration is applied.
         }
         onClose();
         window.location.assign(safeNextPath(nextPath));
         return;
       }
 
-      const { error: signUpError } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: {
-          data: { full_name: fullName.trim() || undefined },
-          emailRedirectTo: redirectTo(),
-        },
-      });
+      const { data: signUpData, error: signUpError } =
+        await supabase.auth.signUp({
+          email: normalizedEmail,
+          password,
+          options: {
+            data: { full_name: fullName.trim() || undefined },
+            emailRedirectTo: redirectTo(),
+          },
+        });
       if (signUpError) {
-        setError(signUpError.message);
+        setError(formatAuthError(signUpError.message));
+        return;
+      }
+      if (isLikelyExistingAccount(signUpData.user)) {
+        setError(
+          "An account with this email already exists. Sign in instead, or reset your password.",
+        );
+        setMode("signin");
+        return;
+      }
+      if (signUpData.session) {
+        try {
+          await supabase.rpc("ensure_own_profile");
+        } catch {
+          // Self-heal may be unavailable until the linkage migration is applied.
+        }
+        onClose();
+        window.location.assign(safeNextPath(nextPath));
         return;
       }
       setMessage(
         "Check your email to confirm your account, or continue if confirmation is disabled.",
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Authentication failed.");
+      setError(
+        formatAuthError(
+          err instanceof Error ? err.message : "Authentication failed.",
+        ),
+      );
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const onForgotPassword = async () => {
+    setError(null);
+    setMessage(null);
+    const normalizedEmail = normalizeAuthEmail(email);
+    if (!normalizedEmail) {
+      setError("Enter your email above, then tap Forgot password.");
+      return;
+    }
+    if (!getSupabasePublicEnv()) {
+      setError("Authentication is not configured.");
+      return;
+    }
+    setPending(true);
+    try {
+      const supabase = createClient();
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        normalizedEmail,
+        { redirectTo: redirectTo() },
+      );
+      if (resetError) {
+        setError(formatAuthError(resetError.message));
+        return;
+      }
+      setMessage(
+        "If an Auth account exists for that email, a password reset link has been sent.",
+      );
+    } catch (err) {
+      setError(
+        formatAuthError(
+          err instanceof Error ? err.message : "Could not send reset email.",
+        ),
+      );
     } finally {
       setPending(false);
     }
@@ -337,6 +411,19 @@ export function AuthModal({
                 placeholder="••••••••"
               />
             </label>
+
+            {mode === "signin" ? (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={onForgotPassword}
+                  disabled={pending || googlePending}
+                  className="text-xs font-medium text-zinc-600 underline-offset-2 hover:text-zinc-950 hover:underline disabled:opacity-60"
+                >
+                  Forgot password?
+                </button>
+              </div>
+            ) : null}
 
             {error ? (
               <p className="text-sm text-rose-600" role="alert">

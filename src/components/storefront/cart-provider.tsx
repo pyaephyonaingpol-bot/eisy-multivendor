@@ -11,7 +11,8 @@ import {
 } from "react";
 import type { CartLineItem } from "@/lib/cart/types";
 
-const STORAGE_KEY = "eisy-storefront-cart-v1";
+const STORAGE_KEY = "eisy-storefront-cart-v2";
+const LEGACY_STORAGE_KEY = "eisy-storefront-cart-v1";
 
 type CartContextValue = {
   items: CartLineItem[];
@@ -21,19 +22,29 @@ type CartContextValue = {
   openDrawer: () => void;
   closeDrawer: () => void;
   addItem: (item: Omit<CartLineItem, "quantity"> & { quantity?: number }) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
-  removeItem: (productId: string) => void;
+  updateQuantity: (
+    productId: string,
+    quantity: number,
+    variantId?: string | null,
+  ) => void;
+  removeItem: (productId: string, variantId?: string | null) => void;
   clearCart: () => void;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
+
+function lineKey(productId: string, variantId?: string | null) {
+  return `${productId}::${variantId ?? ""}`;
+}
 
 function readStoredItems(): CartLineItem[] {
   if (typeof window === "undefined") {
     return [];
   }
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw =
+      window.localStorage.getItem(STORAGE_KEY) ??
+      window.localStorage.getItem(LEGACY_STORAGE_KEY);
     if (!raw) {
       return [];
     }
@@ -72,8 +83,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const addItem = useCallback(
     (item: Omit<CartLineItem, "quantity"> & { quantity?: number }) => {
       const quantityToAdd = Math.max(1, item.quantity ?? 1);
+      const key = lineKey(item.productId, item.variantId);
       setItems((prev) => {
-        const existing = prev.find((line) => line.productId === item.productId);
+        const existing = prev.find(
+          (line) => lineKey(line.productId, line.variantId) === key,
+        );
         if (!existing) {
           const max = item.maxQuantity;
           const quantity =
@@ -86,7 +100,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
             ? Math.min(nextQty, existing.maxQuantity)
             : nextQty;
         return prev.map((line) =>
-          line.productId === item.productId ? { ...line, quantity: capped } : line,
+          lineKey(line.productId, line.variantId) === key
+            ? { ...line, quantity: capped }
+            : line,
         );
       });
       setIsDrawerOpen(true);
@@ -94,25 +110,35 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const updateQuantity = useCallback((productId: string, quantity: number) => {
-    setItems((prev) =>
-      prev
-        .map((line) => {
-          if (line.productId !== productId) {
-            return line;
-          }
-          const next = Math.max(0, quantity);
-          const capped =
-            line.maxQuantity != null ? Math.min(next, line.maxQuantity) : next;
-          return { ...line, quantity: capped };
-        })
-        .filter((line) => line.quantity > 0),
-    );
-  }, []);
+  const updateQuantity = useCallback(
+    (productId: string, quantity: number, variantId?: string | null) => {
+      const key = lineKey(productId, variantId);
+      setItems((prev) =>
+        prev
+          .map((line) => {
+            if (lineKey(line.productId, line.variantId) !== key) {
+              return line;
+            }
+            const next = Math.max(0, quantity);
+            const capped =
+              line.maxQuantity != null ? Math.min(next, line.maxQuantity) : next;
+            return { ...line, quantity: capped };
+          })
+          .filter((line) => line.quantity > 0),
+      );
+    },
+    [],
+  );
 
-  const removeItem = useCallback((productId: string) => {
-    setItems((prev) => prev.filter((line) => line.productId !== productId));
-  }, []);
+  const removeItem = useCallback(
+    (productId: string, variantId?: string | null) => {
+      const key = lineKey(productId, variantId);
+      setItems((prev) =>
+        prev.filter((line) => lineKey(line.productId, line.variantId) !== key),
+      );
+    },
+    [],
+  );
 
   const clearCart = useCallback(() => setItems([]), []);
 

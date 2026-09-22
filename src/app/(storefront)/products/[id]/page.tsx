@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { SoldByBadge } from "@/components/storefront/sold-by-badge";
 import { notFound } from "next/navigation";
-import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
 import { ImportToMyStorePanel } from "@/components/storefront/import-to-my-store-panel";
+import { ProductPurchasePanel } from "@/components/storefront/product-purchase-panel";
 import { ProductSpecificationsTable } from "@/components/storefront/product-specifications-table";
 import { CjLiveShippingEstimate } from "@/components/storefront/cj-live-shipping-estimate";
 import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
@@ -11,17 +11,12 @@ import {
   getBuyerSourcingContext,
   resolveProductSupplierRoute,
 } from "@/lib/sourcing/queries";
-import type { ProductType } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
 
 type ProductDetailPageProps = {
   params: Promise<{ id: string }>;
 };
-
-function typeLabel(type: ProductType) {
-  return type === "digital" ? "Digital" : "Physical";
-}
 
 export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
   const { id } = await params;
@@ -51,16 +46,16 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
     availableStock <= 0;
 
   return (
-    <article className="mx-auto max-w-5xl space-y-10">
-      <div className="grid gap-8 lg:grid-cols-2">
-        <div className="space-y-3">
-          <div className="aspect-square overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50">
+    <article className="mx-auto w-full min-w-0 max-w-5xl space-y-10 overflow-x-hidden">
+      <div className="grid min-w-0 gap-8 lg:grid-cols-2">
+        <div className="min-w-0 space-y-3">
+          <div className="aspect-square w-full overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50">
             {heroImage ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={heroImage}
                 alt={product.name}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain object-center p-3"
               />
             ) : (
               <div className="flex h-full items-center justify-center text-sm text-zinc-400">
@@ -76,43 +71,24 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
                   className="aspect-square overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={url}
+                    alt=""
+                    className="h-full w-full object-contain object-center p-1"
+                  />
                 </li>
               ))}
             </ul>
           ) : null}
         </div>
 
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 ring-1 ring-inset ring-zinc-200">
-                {typeLabel(productType)}
-              </span>
-              {product.is_dropship ? (
-                <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-inset ring-emerald-200">
-                  Dropship listing
-                </span>
-              ) : null}
-              {product.sku ? (
-                <span className="text-xs text-zinc-500">SKU {product.sku}</span>
-              ) : null}
-            </div>
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
+        <div className="min-w-0 space-y-5">
+          <div className="min-w-0 space-y-2">
+            <h1 className="break-words text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
               {product.name}
             </h1>
             {product.vendor ? (
-              <div className="space-y-1">
-                <SoldByBadge vendor={product.vendor} size="md" />
-                {product.is_dropship && product.source_vendor ? (
-                  <p className="text-sm text-zinc-500">
-                    Fulfilled by{" "}
-                    <span className="font-medium text-zinc-800">
-                      {product.source_vendor.name}
-                    </span>
-                  </p>
-                ) : null}
-              </div>
+              <SoldByBadge vendor={product.vendor} size="md" />
             ) : null}
           </div>
 
@@ -131,7 +107,9 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
                   ? `Digital download · ${product.download_label}`
                   : "Digital download"
                 : availableStock > 0
-                  ? `${Number.isFinite(availableStock) ? availableStock : "In"} in stock${product.is_dropship ? " (supplier)" : ""}`
+                  ? Number.isFinite(availableStock)
+                    ? `${availableStock} in stock`
+                    : "In stock"
                   : "Out of stock"}
             </p>
           </div>
@@ -141,7 +119,9 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
               <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
                 Description
               </h2>
-              <p className="whitespace-pre-wrap text-zinc-700">{product.description}</p>
+              <p className="break-words whitespace-pre-wrap text-zinc-700">
+                {product.description}
+              </p>
             </div>
           ) : null}
 
@@ -158,11 +138,11 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
             />
           ) : null}
 
-          <AddToCartButton
+          <ProductPurchasePanel
             productId={product.id}
             vendorId={product.vendor_id}
             name={product.name}
-            price={Number(product.price)}
+            basePrice={Number(product.price)}
             currency={MARKETPLACE_CURRENCY}
             imageUrl={heroImage}
             productType={productType}
@@ -172,6 +152,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
                 : null
             }
             disabled={outOfStock}
+            variants={product.catalog_variants ?? []}
           />
 
           <ImportToMyStorePanel

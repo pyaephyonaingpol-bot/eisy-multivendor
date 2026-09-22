@@ -191,6 +191,7 @@ export function resolveAdapterKindFromProvider(input: {
   return null;
 }
 
+/** When unset/1, live supplier failures return mock catalog data (local-friendly). Set to 0 to surface errors instead. */
 export function shouldFallbackToMock(): boolean {
   return process.env.SUPPLIER_INTEGRATIONS_FALLBACK_MOCK !== "0";
 }

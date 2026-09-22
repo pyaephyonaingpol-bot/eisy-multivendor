@@ -1,4 +1,5 @@
 import { CheckoutForm } from "@/components/storefront/checkout-form";
+import { getDefaultBuyerAddress } from "@/lib/addresses/queries";
 import { getSessionProfile } from "@/lib/auth/session";
 import { getBuyerSourcingContext } from "@/lib/sourcing/queries";
 import { listWalletsForUser } from "@/lib/wallets/queries";
@@ -7,8 +8,13 @@ export const dynamic = "force-dynamic";
 
 export default async function CheckoutPage() {
   const session = await getSessionProfile();
+  const defaultAddress = session
+    ? await getDefaultBuyerAddress(session.userId)
+    : null;
   const sourcing = await getBuyerSourcingContext(
-    session?.profile?.preferred_country_code ?? null,
+    defaultAddress?.country_code ??
+      session?.profile?.preferred_country_code ??
+      null,
   );
   let usdtAvailable: number | null = null;
 
@@ -31,7 +37,23 @@ export default async function CheckoutPage() {
       <CheckoutForm
         isSignedIn={Boolean(session)}
         usdtAvailable={usdtAvailable}
-        defaultCountry={sourcing.countryCode}
+        defaultCountry={
+          defaultAddress?.country_code ?? sourcing.countryCode
+        }
+        defaultAddress={
+          defaultAddress
+            ? {
+                fullName: defaultAddress.full_name,
+                phone: defaultAddress.phone,
+                line1: defaultAddress.line1,
+                line2: defaultAddress.line2,
+                city: defaultAddress.city,
+                region: defaultAddress.region,
+                postalCode: defaultAddress.postal_code,
+                countryCode: defaultAddress.country_code,
+              }
+            : null
+        }
       />
     </section>
   );

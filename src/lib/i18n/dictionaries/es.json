@@ -74,6 +74,7 @@
     "daysRange": "{min}–{max} días",
     "emptySearch": "Ejecute una búsqueda para cargar productos de proveedores.",
     "emptySearchDev": "Ejecute una búsqueda para cargar productos (catálogos mock sin claves API).",
+    "mockCatalogBanner": "Showing mock catalog products for local testing. Set SUPPLIER_INTEGRATIONS_MODE=mock, or leave keys unset / enable SUPPLIER_INTEGRATIONS_FALLBACK_MOCK when live CJ keys are missing.",
     "searchFailed": "La búsqueda falló.",
     "catalogUnreachable": "No se pudo alcanzar la API del catálogo de proveedores.",
     "sourceTabsLabel": "Fuente del proveedor",
@@ -92,7 +93,13 @@
       "cj": "CJ Dropshipping",
       "spocket": "Spocket",
       "pod": "POD"
-    }
+    },
+    "loadMore": "Cargar más productos",
+    "loadingMore": "Cargando más…",
+    "showingCount": "Mostrando {count} productos",
+    "relatedCategories": "Categorías CJ relacionadas",
+    "allCategories": "Todas",
+    "showingCountOfTotal": "Mostrando {count} de {total} productos"
   },
   "escrow": {
     "title": "Depósito",

@@ -68,13 +68,10 @@ export default async function DropshipCjTrackingPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-sky-800">
-          CJ Dropshipping Portal
-        </p>
         <h1 className="text-2xl font-semibold tracking-tight">CJ Tracking</h1>
         <p className="max-w-2xl text-zinc-600">
           Live shipment status from the CJ Dropshipping API. Custom-source
-          tracking stays in the Independent Vendor Portal.
+          tracking is under More in the Independent Vendor workspace.
         </p>
       </div>
 

@@ -1,74 +1,32 @@
 import { Suspense } from "react";
-import { LanguageSwitcher } from "@/components/i18n/language-switcher";
-import { VendorPortalNav } from "@/components/vendors/vendor-portal-nav";
-import { getDictionary } from "@/lib/i18n/get-dictionary";
-import { getRequestLocale } from "@/lib/i18n/locale";
+import { SitePortalFooter } from "@/components/layout/site-portal-footer";
+import { VendorBottomNav } from "@/components/vendors/vendor-bottom-nav";
+import { VendorPortalHeader } from "@/components/vendors/vendor-portal-header";
 
-export default async function VendorLayout({
+/**
+ * Seller shell (Independent Vendor + CJ): sticky header + full-width main + bottom tabs.
+ */
+export default function VendorLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const locale = await getRequestLocale();
-  const t = getDictionary(locale);
-
-  // Independent Vendor — custom-source ops only (no CJ links).
-  const vendorLinks = [
-    { href: "/vendor/products", label: t.vendorNav.products },
-    { href: "/vendor/settings", label: t.vendorNav.store },
-    { href: "/vendor/orders", label: t.vendorNav.orders },
-    { href: "/vendor/tracking", label: t.vendorNav.tracking },
-    { href: "/vendor/disputes", label: t.vendorNav.disputes },
-    { href: "/vendor/wallet?portal=vendor", label: t.vendorNav.wallet },
-  ];
-
-  // CJ Dropshipping — CJ workflow + fees + wallet (no Independent Vendor links).
-  const dropshipLinks = [
-    { href: "/vendor/sourcing", label: t.vendorNav.catalog },
-    {
-      href: "/vendor/dropship/imported",
-      label: t.vendorNav.importedProducts,
-    },
-    { href: "/vendor/dropship/orders", label: t.vendorNav.cjOrders },
-    { href: "/vendor/dropship/tracking", label: t.vendorNav.cjTracking },
-    { href: "/vendor/dropship/disputes", label: t.vendorNav.cjDisputes },
-    { href: "/vendor/fees", label: t.vendorNav.fees },
-    { href: "/vendor/wallet?portal=cj", label: t.vendorNav.wallet },
-  ];
-
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 px-4 py-6 md:flex-row md:gap-8 md:py-8">
-      <aside className="w-full shrink-0 space-y-3 md:w-56 md:space-y-4">
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <p className="text-sm font-semibold text-zinc-950">
-              {t.vendorNav.title}
-            </p>
-            <p className="text-xs text-zinc-500">
-              One portal at a time — menus never mix
-            </p>
-          </div>
-          <LanguageSwitcher compact />
-        </div>
-        <Suspense
-          fallback={
-            <div className="h-40 animate-pulse rounded-xl bg-zinc-100" />
-          }
-        >
-          <VendorPortalNav
-            vendorTitle={t.vendorNav.vendorSection}
-            dropshipTitle={t.vendorNav.dropshipSection}
-            vendorLinks={vendorLinks}
-            dropshipLinks={dropshipLinks}
-            vendorHomeHref="/vendor/dashboard"
-            dropshipHomeHref="/vendor/dropship"
-            accountHref="/vendor/profile"
-            accountLabel={t.vendorNav.profile}
-            backLabel={t.vendorNav.backToStorefront}
-          />
-        </Suspense>
-      </aside>
-      <section className="min-w-0 flex-1 space-y-4">{children}</section>
+    <div className="flex min-h-full w-full max-w-[100vw] flex-col overflow-x-hidden">
+      <Suspense
+        fallback={<div className="h-14 border-b border-zinc-100 bg-white" />}
+      >
+        <VendorPortalHeader />
+      </Suspense>
+      <main className="mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-hidden px-4 pb-28 pt-5 sm:pt-6">
+        {children}
+      </main>
+      <div className="w-full min-w-0 max-w-full overflow-x-hidden pb-20 sm:pb-24">
+        <SitePortalFooter />
+      </div>
+      <Suspense fallback={null}>
+        <VendorBottomNav />
+      </Suspense>
     </div>
   );
 }

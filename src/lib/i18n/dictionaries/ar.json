@@ -74,6 +74,7 @@
     "daysRange": "{min}–{max} أيام",
     "emptySearch": "شغّل بحثًا لتحميل منتجات الموردين.",
     "emptySearchDev": "شغّل بحثًا لتحميل منتجات الموردين (كتالوجات تجريبية عند غياب مفاتيح API).",
+    "mockCatalogBanner": "Showing mock catalog products for local testing. Set SUPPLIER_INTEGRATIONS_MODE=mock, or leave keys unset / enable SUPPLIER_INTEGRATIONS_FALLBACK_MOCK when live CJ keys are missing.",
     "searchFailed": "فشل البحث.",
     "catalogUnreachable": "تعذر الوصول إلى واجهة كتالوج الموردين.",
     "sourceTabsLabel": "مصدر المورد",
@@ -92,7 +93,13 @@
       "cj": "CJ Dropshipping",
       "spocket": "Spocket",
       "pod": "POD"
-    }
+    },
+    "loadMore": "تحميل المزيد من المنتجات",
+    "loadingMore": "جارٍ التحميل…",
+    "showingCount": "عرض {count} منتجًا",
+    "relatedCategories": "فئات CJ ذات الصلة",
+    "allCategories": "الكل",
+    "showingCountOfTotal": "عرض {count} من {total} منتجًا"
   },
   "escrow": {
     "title": "الضمان",

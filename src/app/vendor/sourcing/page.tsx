@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { UnifiedSupplierSourcingCatalog } from "@/components/suppliers/unified-supplier-sourcing-catalog";
+import { DeleteProductButton } from "@/components/vendors/delete-product-button";
 import { ShippingRegionsForm } from "@/components/vendors/shipping-regions-form";
 import { getSessionProfile, canAccessVendor } from "@/lib/auth/session";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
@@ -60,9 +61,6 @@ export default async function VendorSourcingIndexPage() {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-sky-800">
-          CJ Dropshipping Portal
-        </p>
         <h1 className="text-2xl font-semibold tracking-tight">
           {t.sourcing.title}
         </h1>
@@ -101,17 +99,17 @@ export default async function VendorSourcingIndexPage() {
       />
 
       <div className="flex flex-col gap-3 rounded-xl border border-sky-200 bg-white px-3 py-3 text-sm text-zinc-800 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-        <p>Browse the live CJ catalog or open imported CJ listings.</p>
-        <div className="flex flex-wrap gap-2">
+        <p className="min-w-0 break-words">Browse the live CJ catalog or open imported CJ listings.</p>
+        <div className="grid w-full max-w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
           <Link
             href="/vendor/integrations"
-            className="inline-flex min-h-11 items-center justify-center rounded-lg bg-sky-700 px-3 py-2 text-sm font-medium text-white hover:bg-sky-800 sm:min-h-0"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-sky-700 px-3 py-2 text-sm font-medium text-white hover:bg-sky-800 sm:min-h-0 sm:w-auto"
           >
             Open CJ catalog
           </Link>
           <Link
             href="/vendor/dropship/imported"
-            className="inline-flex min-h-11 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-950 hover:bg-sky-100 sm:min-h-0"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-950 hover:bg-sky-100 sm:min-h-0 sm:w-auto"
           >
             Imported products
           </Link>
@@ -136,20 +134,29 @@ export default async function VendorSourcingIndexPage() {
           {cjProducts.map((product) => (
             <li
               key={product.id}
-              className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm"
+              className="flex min-w-0 flex-col gap-2 px-3 py-3 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-4"
             >
-              <div>
-                <p className="font-medium text-zinc-950">{product.name}</p>
+              <div className="min-w-0">
+                <p className="break-words font-medium text-zinc-950">{product.name}</p>
                 <p className="text-zinc-500">
                   CJ import · {product.status}
                 </p>
               </div>
-              <Link
-                href={`/vendor/sourcing/${product.id}`}
-                className="font-medium text-sky-950 underline"
-              >
-                {t.sourcing.manageRoutes}
-              </Link>
+              <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end">
+                <Link
+                  href={`/vendor/sourcing/${product.id}`}
+                  className="inline-flex min-h-11 w-full items-center justify-center font-medium text-sky-950 underline sm:min-h-0 sm:w-auto sm:justify-start"
+                >
+                  {t.sourcing.manageRoutes}
+                </Link>
+                <DeleteProductButton
+                  productId={product.id}
+                  productName={product.name}
+                  mode="cj_import"
+                  label="Remove"
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-sm font-semibold text-rose-900 hover:bg-rose-100 disabled:opacity-60 sm:min-h-0 sm:w-auto"
+                />
+              </div>
             </li>
           ))}
         </ul>

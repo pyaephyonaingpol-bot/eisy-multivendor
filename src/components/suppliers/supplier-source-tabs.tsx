@@ -52,7 +52,7 @@ export function SupplierSourceTabs({ value, onChange, t, counts }: Props) {
 
   return (
     <div
-      className="flex flex-wrap gap-2"
+      className="flex max-w-full flex-wrap gap-2"
       role="tablist"
       aria-label={t("sourcing.sourceTabsLabel")}
     >

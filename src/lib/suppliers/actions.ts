@@ -137,12 +137,49 @@ function productPriceFields(
   const fields: {
     price: number;
     price_usdt: number;
-    compare_at_price?: number | null;
-  } = { price, price_usdt: price };
-  if (compareAtPriceUsdt != null && Number.isFinite(compareAtPriceUsdt) && compareAtPriceUsdt > price) {
+    compare_at_price: number | null;
+  } = { price, price_usdt: price, compare_at_price: null };
+  if (
+    compareAtPriceUsdt != null &&
+    Number.isFinite(compareAtPriceUsdt) &&
+    compareAtPriceUsdt > price
+  ) {
     fields.compare_at_price = sanitizeUsdtPrice(compareAtPriceUsdt, price);
   }
   return fields;
+}
+
+/**
+ * Prefer an explicit compare-at from the preview form; otherwise fall back to
+ * the supplier catalog value when it is above the sell price.
+ */
+function resolveImportCompareAtPrice(
+  formData: FormData,
+  sellPrice: number,
+  remoteCompareAt: number | null | undefined,
+): number | null {
+  const raw = String(
+    formData.get("compare_at_price") ?? formData.get("compare_price") ?? "",
+  ).trim();
+
+  if (raw !== "") {
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return null;
+    }
+    const compare = sanitizeUsdtPrice(parsed);
+    return compare > sellPrice ? compare : null;
+  }
+
+  if (
+    remoteCompareAt != null &&
+    Number.isFinite(remoteCompareAt) &&
+    remoteCompareAt > sellPrice
+  ) {
+    return sanitizeUsdtPrice(remoteCompareAt);
+  }
+
+  return null;
 }
 
 /** Non-null listing fields shared by import insert + update payloads. */
@@ -290,24 +327,68 @@ function resolveImportVariant(
 } {
   const variantId = String(formData.get("external_variant_id") ?? "").trim();
   const skuOverride = String(formData.get("external_sku") ?? "").trim();
+  const allVariants = remote.variants ?? [];
   const matched = variantId
-    ? remote.variants?.find((v) => v.externalVariantId === variantId)
+    ? allVariants.find((v) => v.externalVariantId === variantId)
     : undefined;
+
+  // Product-level stock for bulk variant imports: sum option inventories when
+  // present so the listing reflects the whole matrix, not only the default SKU.
+  const variantStockSum = allVariants.reduce<number | null>((acc, variant) => {
+    if (variant.stockQuantity == null) return acc;
+    return (acc ?? 0) + variant.stockQuantity;
+  }, null);
 
   if (matched) {
     return {
       externalVariantId: matched.externalVariantId,
       externalSku: skuOverride || matched.externalSku || remote.externalSku,
       supplierCostUsdt: matched.priceUsdt,
-      stockQuantity: matched.stockQuantity ?? remote.stockQuantity,
+      stockQuantity:
+        remote.stockQuantity ??
+        variantStockSum ??
+        matched.stockQuantity ??
+        null,
     };
   }
 
+  const fallback =
+    allVariants.find((v) => v.externalVariantId === remote.externalVariantId) ??
+    allVariants[0];
+
   return {
-    externalVariantId: variantId || remote.externalVariantId,
-    externalSku: skuOverride || remote.externalSku,
-    supplierCostUsdt: remote.priceUsdt,
-    stockQuantity: remote.stockQuantity,
+    externalVariantId:
+      variantId || fallback?.externalVariantId || remote.externalVariantId,
+    externalSku:
+      skuOverride || fallback?.externalSku || remote.externalSku,
+    supplierCostUsdt: fallback?.priceUsdt ?? remote.priceUsdt,
+    stockQuantity:
+      remote.stockQuantity ??
+      variantStockSum ??
+      fallback?.stockQuantity ??
+      null,
+  };
+}
+
+/** True when the bulk matrix (or a single default SKU) clears the import floor. */
+function remoteMeetsImportStockFloor(
+  remote: ExternalCatalogProduct,
+  preferredStock: number | null,
+): { ok: true; stock: number | null } | { ok: false; stock: number | null } {
+  if (meetsMinImportStock(preferredStock)) {
+    return { ok: true, stock: preferredStock };
+  }
+  if (meetsMinImportStock(remote.stockQuantity)) {
+    return { ok: true, stock: remote.stockQuantity };
+  }
+  for (const variant of remote.variants ?? []) {
+    if (meetsMinImportStock(variant.stockQuantity)) {
+      return { ok: true, stock: variant.stockQuantity };
+    }
+  }
+  return {
+    ok: false,
+    stock: preferredStock ?? remote.stockQuantity ?? null,
   };
 }
 
@@ -464,6 +545,18 @@ export async function importExternalSupplierProductAction(
 
   const variant = resolveImportVariant(formData, remote);
 
+  // Bulk import: every color/size from CJ stays on this one product listing.
+  // The selected variant is only the default fulfillment / cart preference.
+  if (
+    kind === "cj_dropshipping" &&
+    (!remote.variants || remote.variants.length === 0)
+  ) {
+    return {
+      error:
+        "CJ did not return color/size variants for this product. Retry import in a moment.",
+    };
+  }
+
   let liveImportStock: number | null = null;
   if (kind === "cj_dropshipping") {
     const { assertCjImportVariantInStock } = await import(
@@ -477,22 +570,31 @@ export async function importExternalSupplierProductAction(
       credentials: linked?.credentials ?? null,
     });
     if (!liveGate.ok) {
-      return { error: liveGate.error };
-    }
-    if (liveGate.usedLive) {
+      // Default SKU may be depleted while other options still have stock —
+      // allow bulk import when any option clears the floor.
+      const anyInStock = (remote.variants ?? []).some((option) =>
+        meetsMinImportStock(option.stockQuantity),
+      );
+      if (!anyInStock && !meetsMinImportStock(remote.stockQuantity)) {
+        return { error: liveGate.error };
+      }
+    } else if (liveGate.usedLive) {
       liveImportStock = liveGate.liveStock;
     }
   }
 
-  const effectiveStock =
-    liveImportStock != null ? liveImportStock : variant.stockQuantity;
-  if (!meetsMinImportStock(effectiveStock)) {
+  const floor = remoteMeetsImportStockFloor(
+    remote,
+    liveImportStock != null ? liveImportStock : variant.stockQuantity,
+  );
+  if (!floor.ok) {
     return {
       error: `Supplier stock must be at least ${MIN_IMPORT_STOCK_QUANTITY} units before import (found ${
-        effectiveStock == null ? "unknown" : effectiveStock
+        floor.stock == null ? "unknown" : floor.stock
       }).`,
     };
   }
+  const effectiveStock = floor.stock;
 
   if (
     regionCode &&
@@ -511,6 +613,11 @@ export async function importExternalSupplierProductAction(
   }
   const { price: sellPrice, oneClick } = priced;
   const minCost = sanitizeUsdtPrice(variant.supplierCostUsdt);
+  const compareAtPriceUsdt = resolveImportCompareAtPrice(
+    formData,
+    sellPrice,
+    remote.compareAtPriceUsdt,
+  );
 
   if (sellPrice + 1e-9 < minCost) {
     return {
@@ -558,7 +665,7 @@ export async function importExternalSupplierProductAction(
           name: listing.name,
           description: listing.description,
           sellPrice,
-          compareAtPriceUsdt: remote.compareAtPriceUsdt,
+          compareAtPriceUsdt,
           images: productImages,
           stockQuantity: effectiveStock ?? 0,
           sku: variant.externalSku,
@@ -651,7 +758,7 @@ export async function importExternalSupplierProductAction(
           name: listing.name,
           description: listing.description,
           sellPrice,
-          compareAtPriceUsdt: remote.compareAtPriceUsdt,
+          compareAtPriceUsdt,
           images: productImages,
           stockQuantity: effectiveStock ?? 0,
           sku: variant.externalSku,
@@ -781,7 +888,7 @@ export async function importExternalSupplierProductAction(
       name: listing.name,
       description: listing.description,
       sellPrice,
-      compareAtPriceUsdt: remote.compareAtPriceUsdt,
+      compareAtPriceUsdt,
       images: productImages,
       stockQuantity: effectiveStock ?? 0,
       sku: variant.externalSku,
@@ -918,6 +1025,11 @@ export async function importExternalSupplierProductAction(
   const activeAfter = activeBefore + 1;
   const catalogAfter = catalogBefore + 1;
   const platform = supplierPlatformLabel(kind);
+  const variantCount = remote.variants?.length ?? 0;
+  const variantNote =
+    kind === "cj_dropshipping" && variantCount > 0
+      ? ` Imported ${variantCount} color/size options under one listing.`
+      : "";
   const priceNote = oneClick
     ? ` Listed at ${sellPrice.toFixed(2)} USDT (${Math.round((ONE_CLICK_IMPORT_MARKUP - 1) * 100)}% markup).`
     : ` Listed at ${sellPrice.toFixed(2)} USDT after preview review.`;
@@ -929,7 +1041,7 @@ export async function importExternalSupplierProductAction(
     : ` Manual/custom listings are not subject to CJ import fees or fee floors.`;
 
   return {
-    success: `Imported “${listing.name}” from ${platform} into your store.${priceNote}${quotaNote}`,
+    success: `Imported “${listing.name}” from ${platform} into your store.${variantNote}${priceNote}${quotaNote}`,
     productId: product.id,
     oneClick,
   };

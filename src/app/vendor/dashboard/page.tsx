@@ -8,7 +8,8 @@ import { getVendorFinanceSnapshot } from "@/lib/wallets/vendor-finance";
 export const dynamic = "force-dynamic";
 
 /**
- * Independent Vendor Portal home — Products, Store, Orders, Tracking, Disputes.
+ * My store home — metrics and store approval status.
+ * Primary nav is the bottom bar (Products, Store, Orders, Wallet, Profile).
  * CJ Dropshipping is a separate portal at /vendor/dropship.
  */
 export default async function VendorDashboardPage() {
@@ -19,7 +20,7 @@ export default async function VendorDashboardPage() {
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold tracking-tight">
-          Independent Vendor Portal
+          My store
         </h1>
         <p className="text-zinc-600">
           You do not have a store application yet. Submit one to start selling
@@ -43,47 +44,15 @@ export default async function VendorDashboardPage() {
     ? Math.round(finance.commission_rate * 1000) / 10
     : 10;
 
-  const vendorActions = [
-    {
-      href: "/vendor/products",
-      title: "Products",
-      body: "Manual / custom-sourced products for your storefront.",
-    },
-    {
-      href: "/vendor/settings",
-      title: "Store",
-      body: "Store branding and public storefront settings.",
-    },
-    {
-      href: "/vendor/orders",
-      title: "Orders",
-      body: "Custom-sourced orders you fulfill yourself.",
-    },
-    {
-      href: "/vendor/tracking",
-      title: "Tracking",
-      body: "Shipment tracking for local / custom-sourced orders.",
-    },
-    {
-      href: "/vendor/disputes",
-      title: "Disputes",
-      body: "Buyer disputes for custom-sourced orders only.",
-    },
-  ] as const;
-
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-          Independent Vendor Portal
-        </p>
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">{vendor.name}</h1>
           <VendorStatusBadge status={vendor.status} />
         </div>
         <p className="text-zinc-600">
-          Custom sourcing only — Products, Store, Orders, Tracking, and Disputes.
-          CJ Dropshipping is a separate portal.
+          Custom-source finance and store status at a glance.
         </p>
         <p className="text-zinc-600">
           Public store:{" "}
@@ -115,7 +84,7 @@ export default async function VendorDashboardPage() {
 
       {vendor.status === "approved" ? (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-          Store approved. Use this portal for custom-source ops only.
+          Store approved. Ready for custom-source listings and orders.
         </div>
       ) : null}
 
@@ -182,23 +151,6 @@ export default async function VendorDashboardPage() {
           </Link>
         </div>
       ) : null}
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {vendorActions.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="group rounded-2xl border border-zinc-200 bg-white p-5 transition hover:border-zinc-300 hover:shadow-sm"
-          >
-            <h2 className="text-base font-semibold text-zinc-950 group-hover:underline">
-              {item.title}
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-              {item.body}
-            </p>
-          </Link>
-        ))}
-      </div>
     </div>
   );
 }

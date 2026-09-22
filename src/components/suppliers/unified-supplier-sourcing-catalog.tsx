@@ -99,13 +99,22 @@ export function UnifiedSupplierSourcingCatalog({
   /** Full multi-source result set — tabs filter this client-side for instant toggles. */
   const [catalog, setCatalog] = useState<ExternalCatalogProduct[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [usedMock, setUsedMock] = useState(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [previewKind, setPreviewKind] = useState<ExternalSupplierKind | null>(
     null,
   );
   const [previewSuccess, setPreviewSuccess] = useState<string | null>(null);
   const [pendingSearch, startSearch] = useTransition();
+  const [pendingMore, startLoadMore] = useTransition();
   const [hasSearched, setHasSearched] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalMatches, setTotalMatches] = useState<number | null>(null);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [relatedCategories, setRelatedCategories] = useState<
+    { id: string; name: string }[]
+  >([]);
 
   const atLimit = importDisabled || quota?.atImportLimit === true;
   const minActive = quota?.minActiveItems ?? 10;
@@ -152,53 +161,141 @@ export function UnifiedSupplierSourcingCatalog({
         (!previewKind || product.providerKind === previewKind),
     ) ?? null;
 
-  function runSearch() {
+  function mergeCatalog(
+    existing: ExternalCatalogProduct[],
+    incoming: ExternalCatalogProduct[],
+  ) {
+    const seen = new Set(
+      existing.map(
+        (product) => `${product.providerKind}:${product.externalProductId}`,
+      ),
+    );
+    const merged = [...existing];
+    for (const product of incoming) {
+      const key = `${product.providerKind}:${product.externalProductId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(product);
+    }
+    return merged;
+  }
+
+  function runSearch(
+    nextPage = 1,
+    append = false,
+    overrides?: { categoryId?: string | null },
+  ) {
     setError(null);
-    setPreviewSuccess(null);
-    startSearch(async () => {
+    if (!append) setPreviewSuccess(null);
+    const activeCategoryId =
+      overrides && "categoryId" in overrides
+        ? overrides.categoryId
+        : categoryId;
+    const run = append ? startLoadMore : startSearch;
+    run(async () => {
       try {
         // CJ-only catalog while other suppliers are Coming Soon.
         const params = new URLSearchParams({
           source: PRIMARY_SUPPLIER_KIND,
           q: query,
           region: regionCode,
+          page: String(nextPage),
         });
+        if (activeCategoryId) {
+          params.set("categoryId", activeCategoryId);
+        }
         const response = await fetch(`/api/suppliers/catalog?${params}`);
         const payload = (await response.json()) as {
           ok?: boolean;
           error?: string;
           products?: ExternalCatalogProduct[];
+          usedMock?: boolean;
+          catalogMode?: "mock" | "live";
+          hasMore?: boolean;
+          page?: number;
+          total?: number | null;
+          relatedCategories?: { id: string; name: string }[];
         };
         if (!response.ok || payload.ok === false) {
           setError(payload.error ?? t("sourcing.searchFailed"));
-          setCatalog([]);
+          if (!append) {
+            setCatalog([]);
+            setUsedMock(false);
+            setHasMore(false);
+            setPage(1);
+            setTotalMatches(null);
+            setRelatedCategories([]);
+          }
           setHasSearched(true);
           return;
         }
-        setCatalog(payload.products ?? []);
+        const products = payload.products ?? [];
+        setCatalog((prev) => (append ? mergeCatalog(prev, products) : products));
+        setUsedMock(
+          payload.usedMock === true ||
+            payload.catalogMode === "mock" ||
+            products.some(
+              (product) =>
+                (product as { isMock?: boolean }).isMock === true ||
+                String(product.externalProductId ?? "").includes("-MOCK-"),
+            ),
+        );
+        setPage(payload.page ?? nextPage);
+        setHasMore(payload.hasMore === true);
+        if (!append) {
+          setTotalMatches(
+            typeof payload.total === "number" ? payload.total : null,
+          );
+          setRelatedCategories(payload.relatedCategories ?? []);
+        }
         setHasSearched(true);
       } catch {
         setError(t("sourcing.catalogUnreachable"));
-        setCatalog([]);
+        if (!append) {
+          setCatalog([]);
+          setUsedMock(false);
+          setHasMore(false);
+          setPage(1);
+          setTotalMatches(null);
+          setRelatedCategories([]);
+        }
         setHasSearched(true);
       }
     });
   }
 
+  function loadMore() {
+    if (!hasMore || pendingSearch || pendingMore) return;
+    runSearch(page + 1, true);
+  }
+
+  function selectCategory(nextCategoryId: string | null) {
+    setCategoryId(nextCategoryId);
+    setPreviewId(null);
+    setPreviewKind(null);
+    runSearch(1, false, { categoryId: nextCategoryId });
+  }
+
   // Seed mock/placeholder catalog on mount so dropshippers can toggle tabs immediately.
   useEffect(() => {
-    runSearch();
+    runSearch(1, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only seed load
   }, []);
 
   return (
-    <section className="space-y-5 rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5">
-      <div className="space-y-1">
+    <section className="w-full max-w-full space-y-5 overflow-x-hidden rounded-2xl border border-zinc-200 bg-white p-3 sm:p-5">
+      <div className="min-w-0 space-y-1">
         <h2 className="text-lg font-semibold tracking-tight">
           {t("sourcing.catalogTitle")}
         </h2>
         <p className="text-sm text-zinc-600">{t("sourcing.catalogSubtitle")}</p>
       </div>
+
+      {usedMock ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-950 sm:px-4">
+          {t("sourcing.mockCatalogBanner")}
+        </div>
+      ) : null}
 
       <SupplierSourceTabs
         value={sourceTab}
@@ -215,30 +312,33 @@ export function UnifiedSupplierSourcingCatalog({
         <p className="font-semibold text-sky-900">
           {t("sourcing.fastStrategiesTitle")}
         </p>
-        <p className="mt-1 text-sky-900/90">
+        <p className="mt-1 break-words text-sky-900/90">
           {t("sourcing.fastStrategiesBody")}
         </p>
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
-        <label className="min-w-0 flex-1 text-xs font-medium text-zinc-600">
+      <div className="grid w-full max-w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_10rem_10rem_auto] lg:items-end">
+        <label className="min-w-0 text-xs font-medium text-zinc-600 sm:col-span-2 lg:col-span-1">
           {t("sourcing.search")}
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === "Enter") runSearch();
+              if (event.key === "Enter") {
+                setCategoryId(null);
+                runSearch(1, false, { categoryId: null });
+              }
             }}
             placeholder={t("sourcing.searchPlaceholder")}
-            className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm"
+            className="mt-1 w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm"
           />
         </label>
-        <label className="text-xs font-medium text-zinc-600">
+        <label className="min-w-0 text-xs font-medium text-zinc-600">
           {t("sourcing.shipToRegion")}
           <select
             value={regionCode}
             onChange={(event) => setRegionCode(event.target.value)}
-            className="mt-1 block min-w-[10rem] rounded-lg border border-zinc-200 px-3 py-2.5 text-sm"
+            className="mt-1 block w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm"
           >
             {regions.length === 0 ? (
               <option value="GLOBAL">GLOBAL</option>
@@ -251,14 +351,14 @@ export function UnifiedSupplierSourcingCatalog({
             )}
           </select>
         </label>
-        <label className="text-xs font-medium text-zinc-600">
+        <label className="min-w-0 text-xs font-medium text-zinc-600">
           {t("sourcing.deliverySpeed")}
           <select
             value={deliverySpeed}
             onChange={(event) =>
               setDeliverySpeed(event.target.value as DeliverySpeedFilter)
             }
-            className="mt-1 block min-w-[10rem] rounded-lg border border-zinc-200 px-3 py-2.5 text-sm"
+            className="mt-1 block w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm"
           >
             <option value="any">{t("sourcing.anySpeed")}</option>
             <option value="fast">{t("sourcing.fastDispatchFilter")}</option>
@@ -267,13 +367,53 @@ export function UnifiedSupplierSourcingCatalog({
         </label>
         <button
           type="button"
-          onClick={runSearch}
+          onClick={() => {
+            setCategoryId(null);
+            runSearch(1, false, { categoryId: null });
+          }}
           disabled={pendingSearch}
-          className="min-h-11 rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+          className="min-h-11 w-full rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 sm:col-span-2 lg:col-span-1 lg:w-auto"
         >
           {pendingSearch ? t("sourcing.searching") : t("sourcing.searchButton")}
         </button>
       </div>
+
+      {relatedCategories.length > 0 || categoryId ? (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-zinc-600">
+            {t("sourcing.relatedCategories")}
+          </p>
+          <div className="flex max-w-full flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => selectCategory(null)}
+              disabled={pendingSearch || pendingMore}
+              className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium ${
+                !categoryId
+                  ? "border-zinc-900 bg-zinc-900 text-white"
+                  : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+              }`}
+            >
+              {t("sourcing.allCategories")}
+            </button>
+            {relatedCategories.map((category) => (
+              <button
+                key={category.id}
+                type="button"
+                onClick={() => selectCategory(category.id)}
+                disabled={pendingSearch || pendingMore}
+                className={`max-w-full truncate rounded-lg border px-2.5 py-1.5 text-xs font-medium ${
+                  categoryId === category.id
+                    ? "border-zinc-900 bg-zinc-900 text-white"
+                    : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                }`}
+              >
+                {category.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {error ? (
         <p className="text-sm text-red-600" role="alert">
@@ -296,7 +436,7 @@ export function UnifiedSupplierSourcingCatalog({
             : t("sourcing.emptySearch")}
         </p>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <ul className="grid w-full max-w-full grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {visibleProducts.map((product) => {
             const suggested = defaultSellPrice(product.priceUsdt);
             const stockOk = meetsMinImportStock(product.stockQuantity);
@@ -305,20 +445,24 @@ export function UnifiedSupplierSourcingCatalog({
             return (
               <li
                 key={`${product.providerKind}:${product.externalProductId}`}
-                className="flex flex-col gap-3 rounded-xl border border-zinc-100 p-3"
+                className="flex min-w-0 max-w-full flex-col overflow-hidden rounded-xl border border-zinc-100"
               >
-                <div className="flex gap-3">
+                <div className="aspect-[4/3] w-full max-w-full overflow-hidden bg-zinc-50 sm:aspect-square">
                   {product.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={product.imageUrl}
                       alt=""
-                      className="h-20 w-20 shrink-0 rounded-lg object-cover"
+                      className="h-full w-full object-contain object-center p-2"
                     />
                   ) : (
-                    <div className="h-20 w-20 shrink-0 rounded-lg bg-zinc-100" />
+                    <div className="flex h-full w-full items-center justify-center text-xs text-zinc-400">
+                      No image
+                    </div>
                   )}
-                  <div className="min-w-0 space-y-1">
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col gap-3 p-3">
+                  <div className="min-w-0 space-y-1.5">
                     <div className="flex flex-wrap gap-1">
                       <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-700">
                         {sourceBadge(product.providerKind)}
@@ -334,10 +478,10 @@ export function UnifiedSupplierSourcingCatalog({
                         </span>
                       ) : null}
                     </div>
-                    <p className="line-clamp-2 font-medium text-zinc-950">
+                    <p className="line-clamp-2 break-words font-medium text-zinc-950">
                       {product.name}
                     </p>
-                    <p className="text-xs text-zinc-500">
+                    <p className="break-words text-xs text-zinc-500">
                       {product.warehouseCountry}
                       {product.shippingDaysMin != null &&
                       product.shippingDaysMax != null
@@ -365,23 +509,53 @@ export function UnifiedSupplierSourcingCatalog({
                       </p>
                     ) : null}
                   </div>
+                  <button
+                    type="button"
+                    disabled={!stockOk || atLimit}
+                    onClick={() => {
+                      setPreviewId(product.externalProductId);
+                      setPreviewKind(product.providerKind);
+                    }}
+                    className="mt-auto min-h-11 w-full max-w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
+                  >
+                    {t("sourcing.previewImport")}
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  disabled={!stockOk || atLimit}
-                  onClick={() => {
-                    setPreviewId(product.externalProductId);
-                    setPreviewKind(product.providerKind);
-                  }}
-                  className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
-                >
-                  {t("sourcing.previewImport")}
-                </button>
               </li>
             );
           })}
         </ul>
       )}
+
+      {hasSearched && hasMore ? (
+        <div className="flex flex-col items-center gap-2 pt-1">
+          <p className="text-xs text-zinc-500">
+            {totalMatches != null && totalMatches > catalog.length
+              ? t("sourcing.showingCountOfTotal", {
+                  count: catalog.length,
+                  total: totalMatches,
+                })
+              : t("sourcing.showingCount", { count: catalog.length })}
+          </p>
+          <button
+            type="button"
+            onClick={loadMore}
+            disabled={pendingMore || pendingSearch}
+            className="min-h-11 w-full max-w-xs rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
+          >
+            {pendingMore ? t("sourcing.loadingMore") : t("sourcing.loadMore")}
+          </button>
+        </div>
+      ) : hasSearched && catalog.length > 0 ? (
+        <p className="pt-1 text-center text-xs text-zinc-500">
+          {totalMatches != null && totalMatches > catalog.length
+            ? t("sourcing.showingCountOfTotal", {
+                count: catalog.length,
+                total: totalMatches,
+              })
+            : t("sourcing.showingCount", { count: catalog.length })}
+        </p>
+      ) : null}
 
       {previewId && previewKind ? (
         <SupplierProductPreviewModal

@@ -87,10 +87,9 @@ export async function listSupplierProviders(): Promise<SupplierProvider[]> {
  *
  * Priority:
  * 1. Explicit `preferredCountry` override (e.g. checkout form)
- * 2. Signed-in profile `preferred_country_code` / `preferred_region_id`
- * 3. Default region (Myanmar) for guests
- *
- * Manual header "Ship to" cookies are no longer used for catalog filtering.
+ * 2. Signed-in buyer's default delivery address country
+ * 3. Signed-in profile `preferred_country_code` / `preferred_region_id`
+ * 4. Default region (Myanmar) for guests
  */
 export async function getBuyerSourcingContext(
   preferredCountry?: string | null,
@@ -102,11 +101,25 @@ export async function getBuyerSourcingContext(
 
   const session = !hasExplicitCountry ? await getSessionProfile() : null;
 
+  let defaultAddressCountry: string | null = null;
+  if (session?.userId && !hasExplicitCountry) {
+    try {
+      const { getDefaultBuyerAddress } = await import(
+        "@/lib/addresses/queries"
+      );
+      const defaultAddress = await getDefaultBuyerAddress(session.userId);
+      defaultAddressCountry = defaultAddress?.country_code ?? null;
+    } catch {
+      defaultAddressCountry = null;
+    }
+  }
+
   const profileCountry = session?.profile?.preferred_country_code ?? null;
   const profileRegionId = session?.profile?.preferred_region_id ?? null;
 
   const countryCode = normalizeCountryCode(
     (hasExplicitCountry ? preferredCountry : null) ||
+      defaultAddressCountry ||
       profileCountry ||
       DEFAULT_BUYER_COUNTRY,
   );
@@ -114,7 +127,7 @@ export async function getBuyerSourcingContext(
   const regions = await listSourcingRegions();
 
   let region: SourcingRegion | null = null;
-  if (profileRegionId && !hasExplicitCountry) {
+  if (profileRegionId && !hasExplicitCountry && !defaultAddressCountry) {
     region = regions.find((row) => row.id === profileRegionId) ?? null;
   }
   if (!region) {
@@ -127,7 +140,9 @@ export async function getBuyerSourcingContext(
   }
 
   const fromProfile = Boolean(
-    !hasExplicitCountry && session && (profileCountry || profileRegionId),
+    !hasExplicitCountry &&
+      session &&
+      (defaultAddressCountry || profileCountry || profileRegionId),
   );
 
   return {

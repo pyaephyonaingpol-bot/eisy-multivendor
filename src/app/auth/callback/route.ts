@@ -21,6 +21,11 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      try {
+        await supabase.rpc("ensure_own_profile");
+      } catch {
+        // RPC may be missing until the linkage migration is applied.
+      }
       return NextResponse.redirect(new URL(redirectTo, origin));
     }
   } catch {

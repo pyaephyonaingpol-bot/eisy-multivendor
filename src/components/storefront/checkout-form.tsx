@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/storefront/cart-provider";
+import { BuyerCountrySelect } from "@/components/storefront/buyer-country-select";
 import {
   checkoutWithUsdt,
   type CheckoutActionState,
 } from "@/lib/cart/checkout-actions";
 import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
-import { BUYER_COUNTRY_OPTIONS } from "@/lib/sourcing/constants";
 
 const initialState: CheckoutActionState = null;
 
@@ -19,6 +19,16 @@ type CheckoutFormProps = {
   isSignedIn: boolean;
   usdtAvailable: number | null;
   defaultCountry?: string;
+  defaultAddress?: {
+    fullName: string;
+    phone: string | null;
+    line1: string;
+    line2: string | null;
+    city: string;
+    region: string | null;
+    postalCode: string | null;
+    countryCode: string;
+  } | null;
 };
 
 type CjShipCheck = {
@@ -31,6 +41,7 @@ export function CheckoutForm({
   isSignedIn,
   usdtAvailable,
   defaultCountry = "MM",
+  defaultAddress = null,
 }: CheckoutFormProps) {
   const { items, subtotal, itemCount } = useCart();
   const [state, formAction, pending] = useActionState(
@@ -40,7 +51,10 @@ export function CheckoutForm({
   const [paymentMethod, setPaymentMethod] = useState<"wallet" | "trc20">(
     "wallet",
   );
-  const [country, setCountry] = useState(defaultCountry);
+  const [country, setCountry] = useState(
+    defaultAddress?.countryCode ?? defaultCountry,
+  );
+  const [saveAsDefault, setSaveAsDefault] = useState(!defaultAddress);
   const [cjShip, setCjShip] = useState<CjShipCheck>({
     status: "idle",
     message: null,
@@ -218,6 +232,7 @@ export function CheckoutForm({
                 id="full_name"
                 name="full_name"
                 required={hasPhysical}
+                defaultValue={defaultAddress?.fullName ?? ""}
                 className={fieldClassName}
               />
             </div>
@@ -232,6 +247,7 @@ export function CheckoutForm({
                 id="phone"
                 name="phone"
                 required={hasPhysical}
+                defaultValue={defaultAddress?.phone ?? ""}
                 className={fieldClassName}
               />
             </div>
@@ -242,19 +258,14 @@ export function CheckoutForm({
               >
                 Country
               </label>
-              <select
+              <BuyerCountrySelect
                 id="country"
                 name="country"
                 value={country}
-                onChange={(event) => setCountry(event.target.value)}
+                onChange={setCountry}
+                required={hasPhysical}
                 className={fieldClassName}
-              >
-                {BUYER_COUNTRY_OPTIONS.map((option) => (
-                  <option key={option.code} value={option.code}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <label
@@ -267,6 +278,7 @@ export function CheckoutForm({
                 id="line1"
                 name="line1"
                 required={hasPhysical}
+                defaultValue={defaultAddress?.line1 ?? ""}
                 className={fieldClassName}
               />
             </div>
@@ -277,7 +289,12 @@ export function CheckoutForm({
               >
                 Address line 2
               </label>
-              <input id="line2" name="line2" className={fieldClassName} />
+              <input
+                id="line2"
+                name="line2"
+                defaultValue={defaultAddress?.line2 ?? ""}
+                className={fieldClassName}
+              />
             </div>
             <div className="space-y-1.5">
               <label
@@ -290,6 +307,7 @@ export function CheckoutForm({
                 id="city"
                 name="city"
                 required={hasPhysical}
+                defaultValue={defaultAddress?.city ?? ""}
                 className={fieldClassName}
               />
             </div>
@@ -300,7 +318,12 @@ export function CheckoutForm({
               >
                 State / region
               </label>
-              <input id="region" name="region" className={fieldClassName} />
+              <input
+                id="region"
+                name="region"
+                defaultValue={defaultAddress?.region ?? ""}
+                className={fieldClassName}
+              />
             </div>
             <div className="space-y-1.5">
               <label
@@ -312,6 +335,7 @@ export function CheckoutForm({
               <input
                 id="postal_code"
                 name="postal_code"
+                defaultValue={defaultAddress?.postalCode ?? ""}
                 className={fieldClassName}
               />
             </div>
@@ -329,6 +353,27 @@ export function CheckoutForm({
                 className={fieldClassName}
               />
             </div>
+            {isSignedIn && hasPhysical ? (
+              <label className="flex items-start gap-2 text-sm sm:col-span-2">
+                <input
+                  type="checkbox"
+                  name="save_as_default"
+                  value="1"
+                  checked={saveAsDefault}
+                  onChange={(event) => setSaveAsDefault(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-zinc-300"
+                />
+                <span>
+                  <span className="font-medium text-zinc-900">
+                    Set as default delivery address
+                  </span>
+                  <span className="mt-0.5 block text-xs text-zinc-500">
+                    Save this address to your address book and pre-fill it on
+                    future checkouts.
+                  </span>
+                </span>
+              </label>
+            ) : null}
           </div>
 
           {cjShip.status === "checking" ? (

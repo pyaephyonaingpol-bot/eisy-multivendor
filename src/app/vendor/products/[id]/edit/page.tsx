@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { DeleteProductButton } from "@/components/vendors/delete-product-button";
 import { ProductForm } from "@/components/vendors/product-form";
 import { getSessionProfile } from "@/lib/auth/session";
 import { listActiveCategories } from "@/lib/categories/queries";
@@ -132,11 +133,20 @@ export default async function EditVendorProductPage({
         </p>
       ) : null}
 
-      <p className="text-sm text-zinc-500">
-        <Link href={backHref} className="underline">
-          {backLabel}
-        </Link>
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 pt-6">
+        <p className="text-sm text-zinc-500">
+          <Link href={backHref} className="underline">
+            {backLabel}
+          </Link>
+        </p>
+        <DeleteProductButton
+          productId={product.id}
+          productName={product.name}
+          mode={isCj ? "cj_import" : "product"}
+          label={isCj ? "Remove from store" : "Delete product"}
+          className="inline-flex items-center justify-center rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-sm font-semibold text-rose-900 hover:bg-rose-100 disabled:opacity-60"
+        />
+      </div>
     </section>
   );
 }

@@ -8,6 +8,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
+/** Buyer wallet — balances and activity only. */
 export default async function AccountWalletPage() {
   const session = await getSessionProfile();
 
@@ -21,11 +22,13 @@ export default async function AccountWalletPage() {
   ]);
 
   return (
-    <WalletDashboard
-      wallets={wallets}
-      transactions={transactions}
-      title="Your wallet"
-      subtitle="Checkout uses USDT. Deposit or withdraw USDT anytime. MMK is available for earnings withdrawals only — MMK deposits are not accepted."
-    />
+    <div className="mx-auto max-w-3xl py-2">
+      <WalletDashboard
+        wallets={wallets}
+        transactions={transactions}
+        title="Wallet"
+        subtitle="USDT deposits and withdrawals. MMK is for earnings withdrawals only."
+      />
+    </div>
   );
 }

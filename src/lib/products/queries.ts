@@ -41,6 +41,15 @@ export type PublicProductDetail = Product & {
   /** Supplier stock when this is a dropship listing; otherwise own stock. */
   available_stock: number;
   source_vendor: Pick<Vendor, "id" | "name" | "slug"> | null;
+  /** CJ / supplier color-size options from import source_payload when present. */
+  catalog_variants: Array<{
+    externalVariantId: string;
+    externalSku: string | null;
+    label: string;
+    priceUsdt: number | null;
+    stockQuantity: number | null;
+    imageUrl: string | null;
+  }>;
 };
 
 export type PublicProductSummary = PublicProductDetail;
@@ -55,19 +64,42 @@ async function filterDeliverableProducts(
   }
 
   const supabase = supabaseClient ?? (await createClient());
+  const safeCountry = countryCode || DEFAULT_BUYER_COUNTRY;
   const { data, error } = await supabase.rpc("filter_deliverable_product_ids", {
     p_product_ids: products.map((product) => product.id),
-    p_country_code: countryCode || DEFAULT_BUYER_COUNTRY,
+    p_country_code: safeCountry,
   });
 
+  let regionFiltered = products;
   if (error || !data) {
     // Fail open for local inventory if the migration is not applied yet.
     console.warn("filter_deliverable_product_ids:", error?.message);
-    return products;
+  } else {
+    const allowed = new Set(data as string[]);
+    regionFiltered = products.filter((product) => allowed.has(product.id));
   }
 
-  const allowed = new Set(data as string[]);
-  return products.filter((product) => allowed.has(product.id));
+  if (regionFiltered.length === 0) {
+    return [];
+  }
+
+  // Second pass: live CJ freight — hide CJ imports that cannot ship to this country.
+  try {
+    const { filterCjProductsShippableToCountry } = await import(
+      "@/lib/suppliers/cj-shipping"
+    );
+    const cjAllowed = await filterCjProductsShippableToCountry(
+      regionFiltered.map((product) => product.id),
+      safeCountry,
+    );
+    return regionFiltered.filter((product) => cjAllowed.has(product.id));
+  } catch (cjError) {
+    console.warn(
+      "filterCjProductsShippableToCountry:",
+      cjError instanceof Error ? cjError.message : cjError,
+    );
+    return regionFiltered;
+  }
 }
 
 async function withPublicVendorMeta(
@@ -161,6 +193,7 @@ async function withPublicVendorMeta(
       vendor,
       available_stock,
       source_vendor,
+      catalog_variants: [],
     });
   }
 
@@ -349,7 +382,31 @@ export async function getPublicProductById(
   }
 
   const [detail] = await withPublicVendorMeta([deliverable]);
-  return detail ?? null;
+  if (!detail) return null;
+
+  // Attach full CJ color/size matrix from the import payload when available.
+  // Prefer cj_imported_products (bulk variants); fall back to legacy imports table.
+  const { loadImportRegistryForProduct, catalogVariantsFromSourcePayload } =
+    await import("@/lib/suppliers/import-registry");
+  const importRow = await loadImportRegistryForProduct(supabase, detail.id);
+
+  const catalog_variants = catalogVariantsFromSourcePayload(
+    importRow?.source_payload,
+  );
+
+  // Prefer the imported default variant first in the selector.
+  const preferredVid = importRow?.external_variant_id
+    ? String(importRow.external_variant_id)
+    : null;
+  if (preferredVid && catalog_variants.length > 1) {
+    catalog_variants.sort((a, b) => {
+      if (a.externalVariantId === preferredVid) return -1;
+      if (b.externalVariantId === preferredVid) return 1;
+      return 0;
+    });
+  }
+
+  return { ...detail, catalog_variants };
 }
 
 

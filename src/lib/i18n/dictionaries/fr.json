@@ -74,6 +74,7 @@
     "daysRange": "{min}–{max} jours",
     "emptySearch": "Lancez une recherche pour charger les produits fournisseurs.",
     "emptySearchDev": "Lancez une recherche pour charger les produits (catalogues fictifs sans clés API).",
+    "mockCatalogBanner": "Showing mock catalog products for local testing. Set SUPPLIER_INTEGRATIONS_MODE=mock, or leave keys unset / enable SUPPLIER_INTEGRATIONS_FALLBACK_MOCK when live CJ keys are missing.",
     "searchFailed": "Échec de la recherche.",
     "catalogUnreachable": "Impossible d’atteindre l’API du catalogue fournisseurs.",
     "sourceTabsLabel": "Source fournisseur",
@@ -92,7 +93,13 @@
       "cj": "CJ Dropshipping",
       "spocket": "Spocket",
       "pod": "POD"
-    }
+    },
+    "loadMore": "Charger plus de produits",
+    "loadingMore": "Chargement…",
+    "showingCount": "{count} produits affichés",
+    "relatedCategories": "Catégories CJ associées",
+    "allCategories": "Tous",
+    "showingCountOfTotal": "{count} produits sur {total} affichés"
   },
   "escrow": {
     "title": "Séquestre",

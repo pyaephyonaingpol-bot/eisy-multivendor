@@ -74,6 +74,7 @@
     "daysRange": "{min}–{max} dagen",
     "emptySearch": "Voer een zoekopdracht uit om leveranciersproducten te laden.",
     "emptySearchDev": "Voer een zoekopdracht uit (mockcatalogi wanneer API-sleutels ontbreken).",
+    "mockCatalogBanner": "Showing mock catalog products for local testing. Set SUPPLIER_INTEGRATIONS_MODE=mock, or leave keys unset / enable SUPPLIER_INTEGRATIONS_FALLBACK_MOCK when live CJ keys are missing.",
     "searchFailed": "Zoeken mislukt.",
     "catalogUnreachable": "Kan de leverancierscatalogus-API niet bereiken.",
     "sourceTabsLabel": "Leveranciersbron",
@@ -92,7 +93,13 @@
       "cj": "CJ Dropshipping",
       "spocket": "Spocket",
       "pod": "POD"
-    }
+    },
+    "loadMore": "Meer producten laden",
+    "loadingMore": "Meer laden…",
+    "showingCount": "{count} producten getoond",
+    "relatedCategories": "Gerelateerde CJ-categorieën",
+    "allCategories": "Alles",
+    "showingCountOfTotal": "{count} van {total} producten getoond"
   },
   "escrow": {
     "title": "Escrow",

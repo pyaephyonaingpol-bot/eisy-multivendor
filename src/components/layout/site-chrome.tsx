@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { AdminDashboardLink } from "@/components/layout/admin-dashboard-link";
+import { SitePortalFooter } from "@/components/layout/site-portal-footer";
 import { getSessionProfile } from "@/lib/auth/session";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { getRequestLocale } from "@/lib/i18n/locale";
@@ -22,11 +23,11 @@ export async function Header() {
   ];
 
   return (
-    <header className="border-b border-zinc-200 bg-white">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:h-16">
+    <header className="w-full max-w-[100vw] overflow-x-hidden border-b border-zinc-200 bg-white">
+      <div className="mx-auto flex h-14 w-full min-w-0 max-w-6xl items-center justify-between gap-3 px-4 sm:h-16">
         <Link
           href="/"
-          className="truncate text-base font-semibold tracking-tight sm:text-lg"
+          className="min-w-0 truncate text-base font-semibold tracking-tight sm:text-lg"
         >
           <span className="sm:hidden">{t.brand.short}</span>
           <span className="hidden sm:inline">{t.brand.full}</span>
@@ -94,26 +95,5 @@ export async function Header() {
 }
 
 export async function Footer() {
-  const locale = await getRequestLocale();
-  const t = getDictionary(locale);
-  return (
-    <footer className="mt-auto border-t border-zinc-200 bg-white">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm text-zinc-500">
-        <p>
-          © 2026 {t.brand.full} · USDT
-        </p>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <AdminDashboardLink className="text-xs text-zinc-400 transition hover:text-zinc-600">
-            {t.nav.adminDashboard}
-          </AdminDashboardLink>
-          <Link
-            href="/vendor/dashboard"
-            className="text-xs text-zinc-400 transition hover:text-zinc-600"
-          >
-            {t.nav.vendorPortal}
-          </Link>
-        </div>
-      </div>
-    </footer>
-  );
+  return <SitePortalFooter />;
 }

@@ -46,9 +46,6 @@ export default async function VendorTrackingPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-          Independent Vendor Portal
-        </p>
         <h1 className="text-2xl font-semibold tracking-tight">Tracking</h1>
         <p className="max-w-2xl text-zinc-600">
           Shipment tracking for custom-sourced orders. CJ tracking is in the CJ

@@ -29,24 +29,25 @@ export function SoldByBadge({
         <img
           src={vendor.logo_url}
           alt=""
-          className={`${logoSize} rounded-full object-cover ring-1 ring-zinc-200`}
+          className={`${logoSize} shrink-0 rounded-full object-cover ring-1 ring-zinc-200`}
         />
       ) : (
         <span
-          className={`inline-flex ${logoSize} items-center justify-center rounded-full bg-zinc-100 text-[10px] font-semibold text-zinc-600 ring-1 ring-zinc-200`}
+          className={`inline-flex ${logoSize} shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-semibold text-zinc-600 ring-1 ring-zinc-200`}
           aria-hidden
         >
           {vendor.name.slice(0, 1).toUpperCase()}
         </span>
       )}
-      <span className={`${textSize} text-zinc-600`}>
+      <span className={`${textSize} min-w-0 flex-1 break-words text-zinc-600`}>
         Sold by{" "}
-        <span className="font-medium text-zinc-900">{vendor.name}</span>
+        <span className="break-words font-medium text-zinc-900">{vendor.name}</span>
       </span>
     </>
   );
 
-  const classes = `inline-flex max-w-full items-center gap-1.5 ${className}`.trim();
+  const classes =
+    `inline-flex max-w-full min-w-0 items-start gap-1.5 ${className}`.trim();
 
   if (as === "text") {
     return <span className={classes}>{content}</span>;

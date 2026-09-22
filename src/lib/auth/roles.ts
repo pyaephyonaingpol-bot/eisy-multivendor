@@ -8,8 +8,15 @@ export function normalizeUserRole(
   const value = String(role ?? "")
     .trim()
     .toLowerCase();
-  if (value === "admin" || value === "vendor" || value === "customer") {
-    return value;
+  // Live DBs may still store legacy "buyer" instead of "customer".
+  if (value === "buyer" || value === "customer") {
+    return "customer";
+  }
+  if (value === "seller" || value === "vendor") {
+    return "vendor";
+  }
+  if (value === "admin") {
+    return "admin";
   }
   return null;
 }

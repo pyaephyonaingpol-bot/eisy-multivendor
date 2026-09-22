@@ -1,29 +1,107 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fafafa;
-  --foreground: #09090b;
+  --background: #f3f1ec;
+  --foreground: #141210;
+  --market-ink: #141210;
+  --market-muted: #5c574e;
+  --market-surface: #fffcf7;
+  --market-line: #e4dfd4;
+  --market-accent: #0f6b5c;
+  --market-accent-soft: #d8efe9;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-manrope), "Segoe UI", sans-serif;
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 html {
-  overflow-x: clip;
+  overflow-x: hidden;
+  max-width: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(1200px 500px at 10% -10%, rgba(15, 107, 92, 0.08), transparent 55%),
+    radial-gradient(900px 420px at 90% 0%, rgba(180, 120, 60, 0.07), transparent 50%),
+    var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-  overflow-x: clip;
+  font-family: var(--font-manrope), "Segoe UI", sans-serif;
+  overflow-x: hidden;
+  max-width: 100%;
+  /* Long titles / Burmese / URLs wrap down instead of forcing horizontal scroll */
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-/* Touch-friendly horizontal strips (storefront/vendor mobile nav + product rail) */
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+  height: auto;
+}
+
+pre,
+code {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.font-display {
+  font-family: var(--font-fraunces), Georgia, "Times New Roman", serif;
+}
+
+@keyframes market-fade-up {
+  from {
+    opacity: 0.01;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes market-kenburns {
+  from {
+    transform: scale(1.04);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.market-fade-up {
+  animation: market-fade-up 0.55s ease-out forwards;
+}
+
+.market-kenburns {
+  animation: market-kenburns 7s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .market-fade-up,
+  .market-kenburns {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .mobile-scroll-x {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;

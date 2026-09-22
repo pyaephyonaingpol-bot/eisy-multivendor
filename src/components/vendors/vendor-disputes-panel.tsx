@@ -16,19 +16,16 @@ type Channel = "manual" | "cj";
 type Props = {
   channel: Channel;
   title: string;
-  eyebrow: string;
   description: string;
   emptyLabel: string;
 };
 
 /**
  * Single-channel disputes list — used by Independent Vendor and CJ portals.
- * Never renders a channel switcher (portals stay fully separate).
  */
 export async function VendorDisputesPanel({
   channel,
   title,
-  eyebrow,
   description,
   emptyLabel,
 }: Props) {
@@ -79,15 +76,8 @@ export async function VendorDisputesPanel({
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <p
-          className={`text-xs font-semibold uppercase tracking-wider ${
-            isCj ? "text-sky-800" : "text-zinc-500"
-          }`}
-        >
-          {eyebrow}
-        </p>
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        <p className="max-w-2xl text-zinc-600">{description}</p>
+        <p className="max-w-2xl text-sm text-zinc-600">{description}</p>
       </div>
 
       {rows.length === 0 ? (

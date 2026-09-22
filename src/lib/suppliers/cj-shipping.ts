@@ -78,14 +78,11 @@ async function resolveCjCartLines(
   if (productIds.length === 0) return [];
 
   const supabase = createServiceClient();
-  const [{ data: imports }, { data: products }, { data: cjProviders }] =
+  const { loadImportRegistryByProductIds } = await import(
+    "@/lib/suppliers/import-registry"
+  );
+  const [{ data: products }, { data: cjProviders }, importByProduct] =
     await Promise.all([
-      supabase
-        .from("external_product_imports")
-        .select(
-          "product_id, external_product_id, external_variant_id, external_sku, provider_id",
-        )
-        .in("product_id", productIds),
       supabase
         .from("products")
         .select("id, name, sku, catalog_kind, is_dropship, origin_country_code")
@@ -96,15 +93,11 @@ async function resolveCjCartLines(
         .or(
           "kind.eq.cj_dropshipping,slug.eq.cj-dropshipping,slug.eq.cj_dropshipping",
         ),
+      loadImportRegistryByProductIds(supabase, productIds),
     ]);
 
   const cjProviderIds = new Set((cjProviders ?? []).map((row) => row.id));
   const productById = new Map((products ?? []).map((row) => [row.id, row]));
-  const importByProduct = new Map(
-    (imports ?? [])
-      .filter((row) => row.product_id && cjProviderIds.has(row.provider_id))
-      .map((row) => [row.product_id as string, row]),
-  );
 
   const qtyByProduct = new Map<string, number>();
   for (const item of items) {
@@ -121,6 +114,14 @@ async function resolveCjCartLines(
     if (!product) continue;
 
     const imported = importByProduct.get(productId);
+    if (
+      imported?.provider_id &&
+      cjProviderIds.size > 0 &&
+      !cjProviderIds.has(imported.provider_id)
+    ) {
+      // Non-CJ provider import row — skip unless catalog_kind marks CJ.
+      if (product.catalog_kind !== "cj_import") continue;
+    }
     const isCjProduct =
       Boolean(imported) ||
       product.catalog_kind === "cj_import" ||
@@ -373,4 +374,91 @@ export function isCjShippingUnavailableError(message: string | null | undefined)
     lower.includes("no available shipping") ||
     lower.includes("no shipping method")
   );
+}
+
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index]!);
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, Math.max(items.length, 1)) },
+    () => worker(),
+  );
+  await Promise.all(workers);
+  return results;
+}
+
+/**
+ * Location filter for marketplace catalog: keep non-CJ products, and only CJ
+ * listings that have at least one live freight method to `countryCode`.
+ * When CJ live API is disabled, CJ products are kept (mock/offline fail-open).
+ */
+export async function filterCjProductsShippableToCountry(
+  productIds: string[],
+  countryCode: string,
+): Promise<Set<string>> {
+  const uniqueIds = [...new Set(productIds.filter(Boolean))];
+  const allowed = new Set(uniqueIds);
+  if (uniqueIds.length === 0) return allowed;
+
+  const normalizedCountry = countryCode.trim().toUpperCase() || "MM";
+  const lines = await resolveCjCartLines(
+    uniqueIds.map((productId) => ({ product_id: productId, quantity: 1 })),
+  );
+
+  if (lines.length === 0) {
+    return allowed;
+  }
+
+  const cjProductIds = new Set(lines.map((line) => line.productId));
+  const linked = await loadPlatformSupplierContext("cj_dropshipping");
+  const creds = linked?.credentials ?? null;
+
+  if (!useLiveSupplierApi("cj_dropshipping", creds)) {
+    return allowed;
+  }
+
+  // Without a variant id we cannot verify freight — hide those CJ listings live.
+  for (const productId of cjProductIds) {
+    if (!lines.some((line) => line.productId === productId && line.vid)) {
+      allowed.delete(productId);
+    }
+  }
+
+  const uniqueLines = [
+    ...new Map(lines.filter((line) => line.vid).map((line) => [line.productId, line])).values(),
+  ];
+
+  const shipChecks = await mapPool(uniqueLines, 4, async (line) => {
+    const freight = await freightCalculateCjShipping(
+      {
+        startCountryCode: line.warehouseCountry?.trim() || "CN",
+        endCountryCode: normalizedCountry,
+        products: [{ vid: line.vid, quantity: 1 }],
+      },
+      creds,
+    );
+    const ok = freight.ok && freight.methods.length > 0;
+    return { productId: line.productId, ok };
+  });
+
+  for (const check of shipChecks) {
+    if (!check.ok) {
+      allowed.delete(check.productId);
+    }
+  }
+
+  return allowed;
 }

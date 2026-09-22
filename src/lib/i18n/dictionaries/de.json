@@ -74,6 +74,7 @@
     "daysRange": "{min}–{max} Tage",
     "emptySearch": "Suchen Sie, um Lieferantenprodukte zu laden.",
     "emptySearchDev": "Suchen Sie, um Produkte zu laden (Mock-Kataloge ohne API-Schlüssel).",
+    "mockCatalogBanner": "Showing mock catalog products for local testing. Set SUPPLIER_INTEGRATIONS_MODE=mock, or leave keys unset / enable SUPPLIER_INTEGRATIONS_FALLBACK_MOCK when live CJ keys are missing.",
     "searchFailed": "Suche fehlgeschlagen.",
     "catalogUnreachable": "Lieferantenkatalog-API nicht erreichbar.",
     "sourceTabsLabel": "Lieferantenquelle",
@@ -92,7 +93,13 @@
       "cj": "CJ Dropshipping",
       "spocket": "Spocket",
       "pod": "POD"
-    }
+    },
+    "loadMore": "Weitere Produkte laden",
+    "loadingMore": "Weitere werden geladen…",
+    "showingCount": "{count} Produkte angezeigt",
+    "relatedCategories": "Verwandte CJ-Kategorien",
+    "allCategories": "Alle",
+    "showingCountOfTotal": "{count} von {total} Produkten angezeigt"
   },
   "escrow": {
     "title": "Treuhand",

@@ -173,12 +173,6 @@ function mapDsersProduct(row: Record<string, unknown>): ExternalCatalogProduct {
   };
 }
 
-function hasDsersKey(credentials?: SupplierCredentials | null): boolean {
-  return Boolean(
-    credentials?.apiKey?.trim() || process.env.DSERS_API_KEY?.trim(),
-  );
-}
-
 export async function searchDsersProducts(
   query: string,
   credentials?: SupplierCredentials | null,
@@ -199,7 +193,7 @@ export async function searchDsersProducts(
       .map((row) => mapDsersProduct(row as Record<string, unknown>))
       .filter((p) => p.externalProductId);
   } catch (error) {
-    if (hasDsersKey(credentials) || !shouldFallbackToMock()) throw error;
+    if (!shouldFallbackToMock()) throw error;
     return mockCatalog(query);
   }
 }

@@ -36,13 +36,9 @@ export default async function DropshipCjOrdersPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-sky-800">
-          CJ Dropshipping Portal
-        </p>
         <h1 className="text-2xl font-semibold tracking-tight">CJ Orders</h1>
         <p className="max-w-2xl text-zinc-600">
-          Orders fulfilled through the CJ Dropshipping API. Custom-source orders
-          stay in the Independent Vendor Portal.
+          Orders fulfilled through the CJ Dropshipping API. Tracking, disputes, and fees are under More.
         </p>
       </div>
 

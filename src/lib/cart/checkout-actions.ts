@@ -34,6 +34,7 @@ function parseCheckoutForm(formData: FormData): {
   items: CartCheckoutItem[];
   shippingAddress: Record<string, string | null> | null;
   paymentMethod: "wallet" | "trc20";
+  saveAsDefault: boolean;
   error?: string;
 } {
   const rawItems = String(formData.get("items") ?? "").trim();
@@ -46,6 +47,13 @@ function parseCheckoutForm(formData: FormData): {
   const postalCode = String(formData.get("postal_code") ?? "").trim();
   const country = String(formData.get("country") ?? "").trim() || "MM";
   const note = String(formData.get("note") ?? "").trim();
+  const saveAsDefaultRaw = String(formData.get("save_as_default") ?? "")
+    .trim()
+    .toLowerCase();
+  const saveAsDefault =
+    saveAsDefaultRaw === "1" ||
+    saveAsDefaultRaw === "on" ||
+    saveAsDefaultRaw === "true";
   const paymentMethodRaw = String(formData.get("payment_method") ?? "wallet")
     .trim()
     .toLowerCase();
@@ -64,6 +72,7 @@ function parseCheckoutForm(formData: FormData): {
         items: [],
         shippingAddress: null,
         paymentMethod,
+        saveAsDefault,
         error: "Your cart is empty.",
       };
     }
@@ -83,6 +92,7 @@ function parseCheckoutForm(formData: FormData): {
       items: [],
       shippingAddress: null,
       paymentMethod,
+      saveAsDefault,
       error: "Cart payload is invalid. Refresh and try again.",
     };
   }
@@ -92,6 +102,7 @@ function parseCheckoutForm(formData: FormData): {
       items: [],
       shippingAddress: null,
       paymentMethod,
+      saveAsDefault,
       error: "Your cart is empty.",
     };
   }
@@ -111,7 +122,7 @@ function parseCheckoutForm(formData: FormData): {
         }
       : null;
 
-  return { items, shippingAddress, paymentMethod };
+  return { items, shippingAddress, paymentMethod, saveAsDefault };
 }
 
 export async function checkoutWithUsdt(
@@ -164,6 +175,32 @@ export async function checkoutWithUsdt(
   );
   if (!cjShip.ok) {
     return { error: cjShip.error };
+  }
+
+  if (
+    parsed.saveAsDefault &&
+    parsed.shippingAddress?.full_name &&
+    parsed.shippingAddress?.line1 &&
+    parsed.shippingAddress?.city
+  ) {
+    try {
+      const { upsertDefaultAddressFromCheckout } = await import(
+        "@/lib/addresses/actions"
+      );
+      await upsertDefaultAddressFromCheckout({
+        userId: user.id,
+        fullName: parsed.shippingAddress.full_name,
+        phone: parsed.shippingAddress.phone,
+        line1: parsed.shippingAddress.line1,
+        line2: parsed.shippingAddress.line2,
+        city: parsed.shippingAddress.city,
+        region: parsed.shippingAddress.region,
+        postalCode: parsed.shippingAddress.postal_code,
+        countryCode: shipCountry,
+      });
+    } catch {
+      // Checkout should still proceed if address-book save fails.
+    }
   }
 
   if (parsed.paymentMethod === "trc20") {

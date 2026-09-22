@@ -245,10 +245,13 @@ function parseProductFields(formData: FormData): ParsedProductFields {
 
 function revalidateProductPaths(productId?: string) {
   revalidatePath("/vendor/products");
+  revalidatePath("/vendor/dropship/imported");
+  revalidatePath("/vendor/sourcing");
   revalidatePath("/vendor/dashboard");
   revalidatePath("/products");
   if (productId) {
     revalidatePath(`/vendor/products/${productId}/edit`);
+    revalidatePath(`/vendor/sourcing/${productId}`);
     revalidatePath(`/products/${productId}`);
   }
 }
@@ -458,4 +461,141 @@ export async function updateProduct(
 
   revalidateProductPaths(productId);
   redirect("/vendor/products");
+}
+
+/**
+ * Permanently delete a product owned by the signed-in vendor.
+ * Cascades CJ import registry rows; order history keeps items with product_id nulled.
+ */
+export async function deleteProduct(
+  _prev: ProductActionState,
+  formData: FormData,
+): Promise<ProductActionState> {
+  const productId = String(formData.get("product_id") ?? "").trim();
+  if (!productId) {
+    return { error: "Missing product id." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be signed in to delete a product." };
+  }
+
+  const vendor = await getVendorForOwner(user.id);
+  if (!vendor) {
+    return { error: "Submit a vendor application before managing products." };
+  }
+
+  const { data: existing, error: loadError } = await supabase
+    .from("products")
+    .select("id, catalog_kind, name")
+    .eq("id", productId)
+    .eq("vendor_id", vendor.id)
+    .maybeSingle();
+
+  if (loadError) {
+    return { error: loadError.message };
+  }
+
+  if (!existing) {
+    return { error: "Product not found in your catalog." };
+  }
+
+  const { error } = await supabase
+    .from("products")
+    .delete()
+    .eq("id", productId)
+    .eq("vendor_id", vendor.id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidateProductPaths(productId);
+
+  const isCj = existing.catalog_kind === "cj_import";
+  return {
+    success: isCj
+      ? "Imported product removed from your catalog."
+      : "Product deleted.",
+  };
+}
+
+/**
+ * Remove a CJ Dropshipping import from the vendor's store listing database.
+ * Only succeeds for catalog_kind = cj_import rows owned by the signed-in vendor.
+ */
+export async function removeCjImportedProduct(
+  _prev: ProductActionState,
+  formData: FormData,
+): Promise<ProductActionState> {
+  const productId = String(formData.get("product_id") ?? "").trim();
+  if (!productId) {
+    return { error: "Missing product id." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be signed in to remove an imported product." };
+  }
+
+  const vendor = await getVendorForOwner(user.id);
+  if (!vendor) {
+    return { error: "Submit a vendor application before managing CJ imports." };
+  }
+
+  const { data: existing, error: loadError } = await supabase
+    .from("products")
+    .select("id, catalog_kind, name")
+    .eq("id", productId)
+    .eq("vendor_id", vendor.id)
+    .maybeSingle();
+
+  if (loadError) {
+    return { error: loadError.message };
+  }
+
+  if (!existing) {
+    return { error: "Imported product not found in your CJ catalog." };
+  }
+
+  if (existing.catalog_kind !== "cj_import") {
+    return {
+      error:
+        "This listing is not a CJ import. Remove it from Vendor → Products instead.",
+    };
+  }
+
+  // Clear the CJ registry first so fee/quota counts drop even if cascade lags.
+  const { error: registryError } = await supabase
+    .from("cj_imported_products")
+    .delete()
+    .eq("product_id", productId)
+    .eq("vendor_id", vendor.id);
+
+  if (registryError) {
+    return { error: registryError.message };
+  }
+
+  const { error } = await supabase
+    .from("products")
+    .delete()
+    .eq("id", productId)
+    .eq("vendor_id", vendor.id)
+    .eq("catalog_kind", "cj_import");
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidateProductPaths(productId);
+  redirect("/vendor/dropship/imported");
 }

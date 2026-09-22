@@ -24,34 +24,36 @@ export function FeaturedProductRail({ products }: FeaturedProductRailProps) {
           return (
             <li
               key={product.id}
-              className="w-[72%] max-w-[18rem] shrink-0 snap-start"
+              className="flex w-[74%] max-w-[17.5rem] shrink-0 snap-start"
             >
               <Link
                 href={`/products/${product.id}`}
-                className="flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white"
+                className="flex h-full min-w-0 w-full flex-col overflow-hidden rounded-xl border border-[var(--market-line)] bg-[var(--market-surface)]"
               >
-                <div className="aspect-[4/3] bg-zinc-100">
+                <div className="aspect-square w-full max-w-full shrink-0 overflow-hidden bg-[#ebe6dc]">
                   {image ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={image}
                       alt={product.name}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover object-center"
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center text-xs text-zinc-400">
+                    <div className="flex h-full items-center justify-center text-xs text-[var(--market-muted)]">
                       No image
                     </div>
                   )}
                 </div>
-                <div className="space-y-1 p-3">
-                  <p className="line-clamp-2 text-sm font-semibold text-zinc-950">
-                    {product.name}
-                  </p>
-                  {product.vendor?.status === "approved" && product.vendor ? (
-                    <SoldByBadge vendor={product.vendor} as="text" />
-                  ) : null}
-                  <p className="text-sm font-medium text-zinc-950">
+                <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 p-3">
+                  <div className="min-w-0 space-y-1">
+                    <p className="line-clamp-2 break-words text-sm font-semibold text-[var(--market-ink)]">
+                      {product.name}
+                    </p>
+                    {product.vendor?.status === "approved" && product.vendor ? (
+                      <SoldByBadge vendor={product.vendor} as="text" />
+                    ) : null}
+                  </div>
+                  <p className="break-words text-sm font-semibold text-[var(--market-ink)]">
                     {formatMoney(Number(product.price), MARKETPLACE_CURRENCY)}
                   </p>
                 </div>

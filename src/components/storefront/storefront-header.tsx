@@ -25,27 +25,27 @@ export async function StorefrontHeader() {
   ];
 
   return (
-    <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white/95 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-[var(--market-line)] bg-[color-mix(in_srgb,var(--market-surface)_92%,transparent)] backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 px-4 sm:h-16 sm:gap-4">
         <div className="flex min-w-0 items-center gap-4 sm:gap-8">
           <Link
             href="/"
-            className="truncate text-base font-semibold tracking-tight sm:text-lg"
+            className="font-display truncate text-lg font-medium tracking-tight text-[var(--market-ink)] sm:text-xl"
           >
-            <span className="sm:hidden">{t.brand.short}</span>
-            <span className="hidden sm:inline">{t.brand.full}</span>
+            <span className="sm:hidden">Eisy</span>
+            <span className="hidden sm:inline">Eisy Marketplace</span>
           </Link>
-          <nav className="hidden items-center gap-5 text-sm text-zinc-600 md:flex">
+          <nav className="hidden items-center gap-5 text-sm text-[var(--market-muted)] md:flex">
             {nav.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="hover:text-zinc-950"
+                className="transition hover:text-[var(--market-ink)]"
               >
                 {item.label}
               </Link>
             ))}
-            <AdminDashboardLink className="hover:text-zinc-950">
+            <AdminDashboardLink className="transition hover:text-[var(--market-ink)]">
               {t.nav.adminDashboard}
             </AdminDashboardLink>
           </nav>
@@ -66,17 +66,17 @@ export async function StorefrontHeader() {
           )}
         </div>
       </div>
-      <nav className="flex gap-3 overflow-x-auto border-t border-zinc-100 px-4 py-2 text-sm text-zinc-600 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
+      <nav className="flex gap-3 overflow-x-auto border-t border-[var(--market-line)] px-4 py-2 text-sm text-[var(--market-muted)] [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
         {nav.map((item) => (
           <Link
             key={item.href}
             href={item.href}
-            className="snap-start whitespace-nowrap rounded-full bg-zinc-50 px-3 py-1 hover:bg-zinc-100 hover:text-zinc-950"
+            className="snap-start whitespace-nowrap rounded-full bg-[var(--market-surface)] px-3 py-1 hover:text-[var(--market-ink)]"
           >
             {item.label}
           </Link>
         ))}
-        <AdminDashboardLink className="snap-start whitespace-nowrap rounded-full bg-zinc-50 px-3 py-1 hover:bg-zinc-100 hover:text-zinc-950">
+        <AdminDashboardLink className="snap-start whitespace-nowrap rounded-full bg-[var(--market-surface)] px-3 py-1 hover:text-[var(--market-ink)]">
           {t.nav.adminDashboard}
         </AdminDashboardLink>
       </nav>

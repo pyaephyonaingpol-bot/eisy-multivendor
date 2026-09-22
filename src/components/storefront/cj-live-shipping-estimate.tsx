@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { RegionalShippingEstimate } from "@/components/storefront/regional-shipping-estimate";
+import { BuyerCountrySelect } from "@/components/storefront/buyer-country-select";
 import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
-import { BUYER_COUNTRY_OPTIONS } from "@/lib/sourcing/constants";
 import { setBuyerSourcingPreference } from "@/lib/sourcing/actions";
 import type { ResolvedSupplierRoute } from "@/lib/types/database";
 
@@ -50,6 +50,10 @@ type CjLiveShippingEstimateProps = {
 const fieldClassName =
   "w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-950";
 
+/**
+ * Buyer-facing shipping options. Uses live freight under the hood but does not
+ * expose supplier/warehouse/routing internals on the product page.
+ */
 export function CjLiveShippingEstimate({
   productId,
   countryCode: initialCountry,
@@ -110,8 +114,10 @@ export function CjLiveShippingEstimate({
           setQuote({
             status: "blocked",
             error:
-              data.error ??
-              "Sorry, CJ Dropshipping does not ship to your location.",
+              data.error?.includes("does not ship") ||
+              data.error?.toLowerCase().includes("location")
+                ? "This item cannot be delivered to the selected country. Try another destination."
+                : "Shipping is unavailable for the selected country.",
             methods: data.methods ?? [],
             availability,
             countryCode: data.countryCode ?? country,
@@ -132,7 +138,7 @@ export function CjLiveShippingEstimate({
           error:
             error instanceof Error
               ? error.message
-              : "Could not load live CJ shipping for this country.",
+              : "Could not load shipping options for this country.",
         });
       }
     }, 220);
@@ -162,39 +168,33 @@ export function CjLiveShippingEstimate({
 
   return (
     <div className="space-y-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="font-medium text-zinc-950">Live CJ shipping</p>
-          <p className="text-xs text-zinc-500">
-            Real-time availability and freight from CJ Dropshipping
-          </p>
-        </div>
-        <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-900 ring-1 ring-inset ring-sky-200">
-          CJ Dropshipping
-        </span>
+      <div className="space-y-0.5">
+        <p className="font-medium text-zinc-950">Shipping</p>
+        <p className="text-xs text-zinc-500">
+          Choose a delivery country to see available options and costs.
+        </p>
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor="cj-browse-country" className="text-xs font-medium text-zinc-600">
-          Ship to
-        </label>
-        <select
-          id="cj-browse-country"
-          value={country}
-          onChange={(event) => onCountryChange(event.target.value)}
-          className={fieldClassName}
+        <label
+          htmlFor="buyer-ship-country"
+          className="text-xs font-medium text-zinc-600"
         >
-          {BUYER_COUNTRY_OPTIONS.map((option) => (
-            <option key={option.code} value={option.code}>
-              {option.label} ({option.code})
-            </option>
-          ))}
-        </select>
+          Deliver to
+        </label>
+        <BuyerCountrySelect
+          id="buyer-ship-country"
+          name="buyer_ship_country"
+          value={country}
+          onChange={onCountryChange}
+          className={fieldClassName}
+          aria-label="Deliver to"
+        />
       </div>
 
       {quote.status === "loading" ? (
-        <p className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-sky-950">
-          Checking live CJ availability and shipping to {country}…
+        <p className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-zinc-700">
+          Checking shipping options…
         </p>
       ) : null}
 
@@ -203,10 +203,10 @@ export function CjLiveShippingEstimate({
           className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950"
           role="status"
         >
-          <p className="font-medium">Could not reach CJ shipping</p>
-          <p className="mt-1 text-xs">{quote.error}</p>
-          <p className="mt-1 text-xs text-amber-800">
-            Try another country or continue — checkout will re-check before payment.
+          <p className="font-medium">Shipping options unavailable</p>
+          <p className="mt-1 text-xs">
+            Try another country, or continue — checkout will confirm shipping
+            before payment.
           </p>
         </div>
       ) : null}
@@ -216,13 +216,10 @@ export function CjLiveShippingEstimate({
           className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-rose-950"
           role="alert"
         >
-          <p className="font-medium">Shipping unavailable</p>
+          <p className="font-medium">Cannot ship here</p>
           <p className="mt-1">{quote.error}</p>
           {quote.availability.status === "out_of_stock" ? (
-            <p className="mt-1 text-xs">
-              {quote.availability.message ??
-                "This product is also out of stock at CJ."}
-            </p>
+            <p className="mt-1 text-xs">This item is currently out of stock.</p>
           ) : null}
         </div>
       ) : null}
@@ -239,12 +236,14 @@ export function CjLiveShippingEstimate({
                 <div className="min-w-0">
                   <p className="font-medium text-zinc-950">{method.name}</p>
                   {method.days ? (
-                    <p className="text-xs text-zinc-500">{method.days} days</p>
+                    <p className="text-xs text-zinc-500">
+                      {method.days} days
+                    </p>
                   ) : null}
                 </div>
                 <p className="shrink-0 font-medium text-zinc-950">
                   {method.amount == null
-                    ? "Quote on checkout"
+                    ? "At checkout"
                     : formatMoney(
                         method.amount,
                         method.currency || MARKETPLACE_CURRENCY,
@@ -253,10 +252,6 @@ export function CjLiveShippingEstimate({
               </li>
             ))}
           </ul>
-          <p className="text-xs text-zinc-500">
-            Costs refresh when you change country. Checkout verifies again before
-            payment.
-          </p>
         </div>
       ) : null}
     </div>
@@ -264,30 +259,24 @@ export function CjLiveShippingEstimate({
 }
 
 function AvailabilityRow({ availability }: { availability: Availability }) {
-  if (availability.status === "skipped") return null;
+  if (availability.status === "skipped" || availability.status === "unknown") {
+    return null;
+  }
 
   if (availability.status === "in_stock") {
     return (
       <p className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-emerald-950">
-        In stock at CJ
-        {availability.available != null
+        In stock
+        {availability.available != null && availability.available > 0
           ? ` · ${availability.available} available`
           : ""}
       </p>
     );
   }
 
-  if (availability.status === "out_of_stock") {
-    return (
-      <p className="rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-rose-950">
-        {availability.message ?? "Out of stock at CJ Dropshipping"}
-      </p>
-    );
-  }
-
   return (
-    <p className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-zinc-700">
-      {availability.message ?? "Live stock check pending — confirmed at checkout."}
+    <p className="rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-rose-950">
+      Out of stock
     </p>
   );
 }

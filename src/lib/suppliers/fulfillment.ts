@@ -158,28 +158,12 @@ async function buildFulfillmentRequest(
   const importKeys = lineRows
     .map((row) => row.listing_product_id ?? row.product_id)
     .filter(Boolean) as string[];
-  const { data: imports } = importKeys.length
-    ? await supabase
-        .from("external_product_imports")
-        .select(
-          "product_id, external_product_id, external_variant_id, external_sku, provider_id",
-        )
-        .in("product_id", importKeys)
-    : {
-        data: [] as Array<{
-          product_id: string | null;
-          external_product_id: string;
-          external_variant_id: string | null;
-          external_sku: string | null;
-          provider_id: string;
-        }>,
-      };
-
-  const importByProduct = new Map(
-    (imports ?? [])
-      .filter((row) => row.product_id)
-      .map((row) => [row.product_id as string, row]),
+  const { loadImportRegistryByProductIds } = await import(
+    "@/lib/suppliers/import-registry"
   );
+  const importByProduct = importKeys.length
+    ? await loadImportRegistryByProductIds(supabase, importKeys)
+    : new Map();
 
   const lines = lineRows.map((row) => {
     const listingId = row.listing_product_id ?? row.product_id;
@@ -192,9 +176,15 @@ async function buildFulfillmentRequest(
       ? (product?.images as string[])
       : [];
 
+    // Prefer buyer-selected variant on the order line when stored; else import default.
+    const lineVariantId =
+      (row as { external_variant_id?: string | null }).external_variant_id ??
+      imported?.external_variant_id ??
+      null;
+
     return {
       externalProductId: imported?.external_product_id ?? null,
-      externalVariantId: imported?.external_variant_id ?? null,
+      externalVariantId: lineVariantId,
       externalSku:
         imported?.external_sku ?? route?.external_sku ?? product?.sku ?? null,
       quantity: Number(row.quantity) || 1,

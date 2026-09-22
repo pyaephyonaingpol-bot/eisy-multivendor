@@ -4,8 +4,8 @@ import {
   kindsForSourceTab,
   parseSourceTab,
   parseSupplierKind,
-  searchExternalProducts,
   searchExternalProductsForTab,
+  searchExternalProductsPage,
 } from "@/lib/suppliers";
 import { toClientCatalogProducts } from "@/lib/suppliers/catalog-dto";
 import { loadPlatformSupplierContext } from "@/lib/suppliers/platform-credentials";
@@ -13,7 +13,10 @@ import type {
   ExternalSupplierKind,
   SupplierCredentials,
 } from "@/lib/suppliers/types";
-import { useLiveSupplierApi } from "@/lib/suppliers/types";
+import {
+  productMatchesSourcingRegion,
+  useLiveSupplierApi,
+} from "@/lib/suppliers/types";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 
 export const runtime = "nodejs";
@@ -50,6 +53,12 @@ export async function GET(request: Request) {
     searchParams.get("q") ?? searchParams.get("query") ?? "",
   ).trim();
   const page = Number(searchParams.get("page") ?? "1") || 1;
+  const categoryId = String(
+    searchParams.get("categoryId") ??
+      searchParams.get("category_id") ??
+      searchParams.get("category") ??
+      "",
+  ).trim();
   const regionCode = String(
     searchParams.get("region") ?? searchParams.get("region_code") ?? "",
   )
@@ -58,6 +67,7 @@ export async function GET(request: Request) {
 
   const singleKind = parseSupplierKind(sourceRaw);
   const sourceTab = parseSourceTab(sourceRaw);
+  const searchOptions = { categoryId: categoryId || null };
 
   try {
     if (
@@ -66,16 +76,17 @@ export async function GET(request: Request) {
       !["all", "pod"].includes(sourceRaw.toLowerCase())
     ) {
       const credentials = await loadCredentialsForKind(singleKind);
-      let products = await searchExternalProducts(
+      const pageResult = await searchExternalProductsPage(
         singleKind,
         query,
         credentials,
         page,
+        searchOptions,
       );
+      // hasMore is based on the unfiltered supplier page so region filters
+      // do not hide later pages that may still match.
+      let products = pageResult.products;
       if (regionCode) {
-        const { productMatchesSourcingRegion } = await import(
-          "@/lib/suppliers/types"
-        );
         products = products.filter((product) =>
           productMatchesSourcingRegion(product, regionCode),
         );
@@ -91,6 +102,12 @@ export async function GET(request: Request) {
         source: sourceTab,
         query,
         region: regionCode || null,
+        categoryId: pageResult.categoryId ?? (categoryId || null),
+        page: pageResult.page,
+        pageSize: pageResult.pageSize,
+        hasMore: pageResult.hasMore,
+        total: pageResult.total ?? null,
+        relatedCategories: pageResult.relatedCategories ?? [],
         count: clientProducts.length,
         products: clientProducts,
         platformManaged: true,
@@ -108,6 +125,50 @@ export async function GET(request: Request) {
         credentialsByKind[kind] = await loadCredentialsForKind(kind);
       }),
     );
+
+    // Prefer CJ page metadata when the tab resolves to a single live source.
+    if (kinds.length === 1 && kinds[0]) {
+      const onlyKind = kinds[0];
+      const pageResult = await searchExternalProductsPage(
+        onlyKind,
+        query,
+        credentialsByKind[onlyKind] ?? null,
+        page,
+        searchOptions,
+      );
+      let products = pageResult.products;
+      if (regionCode) {
+        products = products.filter((product) =>
+          productMatchesSourcingRegion(product, regionCode),
+        );
+      }
+      const clientProducts = toClientCatalogProducts(products);
+      const usedMock =
+        clientProducts.length > 0 &&
+        clientProducts.every((product) => product.isMock === true);
+      const anyLive = useLiveSupplierApi(
+        onlyKind,
+        credentialsByKind[onlyKind] ?? null,
+      );
+      return NextResponse.json({
+        ok: true,
+        provider: sourceTab,
+        source: sourceTab,
+        query,
+        region: regionCode || null,
+        categoryId: pageResult.categoryId ?? (categoryId || null),
+        page: pageResult.page,
+        pageSize: pageResult.pageSize,
+        hasMore: pageResult.hasMore,
+        total: pageResult.total ?? null,
+        relatedCategories: pageResult.relatedCategories ?? [],
+        count: clientProducts.length,
+        products: clientProducts,
+        platformManaged: true,
+        catalogMode: usedMock || !anyLive ? "mock" : "live",
+        usedMock,
+      });
+    }
 
     const products = await searchExternalProductsForTab(sourceTab, query, {
       credentialsByKind,
@@ -129,6 +190,11 @@ export async function GET(request: Request) {
       source: sourceTab,
       query,
       region: regionCode || null,
+      categoryId: categoryId || null,
+      page,
+      hasMore: clientProducts.length >= 20,
+      total: null,
+      relatedCategories: [],
       count: clientProducts.length,
       products: clientProducts,
       platformManaged: true,

@@ -78,14 +78,11 @@ async function resolveCjCartLines(
   if (productIds.length === 0) return [];
 
   const supabase = createServiceClient();
-  const [{ data: imports }, { data: products }, { data: cjProviders }] =
+  const { loadImportRegistryByProductIds } = await import(
+    "@/lib/suppliers/import-registry"
+  );
+  const [{ data: products }, { data: cjProviders }, importByProduct] =
     await Promise.all([
-      supabase
-        .from("external_product_imports")
-        .select(
-          "product_id, external_product_id, external_variant_id, external_sku, provider_id",
-        )
-        .in("product_id", productIds),
       supabase
         .from("products")
         .select("id, name, sku, catalog_kind, is_dropship, origin_country_code")
@@ -96,15 +93,11 @@ async function resolveCjCartLines(
         .or(
           "kind.eq.cj_dropshipping,slug.eq.cj-dropshipping,slug.eq.cj_dropshipping",
         ),
+      loadImportRegistryByProductIds(supabase, productIds),
     ]);
 
   const cjProviderIds = new Set((cjProviders ?? []).map((row) => row.id));
   const productById = new Map((products ?? []).map((row) => [row.id, row]));
-  const importByProduct = new Map(
-    (imports ?? [])
-      .filter((row) => row.product_id && cjProviderIds.has(row.provider_id))
-      .map((row) => [row.product_id as string, row]),
-  );
 
   const qtyByProduct = new Map<string, number>();
   for (const item of items) {
@@ -121,6 +114,14 @@ async function resolveCjCartLines(
     if (!product) continue;
 
     const imported = importByProduct.get(productId);
+    if (
+      imported?.provider_id &&
+      cjProviderIds.size > 0 &&
+      !cjProviderIds.has(imported.provider_id)
+    ) {
+      // Non-CJ provider import row — skip unless catalog_kind marks CJ.
+      if (product.catalog_kind !== "cj_import") continue;
+    }
     const isCjProduct =
       Boolean(imported) ||
       product.catalog_kind === "cj_import" ||

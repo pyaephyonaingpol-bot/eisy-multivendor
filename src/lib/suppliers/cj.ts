@@ -49,16 +49,25 @@ function credentialsHaveKey(credentials?: SupplierCredentials | null): boolean {
   );
 }
 
-function mockCatalog(query: string): ExternalCatalogProduct[] {
+/** Mock page size — live CJ listV2 hard-caps `size` at 100. */
+const CJ_MOCK_PAGE_SIZE = 24;
+/** Mock pages available so Load more can be exercised without live keys. */
+const CJ_MOCK_TOTAL_PAGES = 5;
+
+function mockCatalog(query: string, page = 1): ExternalCatalogProduct[] {
   const q = query.trim() || "gadget";
-  return [1, 2, 3].map((n) => {
+  const safePage = Math.max(1, Math.floor(page) || 1);
+  const startN = (safePage - 1) * CJ_MOCK_PAGE_SIZE + 1;
+  return Array.from({ length: CJ_MOCK_PAGE_SIZE }, (_, index) => {
+    const n = startN + index;
     const seed = `cj-${q.slice(0, 8)}-${n}`.replace(/\s+/g, "-");
     const images = [
       `https://picsum.photos/seed/${seed}-a/800/800`,
       `https://picsum.photos/seed/${seed}-b/800/800`,
       `https://picsum.photos/seed/${seed}-c/800/800`,
     ];
-    const base = Number((4.5 + n * 1.25).toFixed(2));
+    const base = Number((4.5 + (n % 12) * 1.25).toFixed(2));
+    const stockFactor = (n % 8) + 1;
     return {
       providerKind: "cj_dropshipping" as const,
       externalProductId: `CJ-MOCK-${q.slice(0, 12).toUpperCase()}-${n}`,
@@ -79,8 +88,8 @@ function mockCatalog(query: string): ExternalCatalogProduct[] {
       imageUrl: images[0],
       images,
       priceUsdt: base,
-      compareAtPriceUsdt: Number((7 + n * 1.5).toFixed(2)),
-      stockQuantity: 50 * n,
+      compareAtPriceUsdt: Number((7 + (n % 12) * 1.5).toFixed(2)),
+      stockQuantity: 50 * stockFactor,
       warehouseCountry: "CN",
       shippingDaysMin: 5,
       shippingDaysMax: 15,
@@ -90,7 +99,7 @@ function mockCatalog(query: string): ExternalCatalogProduct[] {
           externalSku: `CJ-SKU-MOCK-${n}-BLK-S`,
           label: "Black / S",
           priceUsdt: base,
-          stockQuantity: 30 * n,
+          stockQuantity: 30 * stockFactor,
           imageUrl: images[0],
         },
         {
@@ -98,7 +107,7 @@ function mockCatalog(query: string): ExternalCatalogProduct[] {
           externalSku: `CJ-SKU-MOCK-${n}-BLK-M`,
           label: "Black / M",
           priceUsdt: base,
-          stockQuantity: 28 * n,
+          stockQuantity: 28 * stockFactor,
           imageUrl: images[0],
         },
         {
@@ -106,7 +115,7 @@ function mockCatalog(query: string): ExternalCatalogProduct[] {
           externalSku: `CJ-SKU-MOCK-${n}-BLK-L`,
           label: "Black / L",
           priceUsdt: Number((base + 0.2).toFixed(2)),
-          stockQuantity: 22 * n,
+          stockQuantity: 22 * stockFactor,
           imageUrl: images[0],
         },
         {
@@ -114,7 +123,7 @@ function mockCatalog(query: string): ExternalCatalogProduct[] {
           externalSku: `CJ-SKU-MOCK-${n}-WHT-S`,
           label: "White / S",
           priceUsdt: Number((base + 0.4).toFixed(2)),
-          stockQuantity: 20 * n,
+          stockQuantity: 20 * stockFactor,
           imageUrl: images[1],
         },
         {
@@ -122,7 +131,7 @@ function mockCatalog(query: string): ExternalCatalogProduct[] {
           externalSku: `CJ-SKU-MOCK-${n}-WHT-M`,
           label: "White / M",
           priceUsdt: Number((base + 0.4).toFixed(2)),
-          stockQuantity: 18 * n,
+          stockQuantity: 18 * stockFactor,
           imageUrl: images[1],
         },
         {
@@ -130,13 +139,17 @@ function mockCatalog(query: string): ExternalCatalogProduct[] {
           externalSku: `CJ-SKU-MOCK-${n}-BLU-L`,
           label: "Blue / L",
           priceUsdt: Number((base + 0.6).toFixed(2)),
-          stockQuantity: 15 * n,
+          stockQuantity: 15 * stockFactor,
           imageUrl: images[2],
         },
       ],
-      raw: { mock: true, query: q, n },
+      raw: { mock: true, query: q, n, page: safePage },
     };
   });
+}
+
+function mockCatalogHasMore(page: number): boolean {
+  return Math.max(1, Math.floor(page) || 1) < CJ_MOCK_TOTAL_PAGES;
 }
 
 function isCjSuccessCode(code: unknown): boolean {
@@ -282,6 +295,38 @@ function isAuthFailure(json: CjJson, status: number): boolean {
   );
 }
 
+/** CJ public QPS is ~1 req/sec; parallel synonym/list calls otherwise get 1600200. */
+let cjRequestChain: Promise<void> = Promise.resolve();
+let cjLastRequestAtMs = 0;
+
+function enqueueCjRequest<T>(task: () => Promise<T>): Promise<T> {
+  const run = cjRequestChain.then(async () => {
+    const waitMs = Math.max(0, 1100 - (Date.now() - cjLastRequestAtMs));
+    if (waitMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
+    cjLastRequestAtMs = Date.now();
+    return task();
+  });
+  // Keep the chain alive even when a request fails.
+  cjRequestChain = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+function isCjRateLimit(json: CjJson, status: number): boolean {
+  if (status === 429) return true;
+  const code = Number(json.code);
+  const message = String(json.message ?? json.errorMsg ?? "").toLowerCase();
+  return (
+    code === 1600200 ||
+    message.includes("too many requests") ||
+    message.includes("qps")
+  );
+}
+
 async function cjFetch(
   path: string,
   options: {
@@ -290,63 +335,74 @@ async function cjFetch(
     body?: unknown;
     credentials?: SupplierCredentials | null;
     _retriedAuth?: boolean;
+    _retriedRateLimit?: boolean;
   } = {},
 ): Promise<CjJson> {
-  const accessToken = await ensureCjAccessToken(options.credentials, {
-    forceRefresh: Boolean(options._retriedAuth),
-  });
+  return enqueueCjRequest(async () => {
+    const accessToken = await ensureCjAccessToken(options.credentials, {
+      forceRefresh: Boolean(options._retriedAuth),
+    });
 
-  const url = new URL(`${CJ_API_BASE.replace(/\/$/, "")}${path}`);
-  for (const [key, value] of Object.entries(options.query ?? {})) {
-    if (value != null && value !== "") url.searchParams.set(key, String(value));
-  }
-
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-    "Content-Type": "application/json",
-    "CJ-Access-Token": accessToken,
-  };
-
-  const response = await fetch(url.toString(), {
-    method: options.method ?? "GET",
-    headers,
-    body: options.body != null ? JSON.stringify(options.body) : undefined,
-    cache: "no-store",
-  });
-
-  const text = await response.text();
-  let json: CjJson = {};
-  try {
-    json = text ? (JSON.parse(text) as CjJson) : {};
-  } catch {
-    throw new Error(`CJ API returned non-JSON (${response.status})`);
-  }
-
-  // Expired/invalid stored token → re-exchange API key once and retry.
-  if (
-    !options._retriedAuth &&
-    credentialsHaveKey(options.credentials) &&
-    isAuthFailure(json, response.status)
-  ) {
-    const { apiKey } = resolveCjAuth(options.credentials);
-    if (apiKey) {
-      return cjFetch(path, { ...options, _retriedAuth: true });
+    const url = new URL(`${CJ_API_BASE.replace(/\/$/, "")}${path}`);
+    for (const [key, value] of Object.entries(options.query ?? {})) {
+      if (value != null && value !== "") {
+        url.searchParams.set(key, String(value));
+      }
     }
-  }
 
-  if (!response.ok) {
-    throw new Error(
-      `CJ API ${response.status}: ${String(json.message ?? json.error ?? text).slice(0, 240)}`,
-    );
-  }
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "CJ-Access-Token": accessToken,
+    };
 
-  if (!isCjSuccessCode(json.code)) {
-    throw new Error(
-      `CJ API error: ${String(json.message ?? json.errorMsg ?? json.code).slice(0, 240)}`,
-    );
-  }
+    const response = await fetch(url.toString(), {
+      method: options.method ?? "GET",
+      headers,
+      body: options.body != null ? JSON.stringify(options.body) : undefined,
+      cache: "no-store",
+    });
 
-  return json;
+    const text = await response.text();
+    let json: CjJson = {};
+    try {
+      json = text ? (JSON.parse(text) as CjJson) : {};
+    } catch {
+      throw new Error(`CJ API returned non-JSON (${response.status})`);
+    }
+
+    // Expired/invalid stored token → re-exchange API key once and retry.
+    if (
+      !options._retriedAuth &&
+      credentialsHaveKey(options.credentials) &&
+      isAuthFailure(json, response.status)
+    ) {
+      const { apiKey } = resolveCjAuth(options.credentials);
+      if (apiKey) {
+        return cjFetch(path, { ...options, _retriedAuth: true });
+      }
+    }
+
+    // CJ QPS (~1/sec): wait and retry once instead of failing the catalog page.
+    if (!options._retriedRateLimit && isCjRateLimit(json, response.status)) {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      return cjFetch(path, { ...options, _retriedRateLimit: true });
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        `CJ API ${response.status}: ${String(json.message ?? json.error ?? text).slice(0, 240)}`,
+      );
+    }
+
+    if (!isCjSuccessCode(json.code)) {
+      throw new Error(
+        `CJ API error: ${String(json.message ?? json.errorMsg ?? json.code).slice(0, 240)}`,
+      );
+    }
+
+    return json;
+  });
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -769,19 +825,39 @@ async function fetchCjVariantsByPid(
   });
 
   const data = json.data ?? json.result ?? json;
+  const record = asRecord(data);
   const rows = Array.isArray(data)
     ? data
-    : Array.isArray(asRecord(data)?.list)
-      ? (asRecord(data)!.list as unknown[])
-      : Array.isArray(asRecord(data)?.variants)
-        ? (asRecord(data)!.variants as unknown[])
-        : [];
+    : Array.isArray(record?.list)
+      ? (record!.list as unknown[])
+      : Array.isArray(record?.variants)
+        ? (record!.variants as unknown[])
+        : Array.isArray(record?.productVariants)
+          ? (record!.productVariants as unknown[])
+          : Array.isArray(record?.productVariantList)
+            ? (record!.productVariantList as unknown[])
+            : Array.isArray(record?.content)
+              ? (record!.content as unknown[])
+              : [];
 
   const variants: ExternalProductVariant[] = [];
   const seen = new Set<string>();
   for (const item of rows) {
     const variantRow = asRecord(item);
     if (!variantRow) continue;
+    // Nested productList-style blocks occasionally appear.
+    const nestedList = variantRow.productList;
+    if (Array.isArray(nestedList)) {
+      for (const nested of nestedList) {
+        const nestedRow = asRecord(nested);
+        if (!nestedRow) continue;
+        const mappedNested = mapCjVariant(nestedRow, null, fallbackPriceUsdt);
+        if (!mappedNested || seen.has(mappedNested.externalVariantId)) continue;
+        seen.add(mappedNested.externalVariantId);
+        variants.push(mappedNested);
+      }
+      continue;
+    }
     const mapped = mapCjVariant(variantRow, null, fallbackPriceUsdt);
     if (!mapped || seen.has(mapped.externalVariantId)) continue;
     seen.add(mapped.externalVariantId);
@@ -1022,13 +1098,21 @@ function maybeMockFallback<T>(
 }
 
 /** Max page size allowed by CJ listV2 (`size` ≤ 100). */
-const CJ_LIST_V2_PAGE_SIZE = 100;
-/** Classic list allows up to 200; keep 100 for balanced latency. */
+export const CJ_LIST_V2_PAGE_SIZE = 100;
+/** Classic list allows up to 200; keep aligned with listV2 for UI paging. */
 const CJ_LIST_V1_PAGE_SIZE = 100;
-/** Soft target for a rich first-page catalog response. */
-const CJ_SEARCH_TARGET_RESULTS = 100;
-/** Extra listV2 pages to pull for the requested page window. */
-const CJ_SEARCH_MAX_EXTRA_PAGES = 2;
+/**
+ * Products to collect per UI catalog page.
+ * CJ listV2 hard-caps at 100, so one UI page == one CJ API page.
+ * Raising this above 100 would require fetching multiple CJ pages per request
+ * and remapping `page` → startPage carefully for Load more.
+ */
+export const CJ_CATALOG_PAGE_SIZE = CJ_LIST_V2_PAGE_SIZE;
+/**
+ * Soft fill target when the primary keyword is sparse (synonym / classic list).
+ * Must stay ≤ CJ_CATALOG_PAGE_SIZE so Load more page mapping stays 1:1.
+ */
+const CJ_SEARCH_TARGET_RESULTS = CJ_CATALOG_PAGE_SIZE;
 
 const CJ_KEYWORD_SYNONYMS: Record<string, string[]> = {
   earbud: ["earbuds", "earphone", "earphones", "headset", "headphones"],
@@ -1126,16 +1210,77 @@ function readTotalPages(json: CjJson): number | null {
   return null;
 }
 
+function readTotalRecords(json: CjJson): number | null {
+  const data = asRecord(json.data) ?? asRecord(json.result) ?? {};
+  const total = Number(data.totalRecords ?? data.total ?? data.totalCount ?? 0);
+  return Number.isFinite(total) && total > 0 ? total : null;
+}
+
+export type CjRelatedCategory = {
+  id: string;
+  name: string;
+};
+
+function extractRelatedCategories(json: CjJson): CjRelatedCategory[] {
+  const data = asRecord(json.data) ?? asRecord(json.result) ?? {};
+  const content = data.content;
+  const out: CjRelatedCategory[] = [];
+  const seen = new Set<string>();
+
+  const push = (raw: unknown) => {
+    const row = asRecord(raw);
+    if (!row) return;
+    const id = String(
+      row.categoryId ?? row.id ?? row.threeCategoryId ?? "",
+    ).trim();
+    const name = String(
+      row.categoryName ??
+        row.threeCategoryName ??
+        row.nameEn ??
+        row.name ??
+        "",
+    ).trim();
+    if (!id || !name || seen.has(id)) return;
+    seen.add(id);
+    out.push({ id, name });
+  };
+
+  if (Array.isArray(content)) {
+    for (const block of content) {
+      const blockRec = asRecord(block);
+      if (!blockRec) continue;
+      const related = blockRec.relatedCategoryList;
+      if (Array.isArray(related)) {
+        for (const item of related) push(item);
+      }
+    }
+  }
+
+  const topRelated = data.relatedCategoryList;
+  if (Array.isArray(topRelated)) {
+    for (const item of topRelated) push(item);
+  }
+
+  return out;
+}
+
 async function fetchCjListV2Page(
   credentials: SupplierCredentials | null | undefined,
   keyWord: string,
   page: number,
   size = CJ_LIST_V2_PAGE_SIZE,
-): Promise<{ rows: Record<string, unknown>[]; totalPages: number | null }> {
+  categoryId?: string | null,
+): Promise<{
+  rows: Record<string, unknown>[];
+  totalPages: number | null;
+  totalRecords: number | null;
+  relatedCategories: CjRelatedCategory[];
+}> {
   const json = await cjFetch("/product/listV2", {
     credentials,
     query: {
       keyWord: keyWord || undefined,
+      categoryId: categoryId?.trim() || undefined,
       page,
       size,
       orderBy: 0, // best match
@@ -1145,6 +1290,8 @@ async function fetchCjListV2Page(
   return {
     rows: extractCjProductRows(json),
     totalPages: readTotalPages(json),
+    totalRecords: readTotalRecords(json),
+    relatedCategories: extractRelatedCategories(json),
   };
 }
 
@@ -1165,83 +1312,103 @@ async function fetchCjListV1Page(
   return extractCjProductRows(json);
 }
 
+export type CjCatalogSearchPage = {
+  products: ExternalCatalogProduct[];
+  hasMore: boolean;
+  page: number;
+  pageSize: number;
+  /** Total matches reported by CJ for this keyword/category filter. */
+  total?: number | null;
+  /** Related third-level categories returned with listV2 keyword search. */
+  relatedCategories?: CjRelatedCategory[];
+  categoryId?: string | null;
+};
+
 /**
- * Pull one or more listV2 pages for a keyword until the target is met or
- * pages are exhausted.
+ * Paginated CJ catalog search. Each `page` maps 1:1 to a CJ listV2 `page`
+ * (max 100 products). Pass page=2,3,… from the UI Load more control.
+ * Optional `categoryId` is forwarded to CJ listV2 (third-level category).
  */
-async function collectCjRowsForKeyword(
-  credentials: SupplierCredentials | null | undefined,
-  keyWord: string,
-  startPage: number,
-  target: number,
-): Promise<Record<string, unknown>[]> {
-  const collected: Record<string, unknown>[] = [];
-  let page = Math.max(1, startPage);
-  let pagesFetched = 0;
-  let totalPages: number | null = null;
-
-  while (collected.length < target && pagesFetched <= CJ_SEARCH_MAX_EXTRA_PAGES) {
-    if (totalPages != null && page > totalPages) break;
-    const result = await fetchCjListV2Page(credentials, keyWord, page);
-    totalPages = result.totalPages ?? totalPages;
-    if (result.rows.length === 0) break;
-    collected.push(...result.rows);
-    pagesFetched += 1;
-    page += 1;
-    if (result.rows.length < CJ_LIST_V2_PAGE_SIZE) break;
-  }
-
-  return collected;
-}
-
-export async function searchCjProducts(
+export async function searchCjProductsPage(
   query: string,
   credentials?: SupplierCredentials | null,
   page = 1,
-): Promise<ExternalCatalogProduct[]> {
+  options?: { categoryId?: string | null },
+): Promise<CjCatalogSearchPage> {
+  const startPage = Math.max(1, Math.floor(page) || 1);
+  const pageSize = CJ_CATALOG_PAGE_SIZE;
+  const categoryId = options?.categoryId?.trim() || null;
+
   if (!useLiveSupplierApi("cj_dropshipping", credentials)) {
-    return mockCatalog(query);
+    return {
+      products: mockCatalog(query, startPage),
+      hasMore: mockCatalogHasMore(startPage),
+      page: startPage,
+      pageSize: CJ_MOCK_PAGE_SIZE,
+      total: CJ_MOCK_PAGE_SIZE * CJ_MOCK_TOTAL_PAGES,
+      relatedCategories: [],
+      categoryId,
+    };
   }
 
   try {
     const keywords = expandCjSearchKeywords(query);
-    const startPage = Math.max(1, page);
     const allRows: Record<string, unknown>[] = [];
+    let primaryPageWasFull = false;
+    let totalPages: number | null = null;
+    let totalRecords: number | null = null;
+    let relatedCategories: CjRelatedCategory[] = [];
 
-    // Primary keyword: multi-page listV2 for a dense first screen.
+    // Primary keyword: exactly the requested CJ listV2 page (1:1 with UI page).
     const primary = keywords[0] ?? "";
-    allRows.push(
-      ...(await collectCjRowsForKeyword(
-        credentials,
-        primary,
-        startPage,
-        CJ_SEARCH_TARGET_RESULTS,
-      )),
+    const primaryResult = await fetchCjListV2Page(
+      credentials,
+      primary,
+      startPage,
+      CJ_LIST_V2_PAGE_SIZE,
+      categoryId,
     );
+    allRows.push(...primaryResult.rows);
+    totalPages = primaryResult.totalPages;
+    totalRecords = primaryResult.totalRecords;
+    relatedCategories = primaryResult.relatedCategories;
+    primaryPageWasFull = primaryResult.rows.length >= CJ_LIST_V2_PAGE_SIZE;
 
-    // Secondary keywords fill gaps when the exact term is sparse.
-    if (dedupeCjRows(allRows).length < CJ_SEARCH_TARGET_RESULTS) {
+    // Secondary keywords fill gaps when the exact term is sparse (page 1 only
+    // so Load more stays aligned with primary listV2 pagination).
+    // Run sequentially — CJ QPS is ~1/sec; Promise.all trips rate limits.
+    if (
+      startPage === 1 &&
+      !categoryId &&
+      dedupeCjRows(allRows).length < CJ_SEARCH_TARGET_RESULTS
+    ) {
       const extras = keywords.slice(1);
-      await Promise.all(
-        extras.map(async (keyword) => {
-          if (!keyword || keyword === primary) return;
-          try {
-            const result = await fetchCjListV2Page(
-              credentials,
-              keyword,
-              startPage,
-              CJ_LIST_V2_PAGE_SIZE,
-            );
-            allRows.push(...result.rows);
-          } catch {
-            // Ignore secondary keyword failures; primary results still usable.
+      for (const keyword of extras) {
+        if (!keyword || keyword === primary) continue;
+        if (dedupeCjRows(allRows).length >= CJ_SEARCH_TARGET_RESULTS) break;
+        try {
+          const result = await fetchCjListV2Page(
+            credentials,
+            keyword,
+            startPage,
+            CJ_LIST_V2_PAGE_SIZE,
+          );
+          allRows.push(...result.rows);
+          if (relatedCategories.length === 0 && result.relatedCategories.length) {
+            relatedCategories = result.relatedCategories;
           }
-        }),
-      );
+        } catch {
+          // Ignore secondary keyword failures; primary results still usable.
+        }
+      }
     }
 
-    // Classic list (productNameEn) as an additional fuzzy channel.
-    if (dedupeCjRows(allRows).length < CJ_SEARCH_TARGET_RESULTS) {
+    // Classic list (productNameEn) as an additional fuzzy channel (page 1).
+    if (
+      startPage === 1 &&
+      !categoryId &&
+      dedupeCjRows(allRows).length < CJ_SEARCH_TARGET_RESULTS
+    ) {
       try {
         const classic = await fetchCjListV1Page(
           credentials,
@@ -1270,12 +1437,54 @@ export async function searchCjProducts(
       }
     }
 
-    return dedupeCjRows(allRows)
+    const products = dedupeCjRows(allRows)
       .map((row) => mapCjProduct(row))
-      .filter((p) => Boolean(p.externalProductId));
+      .filter((p) => Boolean(p.externalProductId))
+      .slice(0, pageSize);
+
+    const hasMore =
+      primaryPageWasFull ||
+      (totalPages != null && startPage < totalPages) ||
+      (totalRecords != null && startPage * pageSize < totalRecords) ||
+      products.length >= pageSize;
+
+    return {
+      products,
+      hasMore,
+      page: startPage,
+      pageSize,
+      total: totalRecords,
+      relatedCategories,
+      categoryId,
+    };
   } catch (error) {
-    return maybeMockFallback(credentials, error, () => mockCatalog(query));
+    const products = maybeMockFallback(credentials, error, () =>
+      mockCatalog(query, startPage),
+    );
+    const usedMock = products.some(
+      (product) =>
+        (product.raw as { mock?: boolean } | undefined)?.mock === true,
+    );
+    return {
+      products,
+      hasMore: usedMock ? mockCatalogHasMore(startPage) : false,
+      page: startPage,
+      pageSize: usedMock ? CJ_MOCK_PAGE_SIZE : pageSize,
+      total: usedMock ? CJ_MOCK_PAGE_SIZE * CJ_MOCK_TOTAL_PAGES : null,
+      relatedCategories: [],
+      categoryId,
+    };
   }
+}
+
+export async function searchCjProducts(
+  query: string,
+  credentials?: SupplierCredentials | null,
+  page = 1,
+  options?: { categoryId?: string | null },
+): Promise<ExternalCatalogProduct[]> {
+  const result = await searchCjProductsPage(query, credentials, page, options);
+  return result.products;
 }
 
 export async function getCjProduct(
@@ -1290,7 +1499,8 @@ export async function getCjProduct(
         .replace(/^CJ-MOCK-/i, "")
         .replace(/-\d+$/, "")
         .trim() || "detail";
-    const catalog = mockCatalog(queryHint);
+    const mockPage = Math.max(1, Math.ceil(n / CJ_MOCK_PAGE_SIZE));
+    const catalog = mockCatalog(queryHint, mockPage);
     const hit =
       catalog.find((p) => p.externalProductId === externalProductId) ??
       catalog.find((p) => p.externalProductId.endsWith(`-${n}`)) ??

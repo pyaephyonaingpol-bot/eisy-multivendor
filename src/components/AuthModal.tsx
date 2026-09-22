@@ -201,6 +201,43 @@ export function AuthModal({
       setError("Email and password are required.");
       return;
     }
+    const normalizedEmail = normalizeAuthEmail(email);
+
+    if (mode === "forgot") {
+      if (!normalizedEmail) {
+        setError("Email is required.");
+        return;
+      }
+      setPending(true);
+      try {
+        const supabase = createClient();
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+          normalizedEmail,
+          { redirectTo: passwordResetRedirectTo() },
+        );
+        if (resetError) {
+          setError(formatAuthError(resetError.message));
+          return;
+        }
+        setMessage(
+          "If an Auth account exists for that email, a password reset link has been sent. Open the link to choose a new password.",
+        );
+      } catch (err) {
+        setError(
+          formatAuthError(
+            err instanceof Error ? err.message : "Could not send reset email.",
+          ),
+        );
+      } finally {
+        setPending(false);
+      }
+      return;
+    }
+
+    if (!normalizedEmail || !password) {
+      setError("Email and password are required.");
+      return;
+    }
     setPending(true);
     try {
       const supabase = createClient();

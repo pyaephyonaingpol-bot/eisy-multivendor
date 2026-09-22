@@ -5,6 +5,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ADMIN_DASHBOARD_HREF } from "@/components/layout/admin-dashboard-link";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { lockBodyScroll } from "@/lib/dom/lock-body-scroll";
 
 const ACCOUNT_ITEMS = [
   {
@@ -161,16 +162,13 @@ export function AccountMenuDropdown({
       if (event.key === "Escape") setOpen(false);
     }
 
-    const previousOverflow = document.body.style.overflow;
     const isPhone = window.matchMedia("(max-width: 639px)").matches;
-    if (isPhone) {
-      document.body.style.overflow = "hidden";
-    }
+    const unlock = isPhone ? lockBodyScroll() : null;
 
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKey);
     return () => {
-      document.body.style.overflow = previousOverflow;
+      unlock?.();
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("keydown", onKey);
     };
@@ -187,13 +185,13 @@ export function AccountMenuDropdown({
             <button
               type="button"
               aria-label="Close account menu"
-              className="fixed inset-0 z-[80] bg-zinc-950/40 sm:hidden"
+              className="fixed inset-0 z-[80] box-border w-full max-w-full bg-zinc-950/40 sm:hidden"
               onClick={close}
             />
             <div
               id={`${menuId}-sheet`}
               role="menu"
-              className="fixed bottom-0 left-1/2 z-[81] flex w-[min(100%-1.5rem,20rem)] max-w-xs -translate-x-1/2 flex-col overflow-hidden rounded-t-2xl border border-zinc-200 bg-white shadow-2xl sm:hidden"
+              className="fixed bottom-0 left-1/2 z-[81] box-border flex w-[min(100%-1.5rem,20rem)] max-w-xs -translate-x-1/2 flex-col overflow-hidden rounded-t-2xl border border-zinc-200 bg-white shadow-2xl sm:hidden"
               style={{ maxHeight: "min(70vh, 28rem)" }}
             >
               <div

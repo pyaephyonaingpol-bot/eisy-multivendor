@@ -25,13 +25,18 @@
 }
 
 html {
-  overflow-x: hidden;
+  width: 100%;
   max-width: 100%;
+  overflow-x: hidden;
+  /* Keep width stable when modals lock body scroll / hide the scrollbar */
+  scrollbar-gutter: stable;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
 
 body {
+  width: 100%;
+  max-width: 100%;
   background:
     radial-gradient(1200px 500px at 10% -10%, rgba(15, 107, 92, 0.08), transparent 55%),
     radial-gradient(900px 420px at 90% 0%, rgba(180, 120, 60, 0.07), transparent 50%),
@@ -39,10 +44,18 @@ body {
   color: var(--foreground);
   font-family: var(--font-manrope), "Segoe UI", sans-serif;
   overflow-x: hidden;
-  max-width: 100%;
   /* Long titles / Burmese / URLs wrap down instead of forcing horizontal scroll */
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+/* Fixed chrome (bottom nav, sheets) stays percentage-width, not vw-tied */
+.fixed-shell {
+  box-sizing: border-box;
+  left: 0;
+  right: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 img,

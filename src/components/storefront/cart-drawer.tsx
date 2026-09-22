@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 import { formatMoney } from "@/lib/money";
 import { useCart } from "@/components/storefront/cart-provider";
+import { lockBodyScroll } from "@/lib/dom/lock-body-scroll";
 
 export function CartDrawer() {
   const {
@@ -15,19 +17,24 @@ export function CartDrawer() {
     removeItem,
   } = useCart();
 
+  useEffect(() => {
+    if (!isDrawerOpen) return;
+    return lockBodyScroll();
+  }, [isDrawerOpen]);
+
   if (!isDrawerOpen) {
     return null;
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div className="fixed inset-0 z-50 box-border flex w-full max-w-full justify-end">
       <button
         type="button"
         aria-label="Close cart drawer"
         className="absolute inset-0 bg-zinc-950/40"
         onClick={closeDrawer}
       />
-      <aside className="relative flex h-full w-full max-w-sm flex-col bg-white shadow-xl sm:max-w-md">
+      <aside className="relative box-border flex h-full w-full max-w-sm flex-col bg-white shadow-xl sm:max-w-md">
         <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-4">
           <div>
             <h2 className="text-lg font-semibold tracking-tight">Your cart</h2>

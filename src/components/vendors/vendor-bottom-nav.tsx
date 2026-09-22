@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
+import { lockBodyScroll } from "@/lib/dom/lock-body-scroll";
 
 type PortalId = "vendor" | "cj";
 type TabId =
@@ -355,11 +356,10 @@ export function VendorBottomNav() {
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") setMoreOpen(false);
     }
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockBodyScroll();
     document.addEventListener("keydown", onKey);
     return () => {
-      document.body.style.overflow = previous;
+      unlock();
       document.removeEventListener("keydown", onKey);
     };
   }, [moreOpen]);
@@ -380,7 +380,7 @@ export function VendorBottomNav() {
             <button
               type="button"
               aria-label="Close more menu"
-              className="fixed inset-0 z-[80] bg-zinc-950/40"
+              className="fixed inset-0 z-[80] box-border w-full max-w-full bg-zinc-950/40"
               onClick={() => setMoreOpen(false)}
             />
             <div
@@ -392,7 +392,7 @@ export function VendorBottomNav() {
                   ? "CJ Dropshipping more menu"
                   : "Independent Vendor more menu"
               }
-              className={`fixed bottom-0 left-1/2 z-[81] flex w-[min(100%-1.5rem,20rem)] max-w-xs -translate-x-1/2 flex-col overflow-hidden rounded-t-2xl border bg-white shadow-2xl sm:max-w-sm ${
+              className={`fixed bottom-0 left-1/2 z-[81] box-border flex w-[min(100%-1.5rem,20rem)] max-w-xs -translate-x-1/2 flex-col overflow-hidden rounded-t-2xl border bg-white shadow-2xl sm:max-w-sm ${
                 inCj ? "border-sky-200" : "border-zinc-200"
               }`}
               style={{ maxHeight: "min(70vh, 28rem)" }}
@@ -466,7 +466,7 @@ export function VendorBottomNav() {
             : "Independent Vendor quick navigation"
         }
         data-portal={portal}
-        className={`fixed inset-x-0 bottom-0 z-50 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur-md ${
+        className={`fixed-shell fixed bottom-0 z-50 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur-md ${
           inCj
             ? "border-sky-200 bg-white/95"
             : "border-zinc-200 bg-white/95"

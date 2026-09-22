@@ -5,7 +5,10 @@ import {
   getCjProduct,
   queryCjVariantAvailableStock,
   searchCjProducts,
+  searchCjProductsPage,
   syncCjInventory,
+  type CjCatalogSearchPage,
+  CJ_CATALOG_PAGE_SIZE,
 } from "@/lib/suppliers/cj";
 import {
   createDsersOrder,
@@ -128,6 +131,37 @@ export async function searchExternalProducts(
       return [];
   }
 }
+
+/** Paginated search with hasMore — used by the sourcing catalog Load more UI. */
+export async function searchExternalProductsPage(
+  kind: ExternalSupplierKind,
+  query: string,
+  credentials?: SupplierCredentials | null,
+  page = 1,
+  options?: { categoryId?: string | null },
+): Promise<CjCatalogSearchPage> {
+  if (kind === "cj_dropshipping") {
+    return searchCjProductsPage(query, credentials, page, options);
+  }
+  const products = await searchExternalProducts(
+    kind,
+    query,
+    credentials,
+    page,
+  );
+  return {
+    products,
+    hasMore: products.length >= 20,
+    page: Math.max(1, Math.floor(page) || 1),
+    pageSize: products.length || 20,
+    total: null,
+    relatedCategories: [],
+    categoryId: options?.categoryId ?? null,
+  };
+}
+
+export { CJ_CATALOG_PAGE_SIZE };
+export type { CjCatalogSearchPage };
 
 export async function searchExternalProductsForTab(
   tab: SupplierSourceTab,

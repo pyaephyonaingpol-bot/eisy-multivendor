@@ -54,12 +54,12 @@ export function LoginForm({ nextPath = "/" }: LoginFormProps) {
           </label>
 
           {resetState?.error ? (
-            <p className="text-sm text-red-600" role="alert">
+            <p className="break-words text-sm text-red-600" role="alert">
               {resetState.error}
             </p>
           ) : null}
           {resetState?.success ? (
-            <p className="text-sm text-emerald-700" role="status">
+            <p className="break-words text-sm text-emerald-700" role="status">
               {resetState.success}
             </p>
           ) : null}
@@ -122,7 +122,7 @@ export function LoginForm({ nextPath = "/" }: LoginFormProps) {
           />
         </label>
         {state?.error ? (
-          <p className="text-sm text-red-600" role="alert">
+          <p className="break-words text-sm text-red-600" role="alert">
             {state.error}
           </p>
         ) : null}

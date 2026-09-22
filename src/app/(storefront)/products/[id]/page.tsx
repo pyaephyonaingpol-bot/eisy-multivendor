@@ -46,10 +46,10 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
     availableStock <= 0;
 
   return (
-    <article className="mx-auto max-w-5xl space-y-10">
-      <div className="grid gap-8 lg:grid-cols-2">
-        <div className="space-y-3">
-          <div className="aspect-square overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50">
+    <article className="mx-auto w-full min-w-0 max-w-5xl space-y-10 overflow-x-hidden">
+      <div className="grid min-w-0 gap-8 lg:grid-cols-2">
+        <div className="min-w-0 space-y-3">
+          <div className="aspect-square w-full overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50">
             {heroImage ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -82,9 +82,9 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
           ) : null}
         </div>
 
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
+        <div className="min-w-0 space-y-5">
+          <div className="min-w-0 space-y-2">
+            <h1 className="break-words text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
               {product.name}
             </h1>
             {product.vendor ? (
@@ -119,7 +119,9 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
               <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
                 Description
               </h2>
-              <p className="whitespace-pre-wrap text-zinc-700">{product.description}</p>
+              <p className="break-words whitespace-pre-wrap text-zinc-700">
+                {product.description}
+              </p>
             </div>
           ) : null}
 

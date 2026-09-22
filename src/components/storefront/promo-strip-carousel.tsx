@@ -91,31 +91,31 @@ export function PromoStripCarousel({
       </div>
 
       <div
-        className={`relative z-10 flex h-full flex-col justify-end ${
+        className={`relative z-10 flex h-full min-w-0 flex-col justify-end ${
           compact ? "px-4 py-4" : "px-5 py-5 sm:px-7 sm:py-6"
         }`}
       >
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/70">
+        <p className="break-words text-[11px] font-semibold uppercase tracking-[0.14em] text-white/70">
           {slide.eyebrow}
         </p>
         <h2
-          className={`mt-1 max-w-md font-display font-medium leading-snug ${
+          className={`mt-1 max-w-full break-words font-display font-medium leading-snug sm:max-w-md ${
             compact ? "text-lg" : "text-xl sm:text-2xl"
           }`}
         >
           {slide.title}
         </h2>
         {!compact ? (
-          <p className="mt-1.5 max-w-sm text-sm text-white/75">
+          <p className="mt-1.5 max-w-full break-words text-sm text-white/75 sm:max-w-sm">
             {slide.description}
           </p>
         ) : null}
-        <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="mt-3 flex min-w-0 flex-wrap items-center justify-between gap-3">
           <Link
             href={slide.ctaHref}
-            className="inline-flex min-h-9 items-center rounded-lg bg-[var(--market-accent)] px-3.5 text-sm font-semibold text-white transition hover:bg-[#0c584c]"
+            className="inline-flex min-h-9 max-w-full items-center rounded-lg bg-[var(--market-accent)] px-3.5 text-sm font-semibold text-white transition hover:bg-[#0c584c]"
           >
-            {slide.ctaLabel}
+            <span className="break-words">{slide.ctaLabel}</span>
           </Link>
           {count > 1 ? (
             <div className="flex items-center gap-1.5">

@@ -37,17 +37,17 @@ export async function BuyerMarketHeader({
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--market-line)] bg-[var(--market-surface)]/95 backdrop-blur-md">
       <div className="mx-auto max-w-6xl space-y-2.5 px-4 pb-3 pt-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
+        <div className="flex min-w-0 items-center justify-between gap-3">
+          <div className="min-w-0 flex-1 overflow-hidden">
             <Link
               href="/"
-              className="font-display text-xl font-medium tracking-tight text-[var(--market-ink)] sm:text-2xl"
+              className="font-display block truncate text-xl font-medium tracking-tight text-[var(--market-ink)] sm:text-2xl"
             >
               Eisy
             </Link>
             <Link
               href={session ? "/profile" : "/login?next=/profile"}
-              className="mt-0.5 block truncate text-xs text-[var(--market-muted)] hover:text-[var(--market-ink)]"
+              className="mt-0.5 block break-words text-xs leading-snug text-[var(--market-muted)] hover:text-[var(--market-ink)]"
             >
               Deliver to {addressLine}
             </Link>
@@ -62,7 +62,7 @@ export async function BuyerMarketHeader({
           </div>
         </div>
 
-        <form action="/products" method="get" className="relative">
+        <form action="/products" method="get" className="relative w-full min-w-0">
           <label htmlFor="market-search" className="sr-only">
             Search products
           </label>
@@ -85,7 +85,7 @@ export async function BuyerMarketHeader({
             type="search"
             defaultValue={initialQuery}
             placeholder="Search products and stores"
-            className="h-11 w-full rounded-2xl border border-[var(--market-line)] bg-white py-2 pl-10 pr-4 text-sm text-[var(--market-ink)] outline-none transition placeholder:text-[var(--market-muted)] focus:border-[var(--market-accent)] focus:ring-2 focus:ring-[var(--market-accent-soft)]"
+            className="h-11 w-full max-w-full rounded-2xl border border-[var(--market-line)] bg-white py-2 pl-10 pr-4 text-sm text-[var(--market-ink)] outline-none transition placeholder:text-[var(--market-muted)] focus:border-[var(--market-accent)] focus:ring-2 focus:ring-[var(--market-accent-soft)]"
           />
         </form>
       </div>

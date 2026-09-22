@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, Manrope } from "next/font/google";
 import { LanguageProvider } from "@/components/i18n/language-provider";
 import { isRtlLocale } from "@/lib/i18n/config";
@@ -20,6 +20,13 @@ export const metadata: Metadata = {
   description: "Shop products from trusted vendors. Checkout securely in USDT.",
 };
 
+/** Fit layout to the phone screen width; avoid accidental zoom/overflow. */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -37,7 +44,7 @@ export default async function RootLayout({
     >
       <body
         suppressHydrationWarning
-        className="flex min-h-full flex-col bg-[var(--background)] text-[var(--foreground)]"
+        className="flex min-h-full w-full max-w-[100vw] flex-col overflow-x-hidden bg-[var(--background)] text-[var(--foreground)]"
       >
         <LanguageProvider locale={locale}>{children}</LanguageProvider>
       </body>

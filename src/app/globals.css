@@ -18,8 +18,17 @@
   --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html {
   overflow-x: hidden;
+  max-width: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -30,6 +39,26 @@ body {
   color: var(--foreground);
   font-family: var(--font-manrope), "Segoe UI", sans-serif;
   overflow-x: hidden;
+  max-width: 100%;
+  /* Long titles / Burmese / URLs wrap down instead of forcing horizontal scroll */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+  height: auto;
+}
+
+pre,
+code {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .font-display {

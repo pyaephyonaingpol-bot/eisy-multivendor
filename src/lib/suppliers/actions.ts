@@ -10,6 +10,7 @@ import {
   type ExternalCatalogProduct,
   type ExternalSupplierKind,
 } from "@/lib/suppliers";
+import { ensureCjProductVariants } from "@/lib/suppliers/cj";
 import { loadPlatformSupplierContext } from "@/lib/suppliers/platform-credentials";
 import { DEFAULT_CJ_SOURCING_REGION } from "@/lib/sourcing/constants";
 import {
@@ -535,7 +536,7 @@ export async function importExternalSupplierProductAction(
   // Platform-owned API keys (env / platform_supplier_credentials). Vendors
   // do not need their own CJ/DSers/POD credentials for catalog import.
   const linked = await loadSupplierContext(kind);
-  const remote =
+  let remote =
     (await getExternalProduct(
       kind,
       externalProductId,
@@ -545,19 +546,31 @@ export async function importExternalSupplierProductAction(
     return { error: "Could not load that supplier product." };
   }
 
-  const variant = resolveImportVariant(formData, remote);
-
   // Bulk import: every color/size from CJ stays on this one product listing.
   // The selected variant is only the default fulfillment / cart preference.
-  if (
-    kind === "cj_dropshipping" &&
-    (!remote.variants || remote.variants.length === 0)
-  ) {
-    return {
-      error:
-        "CJ did not return color/size variants for this product. Retry import in a moment.",
-    };
+  if (kind === "cj_dropshipping") {
+    remote = ensureCjProductVariants(remote);
+    if (!remote.variants?.length) {
+      // Last chance: re-fetch detail in case the first pass raced CJ rate limits.
+      const retry =
+        (await getExternalProduct(
+          kind,
+          externalProductId,
+          linked?.credentials ?? null,
+        )) ?? null;
+      if (retry) {
+        remote = ensureCjProductVariants(retry);
+      }
+    }
+    if (!remote.variants?.length) {
+      return {
+        error:
+          "CJ did not return color/size variants for this product. Retry import in a moment.",
+      };
+    }
   }
+
+  const variant = resolveImportVariant(formData, remote);
 
   let liveImportStock: number | null = null;
   if (kind === "cj_dropshipping") {

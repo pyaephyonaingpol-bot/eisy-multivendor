@@ -182,6 +182,34 @@ export type BuyerAddress = {
   updated_at: string;
 };
 
+/** Buyer-submitted product sourcing / find request. */
+export type SourcingRequestStatus =
+  | "pending"
+  | "reviewing"
+  | "sourced"
+  | "rejected"
+  | "closed";
+
+export type SourcingRequest = {
+  id: string;
+  user_id: string;
+  product_name: string;
+  product_url: string | null;
+  image_url: string | null;
+  image_path: string | null;
+  notes: string | null;
+  status: SourcingRequestStatus;
+  cj_external_product_id: string | null;
+  cj_match_title: string | null;
+  cj_match_image_url: string | null;
+  cj_match_payload: Record<string, unknown> | null;
+  admin_notes: string | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type SourcingRegion = {
   id: string;
   code: string;
@@ -739,6 +767,13 @@ export type Database = {
             "user_id" | "full_name" | "line1" | "city" | "country_code"
           >;
         Update: Partial<BuyerAddress>;
+        Relationships: [];
+      };
+      sourcing_requests: {
+        Row: SourcingRequest;
+        Insert: Partial<SourcingRequest> &
+          Pick<SourcingRequest, "user_id" | "product_name">;
+        Update: Partial<SourcingRequest>;
         Relationships: [];
       };
       vendors: {

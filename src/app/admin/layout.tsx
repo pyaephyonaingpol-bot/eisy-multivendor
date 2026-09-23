@@ -11,6 +11,7 @@ const links = [
   { href: "/admin/disputes", label: "Disputes" },
   { href: "/admin/disputes?channel=manual", label: "Manual disputes" },
   { href: "/admin/disputes?channel=cj", label: "CJ disputes" },
+  { href: "/admin/sourcing-requests", label: "Sourcing requests" },
   { href: "/admin/transactions", label: "Transactions" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/categories", label: "Categories" },

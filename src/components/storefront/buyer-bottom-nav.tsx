@@ -100,7 +100,8 @@ export function BuyerBottomNav() {
   } else if (
     pathname.startsWith("/profile") ||
     pathname.startsWith("/orders") ||
-    pathname.startsWith("/account")
+    pathname.startsWith("/account") ||
+    pathname.startsWith("/sourcing-request")
   ) {
     activeId = "account";
   } else if (pathname.startsWith("/products") && dealsMode) {

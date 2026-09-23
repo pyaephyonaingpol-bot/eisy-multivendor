@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { countOpenDisputes } from "@/lib/disputes/queries";
 import { listOrdersForAdmin } from "@/lib/orders/queries";
+import { countPendingSourcingRequests } from "@/lib/sourcing-requests/queries";
 import { listPendingDeposits, listPendingWithdrawals } from "@/lib/wallets/queries";
 import { listVendorsForAdmin, listVendorsForKycAdmin } from "@/lib/vendors/queries";
 
@@ -14,6 +15,7 @@ export default async function AdminDashboardPage() {
     pendingDeposits,
     pendingWithdrawals,
     heldEscrow,
+    pendingSourcing,
   ] = await Promise.all([
     listVendorsForAdmin("pending"),
     listVendorsForKycAdmin("pending"),
@@ -21,6 +23,7 @@ export default async function AdminDashboardPage() {
     listPendingDeposits(),
     listPendingWithdrawals(),
     listOrdersForAdmin({ payoutStatus: "held", limit: 200 }),
+    countPendingSourcingRequests(),
   ]);
 
   const cards = [
@@ -41,6 +44,12 @@ export default async function AdminDashboardPage() {
       value: openDisputes,
       href: "/admin/disputes?status=open",
       cta: "Resolve disputes",
+    },
+    {
+      label: "Sourcing requests",
+      value: pendingSourcing,
+      href: "/admin/sourcing-requests?status=pending",
+      cta: "Review product finds",
     },
     {
       label: "Escrow held",

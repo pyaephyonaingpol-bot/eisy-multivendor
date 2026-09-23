@@ -47,7 +47,9 @@ export async function POST(request: Request) {
 
   const nonCj = items.filter((item) => {
     const kind = item.providerKind.toLowerCase();
-    return kind !== "cj_dropshipping" && kind !== "cj" && !kind.includes("cj_drop");
+    return (
+      kind !== "cj_dropshipping" && kind !== "cj" && !kind.includes("cj_drop")
+    );
   });
   if (nonCj.length > 0) {
     return jsonError(

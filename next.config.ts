@@ -28,8 +28,13 @@ const resolvedUrl = publicSupabaseUrl();
 const resolvedAnonKey = publicSupabaseAnonKey();
 
 const nextConfig: NextConfig = {
-  // Allow local/network origins to hit the Next.js dev server (HMR, assets).
-  allowedDevOrigins: ["127.0.0.1", "localhost", "172.30.0.2"],
+  // Allow local/network/tunnel origins to hit the Next.js dev server (HMR, assets).
+  allowedDevOrigins: [
+    "127.0.0.1",
+    "localhost",
+    "172.30.0.2",
+    "landslide-handmade-confetti.ngrok-free.dev",
+  ],
   env: {
     ...(resolvedUrl ? { NEXT_PUBLIC_SUPABASE_URL: resolvedUrl } : {}),
     ...(resolvedAnonKey

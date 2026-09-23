@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useI18n } from "@/components/i18n/language-provider";
 import { SupplierSourceTabs } from "@/components/suppliers/supplier-source-tabs";
 import {
@@ -86,17 +86,14 @@ export function UnifiedSupplierSourcingCatalog({
   quota = null,
 }: Props) {
   const { t } = useI18n();
+  const [isMounted, setIsMounted] = useState(false);
   const [sourceTab, setSourceTab] = useState<SupplierSourceTab>(
     PRIMARY_SUPPLIER_KIND,
   );
-  const [query, setQuery] = useState("wireless earbuds");
-  const [regionCode, setRegionCode] = useState(
-    regions.find((region) => region.code === DEFAULT_CJ_SOURCING_REGION)?.code ??
-      regions.find((region) => region.code === "GLOBAL")?.code ??
-      regions.find((region) => region.is_default)?.code ??
-      regions[0]?.code ??
-      DEFAULT_CJ_SOURCING_REGION,
-  );
+  // Empty until mount so SSR HTML matches the first client paint (avoids
+  // autofill / extension mutations on the search input).
+  const [query, setQuery] = useState("");
+  const [regionCode, setRegionCode] = useState(DEFAULT_CJ_SOURCING_REGION);
   const [deliverySpeed, setDeliverySpeed] =
     useState<DeliverySpeedFilter>("any");
   /** Full multi-source result set — tabs filter this client-side for instant toggles. */
@@ -118,7 +115,22 @@ export function UnifiedSupplierSourcingCatalog({
   const [relatedCategories, setRelatedCategories] = useState<
     { id: string; name: string }[]
   >([]);
+  const seededRef = useRef(false);
 
+  useEffect(() => {
+    setIsMounted(true);
+    setQuery("wireless earbuds");
+    setRegionCode(
+      regions.find((region) => region.code === DEFAULT_CJ_SOURCING_REGION)
+        ?.code ??
+        regions.find((region) => region.code === "GLOBAL")?.code ??
+        regions.find((region) => region.is_default)?.code ??
+        regions[0]?.code ??
+        DEFAULT_CJ_SOURCING_REGION,
+    );
+    // Initial region snapshot only — later prop changes should not wipe the query.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const atLimit = importDisabled || quota?.atImportLimit === true;
   const minActive = quota?.minActiveItems ?? 10;
   const previewQuota = quota ?? { ...fallbackQuota, atImportLimit: atLimit };
@@ -279,11 +291,13 @@ export function UnifiedSupplierSourcingCatalog({
     runSearch(1, false, { categoryId: nextCategoryId });
   }
 
-  // Seed mock/placeholder catalog on mount so dropshippers can toggle tabs immediately.
+  // Seed catalog once after client defaults are applied (hydration-safe).
   useEffect(() => {
+    if (!isMounted || seededRef.current || !query) return;
+    seededRef.current = true;
     runSearch(1, false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only seed load
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot post-mount seed
+  }, [isMounted, query, regionCode]);
 
   return (
     <section className="w-full max-w-full space-y-5 overflow-x-hidden rounded-2xl border border-zinc-200 bg-white p-3 sm:p-5">
@@ -333,7 +347,9 @@ export function UnifiedSupplierSourcingCatalog({
               }
             }}
             placeholder={t("sourcing.searchPlaceholder")}
-            className="mt-1 w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-base"
+            disabled={!isMounted}
+            suppressHydrationWarning
+            className="mt-1 w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-base disabled:opacity-60"
           />
         </label>
         <label className="min-w-0 text-xs font-medium text-zinc-600">
@@ -341,7 +357,9 @@ export function UnifiedSupplierSourcingCatalog({
           <select
             value={regionCode}
             onChange={(event) => setRegionCode(event.target.value)}
-            className="mt-1 block w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-base"
+            disabled={!isMounted}
+            suppressHydrationWarning
+            className="mt-1 block w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-base disabled:opacity-60"
           >
             {regions.length === 0 ? (
               <option value={DEFAULT_CJ_SOURCING_REGION}>
@@ -363,7 +381,9 @@ export function UnifiedSupplierSourcingCatalog({
             onChange={(event) =>
               setDeliverySpeed(event.target.value as DeliverySpeedFilter)
             }
-            className="mt-1 block w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-base"
+            disabled={!isMounted}
+            suppressHydrationWarning
+            className="mt-1 block w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-base disabled:opacity-60"
           >
             <option value="any">{t("sourcing.anySpeed")}</option>
             <option value="fast">{t("sourcing.fastDispatchFilter")}</option>
@@ -376,7 +396,7 @@ export function UnifiedSupplierSourcingCatalog({
             setCategoryId(null);
             runSearch(1, false, { categoryId: null });
           }}
-          disabled={pendingSearch}
+          disabled={!isMounted || pendingSearch}
           className="min-h-11 w-full rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 sm:col-span-2 lg:col-span-1 lg:w-auto"
         >
           {pendingSearch ? t("sourcing.searching") : t("sourcing.searchButton")}

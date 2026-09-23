@@ -18,6 +18,11 @@ const ACCOUNT_ITEMS = [
     label: "Wallet",
     description: "USDT & withdrawals",
   },
+  {
+    href: "/sourcing-request",
+    label: "Sourcing request",
+    description: "Find a product for me",
+  },
 ] as const;
 
 const WORKSPACE_ITEMS = [

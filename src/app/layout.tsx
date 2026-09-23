@@ -20,13 +20,13 @@ export const metadata: Metadata = {
   description: "Shop products from trusted vendors. Checkout securely in USDT.",
 };
 
-/** Fit layout to the phone screen width; avoid accidental zoom/overflow. */
+/** Fit layout to the phone screen; resize with the mobile keyboard (dvh). */
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  // Keyboard overlays content so layout width does not jump when it opens.
-  interactiveWidget: "overlays-content",
+  // Let the layout viewport shrink with the on-screen keyboard so 100dvh tracks it.
+  interactiveWidget: "resizes-content",
 };
 
 export default async function RootLayout({
@@ -42,11 +42,11 @@ export default async function RootLayout({
       lang={locale}
       dir={dir}
       suppressHydrationWarning
-      className={`${display.variable} ${sans.variable} h-full antialiased`}
+      className={`${display.variable} ${sans.variable} h-[100dvh] antialiased`}
     >
       <body
         suppressHydrationWarning
-        className="flex min-h-full w-full max-w-full flex-col overflow-x-hidden bg-[var(--background)] text-[var(--foreground)]"
+        className="flex h-[100dvh] min-h-[100dvh] w-full max-w-full flex-col overflow-x-hidden bg-[var(--background)] text-[var(--foreground)]"
       >
         <LanguageProvider locale={locale}>{children}</LanguageProvider>
       </body>

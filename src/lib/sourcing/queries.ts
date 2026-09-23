@@ -89,7 +89,7 @@ export async function listSupplierProviders(): Promise<SupplierProvider[]> {
  * 1. Explicit `preferredCountry` override (e.g. checkout form)
  * 2. Signed-in buyer's default delivery address country
  * 3. Signed-in profile `preferred_country_code` / `preferred_region_id`
- * 4. Default region (Myanmar) for guests
+ * 4. Default region (GLOBAL) for guests
  */
 export async function getBuyerSourcingContext(
   preferredCountry?: string | null,
@@ -148,7 +148,7 @@ export async function getBuyerSourcingContext(
   return {
     countryCode,
     regionCode: region?.code ?? DEFAULT_BUYER_REGION,
-    regionName: region?.name ?? "Myanmar",
+    regionName: region?.name ?? "Rest of world",
     region,
     fromProfile,
     isAuthenticated: Boolean(session),

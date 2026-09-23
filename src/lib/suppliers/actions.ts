@@ -11,6 +11,7 @@ import {
   type ExternalSupplierKind,
 } from "@/lib/suppliers";
 import { loadPlatformSupplierContext } from "@/lib/suppliers/platform-credentials";
+import { DEFAULT_CJ_SOURCING_REGION } from "@/lib/sourcing/constants";
 import {
   toClientCatalogProducts,
   toImportSourcePayload,
@@ -524,7 +525,8 @@ export async function importExternalSupplierProductAction(
     formData.get("external_product_id") ?? "",
   ).trim();
   const regionCode =
-    String(formData.get("region_code") ?? "GLOBAL").trim() || "GLOBAL";
+    String(formData.get("region_code") ?? DEFAULT_CJ_SOURCING_REGION).trim() ||
+    DEFAULT_CJ_SOURCING_REGION;
 
   if (!kind || !externalProductId) {
     return { error: "Select a supplier product to import." };

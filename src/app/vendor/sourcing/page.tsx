@@ -93,6 +93,7 @@ export default async function VendorSourcingIndexPage() {
           id: region.id,
           code: region.code,
           name: region.name,
+          is_default: region.is_default,
         }))}
         importDisabled={quota?.at_import_limit ?? false}
         quota={quotaHints}

@@ -168,6 +168,9 @@ export async function importSourcingProduct(input: {
   external_variant_id?: string;
   external_sku?: string;
   one_click?: boolean;
+  /** When true, omit compare-at (including supplier fallback). */
+  disable_compare_at?: boolean;
+  compare_at_price?: number | string;
 }): Promise<
   SourcingControllerResult<{
     productId?: string;
@@ -207,6 +210,10 @@ export async function importSourcingProduct(input: {
   }
   if (input.external_sku) formData.set("external_sku", input.external_sku);
   if (input.one_click) formData.set("one_click", "1");
+  if (input.disable_compare_at) formData.set("disable_compare_at", "1");
+  if (input.compare_at_price != null && input.compare_at_price !== "") {
+    formData.set("compare_at_price", String(input.compare_at_price));
+  }
 
   const result = await importExternalSupplierProductAction(null, formData);
   if (!result || result.error) {

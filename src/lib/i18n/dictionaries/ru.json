@@ -99,7 +99,19 @@
     "showingCount": "Показано товаров: {count}",
     "relatedCategories": "Связанные категории CJ",
     "allCategories": "Все",
-    "showingCountOfTotal": "Показано {count} из {total}"
+    "showingCountOfTotal": "Показано {count} из {total}",
+    "bulkSelect": "Выбрать",
+    "bulkSelected": "Выбрано: {count}",
+    "bulkSelectAll": "Выбрать все видимые",
+    "bulkClear": "Очистить",
+    "bulkImportSelected": "Импортировать выбранные",
+    "bulkImporting": "Импорт…",
+    "bulkIncludeCompare": "Включить цены сравнения",
+    "bulkImportSuccess": "Импортировано {ok} из {total} товаров.",
+    "bulkImportPartial": "Импортировано {ok} из {total}. Ошибок: {failed}.",
+    "bulkNoneEligible": "Выбранные товары не достигают минимума склада.",
+    "bulkMaxHint": "До {max} товаров за один массовый импорт.",
+    "bulkSelectHint": "Выберите товары и импортируйте их одним кликом."
   },
   "escrow": {
     "title": "Эскроу",

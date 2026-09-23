@@ -119,6 +119,8 @@ export function SupplierProductPreviewModal({
     );
     return String(suggestedComparePrice(sell, seedProduct.compareAtPriceUsdt));
   });
+  /** New imports default to no strikethrough price; toggle on when needed. */
+  const [showComparePrice, setShowComparePrice] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [, startTransition] = useTransition();
 
@@ -135,6 +137,8 @@ export function SupplierProductPreviewModal({
     setActiveImage(0);
     setImageReady(false);
     setLoadError(null);
+    // New listing import: compare-at off until the vendor enables it.
+    setShowComparePrice(false);
 
     if (seedProduct && seedProduct.externalProductId === externalProductId) {
       setProduct(seedProduct);
@@ -251,6 +255,7 @@ export function SupplierProductPreviewModal({
   const sellOk =
     Number.isFinite(parsedSell) && parsedSell > 0 && parsedSell >= costUsdt;
   const compareOk =
+    !showComparePrice ||
     editComparePrice.trim() === "" ||
     (Number.isFinite(parsedCompare) &&
       parsedCompare > 0 &&
@@ -267,9 +272,11 @@ export function SupplierProductPreviewModal({
     setSelectedVariant(v);
     const sell = suggestedSellPrice(v.priceUsdt);
     setEditPrice(String(sell));
-    setEditComparePrice(
-      String(suggestedComparePrice(sell, product?.compareAtPriceUsdt)),
-    );
+    if (showComparePrice) {
+      setEditComparePrice(
+        String(suggestedComparePrice(sell, product?.compareAtPriceUsdt)),
+      );
+    }
     if (v.imageUrl) {
       const idx = images.indexOf(v.imageUrl);
       if (idx >= 0) {
@@ -286,8 +293,10 @@ export function SupplierProductPreviewModal({
     fd.set("external_product_id", product.externalProductId);
     fd.set("region_code", regionCode);
     fd.set("price", String(parsedSell));
-    if (editComparePrice.trim() !== "" && compareOk) {
+    if (showComparePrice && editComparePrice.trim() !== "" && compareOk) {
       fd.set("compare_at_price", String(parsedCompare));
+    } else {
+      fd.set("disable_compare_at", "1");
     }
     fd.set("name", editName.trim() || product.name);
     fd.set("description", editDescription.trim() || product.description || "");
@@ -583,6 +592,7 @@ export function SupplierProductPreviewModal({
                           onChange={(e) => {
                             const next = e.target.value;
                             setEditPrice(next);
+                            if (!showComparePrice) return;
                             const sell = Number(next);
                             if (
                               Number.isFinite(sell) &&
@@ -608,14 +618,16 @@ export function SupplierProductPreviewModal({
                         onClick={() => {
                           const sell = suggestedSellPrice(costUsdt);
                           setEditPrice(String(sell));
-                          setEditComparePrice(
-                            String(
-                              suggestedComparePrice(
-                                sell,
-                                product?.compareAtPriceUsdt,
+                          if (showComparePrice) {
+                            setEditComparePrice(
+                              String(
+                                suggestedComparePrice(
+                                  sell,
+                                  product?.compareAtPriceUsdt,
+                                ),
                               ),
-                            ),
-                          );
+                            );
+                          }
                         }}
                         className="h-8 rounded-md border border-zinc-200 px-2.5 text-[11px] text-zinc-600 hover:bg-zinc-50"
                       >
@@ -651,13 +663,43 @@ export function SupplierProductPreviewModal({
                   )}
                 </label>
 
-                <label className="block min-h-[5.5rem] space-y-1">
-                  <span className="text-xs font-medium text-zinc-600">
-                    Compare price ({MARKETPLACE_CURRENCY})
-                  </span>
+                <div className="block min-h-[5.5rem] space-y-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-zinc-600">
+                      Compare price ({MARKETPLACE_CURRENCY})
+                    </span>
+                    <label className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-600">
+                      <input
+                        type="checkbox"
+                        checked={showComparePrice}
+                        disabled={showSkeleton}
+                        onChange={(e) => {
+                          const enabled = e.target.checked;
+                          setShowComparePrice(enabled);
+                          if (enabled) {
+                            const sell = Number.isFinite(parsedSell)
+                              ? parsedSell
+                              : suggestedSellPrice(costUsdt);
+                            setEditComparePrice(
+                              String(
+                                suggestedComparePrice(
+                                  sell,
+                                  product?.compareAtPriceUsdt,
+                                ),
+                              ),
+                            );
+                          } else {
+                            setEditComparePrice("");
+                          }
+                        }}
+                        className="h-3.5 w-3.5 accent-emerald-700"
+                      />
+                      Show for this listing
+                    </label>
+                  </div>
                   {showSkeleton ? (
                     <SkeletonBlock className="h-10 w-full" />
-                  ) : (
+                  ) : showComparePrice ? (
                     <>
                       <input
                         type="number"
@@ -678,8 +720,13 @@ export function SupplierProductPreviewModal({
                         )}
                       </p>
                     </>
+                  ) : (
+                    <p className="rounded-md border border-dashed border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-500">
+                      Hidden for new items — enable only if you want a
+                      strikethrough “was” price on the storefront.
+                    </p>
                   )}
-                </label>
+                </div>
               </div>
 
               <div

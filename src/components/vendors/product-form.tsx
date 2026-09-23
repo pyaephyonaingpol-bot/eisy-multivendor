@@ -68,6 +68,10 @@ function ProductFormFields({
     () => product?.images ?? [],
   );
   const [newPreviews, setNewPreviews] = useState<PreviewItem[]>([]);
+  /** New products hide compare-at by default; edit keeps it when already set. */
+  const [showCompareAt, setShowCompareAt] = useState(
+    () => Boolean(product?.compare_at_price != null),
+  );
   const [specRows, setSpecRows] = useState<SpecRow[]>(() => {
     const existing = product?.specifications ?? [];
     return existing.length > 0
@@ -425,23 +429,50 @@ function ProductFormFields({
           />
         </div>
         <div className="space-y-2">
-          <label htmlFor="compare_at_price" className="text-sm font-medium text-zinc-700">
-            Compare-at price
-          </label>
-          <input
-            id="compare_at_price"
-            name="compare_at_price"
-            type="number"
-            min="0"
-            step="0.01"
-            defaultValue={
-              product?.compare_at_price != null
-                ? String(product.compare_at_price)
-                : undefined
-            }
-            placeholder="Optional"
-            className={fieldClassName}
-          />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label htmlFor="compare_at_price" className="text-sm font-medium text-zinc-700">
+              Compare-at price
+            </label>
+            <label className="flex items-center gap-1.5 text-xs font-medium text-zinc-600">
+              <input
+                type="checkbox"
+                checked={showCompareAt}
+                onChange={(e) => setShowCompareAt(e.target.checked)}
+                className="h-3.5 w-3.5 accent-zinc-900"
+              />
+              {isEdit ? "Show compare-at" : "Enable for this new item"}
+            </label>
+          </div>
+          {showCompareAt ? (
+            <>
+              <input
+                id="compare_at_price"
+                name="compare_at_price"
+                type="number"
+                min="0"
+                step="0.01"
+                defaultValue={
+                  product?.compare_at_price != null
+                    ? String(product.compare_at_price)
+                    : undefined
+                }
+                placeholder="Optional strikethrough"
+                className={fieldClassName}
+              />
+              <p className="text-xs text-zinc-500">
+                Shown as a crossed-out list price when higher than the sell price.
+              </p>
+            </>
+          ) : (
+            <>
+              <input type="hidden" name="compare_at_price" value="" />
+              <p className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-500">
+                {isEdit
+                  ? "Compare-at price is hidden. Enable it to show a strikethrough “was” price."
+                  : "Hidden for new items by default — enable only if you want a strikethrough price."}
+              </p>
+            </>
+          )}
         </div>
       </div>
 

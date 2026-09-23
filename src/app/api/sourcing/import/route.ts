@@ -15,6 +15,8 @@ type ImportBody = {
   external_variant_id?: string;
   external_sku?: string;
   one_click?: boolean;
+  disable_compare_at?: boolean;
+  compare_at_price?: number | string;
 };
 
 /**
@@ -39,6 +41,8 @@ export async function POST(request: Request) {
     external_variant_id: body.external_variant_id,
     external_sku: body.external_sku,
     one_click: Boolean(body.one_click),
+    disable_compare_at: Boolean(body.disable_compare_at),
+    compare_at_price: body.compare_at_price,
   });
 
   if (!result.ok) {

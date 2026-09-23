@@ -15,6 +15,10 @@ import {
   kindsForSourceTab,
   type SupplierSourceTab,
 } from "@/lib/suppliers";
+import {
+  bulkImportExternalSupplierProductsAction,
+  MAX_BULK_IMPORT_ITEMS,
+} from "@/lib/suppliers/actions";
 import { DEFAULT_CJ_SOURCING_REGION } from "@/lib/sourcing/constants";
 import {
   ONE_CLICK_IMPORT_MARKUP,
@@ -72,6 +76,10 @@ function sourceBadge(kind: ExternalSupplierKind) {
   return supplierPlatformLabel(kind);
 }
 
+function catalogItemKey(product: ExternalCatalogProduct) {
+  return `${product.providerKind}:${product.externalProductId}`;
+}
+
 function matchesSourceTab(
   product: ExternalCatalogProduct,
   tab: SupplierSourceTab,
@@ -107,6 +115,7 @@ export function UnifiedSupplierSourcingCatalog({
   const [previewSuccess, setPreviewSuccess] = useState<string | null>(null);
   const [pendingSearch, startSearch] = useTransition();
   const [pendingMore, startLoadMore] = useTransition();
+  const [pendingBulk, startBulkImport] = useTransition();
   const [hasSearched, setHasSearched] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -115,6 +124,9 @@ export function UnifiedSupplierSourcingCatalog({
   const [relatedCategories, setRelatedCategories] = useState<
     { id: string; name: string }[]
   >([]);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
+  const [bulkIncludeCompare, setBulkIncludeCompare] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
   const seededRef = useRef(false);
 
   useEffect(() => {
@@ -169,6 +181,122 @@ export function UnifiedSupplierSourcingCatalog({
     });
   }, [catalog, sourceTab, deliverySpeed]);
 
+  const selectableVisible = useMemo(
+    () =>
+      visibleProducts.filter(
+        (product) => meetsMinImportStock(product.stockQuantity) && !atLimit,
+      ),
+    [visibleProducts, atLimit],
+  );
+
+  const selectedProducts = useMemo(() => {
+    return visibleProducts.filter((product) =>
+      selectedKeys.has(catalogItemKey(product)),
+    );
+  }, [visibleProducts, selectedKeys]);
+
+  const selectedEligible = useMemo(
+    () =>
+      selectedProducts.filter((product) =>
+        meetsMinImportStock(product.stockQuantity),
+      ),
+    [selectedProducts],
+  );
+
+  const allVisibleSelected =
+    selectableVisible.length > 0 &&
+    selectableVisible.every((product) =>
+      selectedKeys.has(catalogItemKey(product)),
+    );
+
+  function toggleSelected(product: ExternalCatalogProduct) {
+    const key = catalogItemKey(product);
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else if (next.size < MAX_BULK_IMPORT_ITEMS) {
+        next.add(key);
+      }
+      return next;
+    });
+    setBulkError(null);
+  }
+
+  function selectAllVisible() {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      for (const product of selectableVisible) {
+        if (next.size >= MAX_BULK_IMPORT_ITEMS) break;
+        next.add(catalogItemKey(product));
+      }
+      return next;
+    });
+    setBulkError(null);
+  }
+
+  function clearSelection() {
+    setSelectedKeys(new Set());
+    setBulkError(null);
+  }
+
+  function runBulkImport() {
+    if (atLimit || selectedEligible.length === 0) {
+      setBulkError(t("sourcing.bulkNoneEligible"));
+      return;
+    }
+    const items = selectedEligible
+      .slice(0, MAX_BULK_IMPORT_ITEMS)
+      .map((product) => ({
+        providerKind: product.providerKind,
+        externalProductId: product.externalProductId,
+      }));
+
+    startBulkImport(async () => {
+      setBulkError(null);
+      setPreviewSuccess(null);
+      const result = await bulkImportExternalSupplierProductsAction({
+        items,
+        regionCode,
+        includeComparePrice: bulkIncludeCompare,
+      });
+      if (result.error && result.imported === 0) {
+        setBulkError(result.error);
+        return;
+      }
+      const message =
+        result.failed.length === 0
+          ? t("sourcing.bulkImportSuccess", {
+              ok: result.imported,
+              total: items.length,
+            })
+          : t("sourcing.bulkImportPartial", {
+              ok: result.imported,
+              total: items.length,
+              failed: result.failed.length,
+            });
+      setPreviewSuccess(result.success ?? message);
+      if (result.imported > 0) {
+        setSelectedKeys((prev) => {
+          const next = new Set(prev);
+          for (const item of items) {
+            // Keep failed ids selected so the vendor can retry.
+            const failedIds = new Set(
+              result.failed.map((row) => row.externalProductId),
+            );
+            if (!failedIds.has(item.externalProductId)) {
+              next.delete(`${item.providerKind}:${item.externalProductId}`);
+            }
+          }
+          return next;
+        });
+      }
+      if (result.failed.length > 0 && result.imported === 0) {
+        setBulkError(result.failed[0]?.error ?? result.error ?? null);
+      }
+    });
+  }
+
   const previewProduct =
     visibleProducts.find(
       (product) =>
@@ -201,7 +329,11 @@ export function UnifiedSupplierSourcingCatalog({
     overrides?: { categoryId?: string | null },
   ) {
     setError(null);
-    if (!append) setPreviewSuccess(null);
+    setBulkError(null);
+    if (!append) {
+      setPreviewSuccess(null);
+      setSelectedKeys(new Set());
+    }
     const activeCategoryId =
       overrides && "categoryId" in overrides
         ? overrides.categoryId
@@ -448,10 +580,36 @@ export function UnifiedSupplierSourcingCatalog({
       {previewSuccess ? (
         <p className="text-sm text-emerald-700">{previewSuccess}</p>
       ) : null}
+      {bulkError ? (
+        <p className="text-sm text-red-600" role="alert">
+          {bulkError}
+        </p>
+      ) : null}
       {atLimit ? (
         <p className="text-sm text-amber-800">
           {t("sourcing.importLimitReached")}
         </p>
+      ) : null}
+
+      {visibleProducts.length > 0 ? (
+        <div className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <p className="text-xs text-zinc-600">{t("sourcing.bulkSelectHint")}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={allVisibleSelected ? clearSelection : selectAllVisible}
+              disabled={atLimit || selectableVisible.length === 0 || pendingBulk}
+              className="rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
+            >
+              {allVisibleSelected
+                ? t("sourcing.bulkClear")
+                : t("sourcing.bulkSelectAll")}
+            </button>
+            <span className="text-xs text-zinc-500">
+              {t("sourcing.bulkMaxHint", { max: MAX_BULK_IMPORT_ITEMS })}
+            </span>
+          </div>
+        </div>
       ) : null}
 
       {visibleProducts.length === 0 ? (
@@ -467,12 +625,20 @@ export function UnifiedSupplierSourcingCatalog({
             const stockOk = meetsMinImportStock(product.stockQuantity);
             const fast = isFastDispatch(product);
             const local = isLocalWarehouse(product);
+            const itemKey = catalogItemKey(product);
+            const isSelected = selectedKeys.has(itemKey);
+            const selectionFull =
+              !isSelected && selectedKeys.size >= MAX_BULK_IMPORT_ITEMS;
             return (
               <li
-                key={`${product.providerKind}:${product.externalProductId}`}
-                className="flex min-w-0 max-w-full flex-col overflow-hidden rounded-xl border border-zinc-100"
+                key={itemKey}
+                className={`flex min-w-0 max-w-full flex-col overflow-hidden rounded-xl border ${
+                  isSelected
+                    ? "border-emerald-600 ring-1 ring-emerald-600/30"
+                    : "border-zinc-100"
+                }`}
               >
-                <div className="aspect-[4/3] w-full max-w-full overflow-hidden bg-zinc-50 sm:aspect-square">
+                <div className="relative aspect-[4/3] w-full max-w-full overflow-hidden bg-zinc-50 sm:aspect-square">
                   {product.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -485,6 +651,22 @@ export function UnifiedSupplierSourcingCatalog({
                       No image
                     </div>
                   )}
+                  <label
+                    className={`absolute left-2 top-2 flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-medium shadow-sm ${
+                      isSelected
+                        ? "border-emerald-700 bg-emerald-700 text-white"
+                        : "border-zinc-200 bg-white/95 text-zinc-700"
+                    } ${!stockOk || atLimit || selectionFull ? "opacity-50" : ""}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      disabled={!stockOk || atLimit || selectionFull || pendingBulk}
+                      onChange={() => toggleSelected(product)}
+                      className="h-3.5 w-3.5 accent-emerald-700"
+                    />
+                    {t("sourcing.bulkSelect")}
+                  </label>
                 </div>
                 <div className="flex min-w-0 flex-1 flex-col gap-3 p-3">
                   <div className="min-w-0 space-y-1.5">
@@ -551,6 +733,53 @@ export function UnifiedSupplierSourcingCatalog({
           })}
         </ul>
       )}
+
+      {selectedKeys.size > 0 ? (
+        <div className="sticky bottom-3 z-20 mx-auto w-full max-w-3xl rounded-2xl border border-zinc-200 bg-white/95 p-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-white/90">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 space-y-1">
+              <p className="text-sm font-semibold text-zinc-950">
+                {t("sourcing.bulkSelected", { count: selectedKeys.size })}
+                {selectedEligible.length !== selectedKeys.size
+                  ? ` · ${selectedEligible.length} ready`
+                  : ""}
+              </p>
+              <label className="flex items-center gap-2 text-xs text-zinc-600">
+                <input
+                  type="checkbox"
+                  checked={bulkIncludeCompare}
+                  onChange={(e) => setBulkIncludeCompare(e.target.checked)}
+                  disabled={pendingBulk}
+                  className="h-3.5 w-3.5 accent-emerald-700"
+                />
+                {t("sourcing.bulkIncludeCompare")}
+              </label>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={clearSelection}
+                disabled={pendingBulk}
+                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
+              >
+                {t("sourcing.bulkClear")}
+              </button>
+              <button
+                type="button"
+                onClick={runBulkImport}
+                disabled={
+                  pendingBulk || atLimit || selectedEligible.length === 0
+                }
+                className="min-h-11 rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {pendingBulk
+                  ? t("sourcing.bulkImporting")
+                  : t("sourcing.bulkImportSelected")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {hasSearched && hasMore ? (
         <div className="flex flex-col items-center gap-2 pt-1">

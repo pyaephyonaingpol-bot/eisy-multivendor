@@ -99,7 +99,19 @@
     "showingCount": "显示 {count} 件商品",
     "relatedCategories": "相关 CJ 分类",
     "allCategories": "全部",
-    "showingCountOfTotal": "显示 {count} / {total} 件商品"
+    "showingCountOfTotal": "显示 {count} / {total} 件商品",
+    "bulkSelect": "选择",
+    "bulkSelected": "已选 {count} 个",
+    "bulkSelectAll": "全选可见",
+    "bulkClear": "清除",
+    "bulkImportSelected": "导入所选",
+    "bulkImporting": "正在导入…",
+    "bulkIncludeCompare": "包含对比价",
+    "bulkImportSuccess": "已导入 {ok}/{total} 个商品。",
+    "bulkImportPartial": "已导入 {ok}/{total}。失败 {failed} 个。",
+    "bulkNoneEligible": "所选商品未达到最低库存。",
+    "bulkMaxHint": "每次最多导入 {max} 个商品。",
+    "bulkSelectHint": "选择商品后一键导入（默认加价）。"
   },
   "escrow": {
     "title": "托管",

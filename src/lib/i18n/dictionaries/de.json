@@ -99,7 +99,19 @@
     "showingCount": "{count} Produkte angezeigt",
     "relatedCategories": "Verwandte CJ-Kategorien",
     "allCategories": "Alle",
-    "showingCountOfTotal": "{count} von {total} Produkten angezeigt"
+    "showingCountOfTotal": "{count} von {total} Produkten angezeigt",
+    "bulkSelect": "Auswählen",
+    "bulkSelected": "{count} ausgewählt",
+    "bulkSelectAll": "Alle sichtbaren auswählen",
+    "bulkClear": "Löschen",
+    "bulkImportSelected": "Auswahl importieren",
+    "bulkImporting": "Importiere…",
+    "bulkIncludeCompare": "Vergleichspreise einschließen",
+    "bulkImportSuccess": "{ok} von {total} Produkten importiert.",
+    "bulkImportPartial": "{ok} von {total} importiert. {failed} fehlgeschlagen.",
+    "bulkNoneEligible": "Keine ausgewählten Produkte erfüllen das Mindestlager.",
+    "bulkMaxHint": "Bis zu {max} Produkte pro Bulk-Import.",
+    "bulkSelectHint": "Produkte auswählen und mit einem Klick importieren."
   },
   "escrow": {
     "title": "Treuhand",

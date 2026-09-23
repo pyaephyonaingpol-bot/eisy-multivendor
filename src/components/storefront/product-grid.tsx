@@ -4,8 +4,11 @@ import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
 import type { PublicProductSummary } from "@/lib/products/queries";
 
 export function ProductCard({ product }: { product: PublicProductSummary }) {
-  const image = product.images[0] ?? null;
+  const images = Array.isArray(product.images) ? product.images : [];
+  const image = images.find((url) => typeof url === "string" && url.trim()) ?? null;
   const vendorApproved = product.vendor?.status === "approved";
+  const name = product.name?.trim() || "Untitled product";
+  const price = Number(product.price);
 
   return (
     <Link
@@ -18,7 +21,7 @@ export function ProductCard({ product }: { product: PublicProductSummary }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={image}
-            alt={product.name}
+            alt={name}
             className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.03]"
           />
         ) : (
@@ -32,7 +35,7 @@ export function ProductCard({ product }: { product: PublicProductSummary }) {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-between gap-2 p-3 sm:p-3.5">
         <div className="min-w-0 space-y-1">
           <p className="line-clamp-2 break-words text-sm font-semibold leading-snug text-[var(--market-ink)]">
-            {product.name}
+            {name}
           </p>
           {vendorApproved && product.vendor ? (
             <SoldByBadge vendor={product.vendor} as="text" />
@@ -40,7 +43,10 @@ export function ProductCard({ product }: { product: PublicProductSummary }) {
         </div>
         <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
           <p className="break-words text-sm font-semibold tracking-tight text-[var(--market-ink)]">
-            {formatMoney(Number(product.price), MARKETPLACE_CURRENCY)}
+            {formatMoney(
+              Number.isFinite(price) ? price : 0,
+              MARKETPLACE_CURRENCY,
+            )}
           </p>
           {product.compare_at_price != null ? (
             <p className="break-words text-xs text-[var(--market-muted)] line-through">

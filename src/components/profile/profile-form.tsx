@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
+import { ClientOnly } from "@/components/client-only";
+import { FormSkeleton } from "@/components/form-skeleton";
 import {
   updateBuyerProfile,
   type ProfileActionState,
@@ -17,11 +19,16 @@ type ProfileFormProps = {
   profile: Profile;
 };
 
-export function ProfileForm({ profile }: ProfileFormProps) {
+function ProfileFormFields({ profile }: ProfileFormProps) {
   const [state, formAction, pending] = useActionState(
     updateBuyerProfile,
     initialState,
   );
+
+  const email = (profile.email ?? "").trim();
+  const fullName = profile.full_name ?? "";
+  const phone = profile.phone ?? "";
+  const country = profile.preferred_country_code ?? "";
 
   return (
     <form action={formAction} className="space-y-5">
@@ -31,7 +38,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           <input
             name="full_name"
             required
-            defaultValue={profile.full_name ?? ""}
+            defaultValue={fullName}
             className={fieldClassName}
             placeholder="Your name"
             autoComplete="name"
@@ -42,7 +49,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           <span className="font-medium text-zinc-700">Email</span>
           <input
             type="email"
-            value={profile.email}
+            value={email || "—"}
             readOnly
             className={`${fieldClassName} bg-zinc-50 text-zinc-500`}
           />
@@ -53,7 +60,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           <input
             name="phone"
             type="tel"
-            defaultValue={profile.phone ?? ""}
+            defaultValue={phone}
             className={fieldClassName}
             placeholder="+95…"
             autoComplete="tel"
@@ -64,7 +71,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           <span className="font-medium text-zinc-700">Shipping country</span>
           <select
             name="preferred_country_code"
-            defaultValue={profile.preferred_country_code ?? ""}
+            defaultValue={country}
             className={fieldClassName}
           >
             <option value="">Select a country</option>
@@ -94,5 +101,17 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         {pending ? "Saving…" : "Save changes"}
       </button>
     </form>
+  );
+}
+
+/**
+ * Client-only so browser extensions that mutate inputs cannot wipe SSR HTML
+ * via a hydration mismatch (same pattern as vendor/auth forms).
+ */
+export function ProfileForm({ profile }: ProfileFormProps) {
+  return (
+    <ClientOnly fallback={<FormSkeleton rows={4} />}>
+      <ProfileFormFields key={profile.id} profile={profile} />
+    </ClientOnly>
   );
 }

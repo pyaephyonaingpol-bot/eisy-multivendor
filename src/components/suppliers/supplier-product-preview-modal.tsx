@@ -18,6 +18,7 @@ import type {
   ExternalSupplierKind,
 } from "@/lib/suppliers/types";
 import { ONE_CLICK_IMPORT_MARKUP } from "@/lib/suppliers/types";
+import { normalizeClientCatalogProduct } from "@/lib/suppliers/client-catalog";
 import { MARKETPLACE_CURRENCY, formatMoney } from "@/lib/money";
 import { lockBodyScroll } from "@/lib/dom/lock-body-scroll";
 
@@ -171,16 +172,19 @@ export function SupplierProductPreviewModal({
         );
         const data = (await res.json()) as {
           product?: ExternalCatalogProduct;
+          data?: { product?: ExternalCatalogProduct };
           error?: string;
         };
         if (cancelled) return;
-        if (!res.ok || !data.product) {
+        const rawProduct = data.product ?? data.data?.product;
+        const normalized = normalizeClientCatalogProduct(rawProduct);
+        if (!res.ok || !normalized) {
           if (!seedProduct) {
             setLoadError(data.error ?? "Failed to load product details");
           }
           return;
         }
-        const p = data.product;
+        const p = normalized;
         setProduct(p);
         setEditName(p.name);
         setEditDescription(p.description ?? "");

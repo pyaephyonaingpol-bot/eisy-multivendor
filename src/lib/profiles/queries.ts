@@ -85,9 +85,13 @@ export async function getCurrentUserProfile(): Promise<ProfileQueryResult> {
       console.warn("ensure_own_profile:", ensureError.message);
     }
 
+    // Prefer an explicit column list so a drifted schema still returns fields
+    // the profile form maps (instead of a silent empty select("*") failure).
     const { data, error } = await supabase
       .from("profiles")
-      .select("*")
+      .select(
+        "id, email, full_name, avatar_url, phone, role, preferred_region_id, preferred_country_code, created_at, updated_at",
+      )
       .eq("id", user.id)
       .maybeSingle();
 
@@ -121,14 +125,24 @@ export async function getCurrentUserProfile(): Promise<ProfileQueryResult> {
     }
 
     const row = data as Profile;
+    const meta = user.user_metadata as Record<string, unknown>;
     // Prefer Auth email when the profiles.email column is blank.
     const profile: Profile = {
       ...row,
       email: row.email?.trim() ? row.email : user.email ?? row.email,
       full_name:
-        row.full_name ??
-        metaString(user.user_metadata as Record<string, unknown>, "full_name") ??
-        metaString(user.user_metadata as Record<string, unknown>, "name"),
+        row.full_name?.trim()
+          ? row.full_name
+          : metaString(meta, "full_name") ?? metaString(meta, "name"),
+      phone: row.phone?.trim() ? row.phone : metaString(meta, "phone"),
+      avatar_url:
+        row.avatar_url?.trim()
+          ? row.avatar_url
+          : metaString(meta, "avatar_url"),
+      preferred_country_code:
+        row.preferred_country_code?.trim()
+          ? row.preferred_country_code
+          : metaString(meta, "preferred_country_code"),
     };
 
     return {

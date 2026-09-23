@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { ClientOnly } from "@/components/client-only";
+import { FormSkeleton } from "@/components/form-skeleton";
 import { BuyerCountrySelect } from "@/components/storefront/buyer-country-select";
 import {
   deleteBuyerAddress,
@@ -21,7 +23,7 @@ type BuyerAddressBookProps = {
   defaultCountry?: string;
 };
 
-export function BuyerAddressBook({
+function BuyerAddressBookFields({
   addresses,
   defaultCountry = "MM",
 }: BuyerAddressBookProps) {
@@ -219,5 +221,13 @@ export function BuyerAddressBook({
         </form>
       ) : null}
     </div>
+  );
+}
+
+export function BuyerAddressBook(props: BuyerAddressBookProps) {
+  return (
+    <ClientOnly fallback={<FormSkeleton rows={4} />}>
+      <BuyerAddressBookFields {...props} />
+    </ClientOnly>
   );
 }

@@ -27,6 +27,9 @@
 html {
   width: 100%;
   max-width: 100%;
+  /* Dynamic viewport height tracks mobile browser chrome + on-screen keyboard */
+  height: 100vh;
+  height: 100dvh;
   overflow-x: hidden;
   /* Keep width stable when modals lock body scroll / hide the scrollbar */
   scrollbar-gutter: stable;
@@ -37,6 +40,10 @@ html {
 body {
   width: 100%;
   max-width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   background:
     radial-gradient(1200px 500px at 10% -10%, rgba(15, 107, 92, 0.08), transparent 55%),
     radial-gradient(900px 420px at 90% 0%, rgba(180, 120, 60, 0.07), transparent 50%),

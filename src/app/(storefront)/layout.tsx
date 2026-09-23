@@ -15,7 +15,7 @@ export default function StorefrontLayout({
 }) {
   return (
     <CartProvider>
-      <div className="flex min-h-full w-full max-w-full flex-col overflow-x-hidden">
+      <div className="flex min-h-[100dvh] w-full max-w-full flex-col overflow-x-hidden">
         <BuyerMarketHeader />
         <main className="mx-auto w-full min-w-0 max-w-6xl flex-1 overflow-x-hidden px-4 pb-28 pt-4 sm:pt-5">
           {children}

@@ -22,8 +22,9 @@ export type ImportableCatalogProduct = Product & {
 };
 
 /**
- * Active supplier catalog products an approved vendor may import.
- * Excludes the caller's own products and existing dropship copies.
+ * Active **independent / marketplace** vendor products another store may
+ * resell (separate from CJ Dropshipping bulk import).
+ * Excludes the caller's own products, dropship copies, and CJ-imported listings.
  */
 export async function listImportableCatalogProducts(
   excludeVendorId?: string | null,
@@ -34,17 +35,43 @@ export async function listImportableCatalogProducts(
   }
 
   const supabase = await createClient();
-  const { data: productRows } = await supabase
+
+  // Prefer independent/manual catalog only — never surface CJ imports here.
+  const withCatalogKind = await supabase
     .from("products")
     .select("*")
     .eq("status", "active")
     .eq("is_dropship", false)
+    .neq("catalog_kind", "cj_import")
     .order("created_at", { ascending: false })
-    .limit(Math.max(limit * 2, 48));
+    .limit(Math.max(limit * 3, 48));
+  let productRows = withCatalogKind.data;
+  if (
+    withCatalogKind.error &&
+    /catalog_kind|schema cache|does not exist|could not find/i.test(
+      withCatalogKind.error.message ?? "",
+    )
+  ) {
+    const fallback = await supabase
+      .from("products")
+      .select("*")
+      .eq("status", "active")
+      .eq("is_dropship", false)
+      .order("created_at", { ascending: false })
+      .limit(Math.max(limit * 3, 48));
+    productRows = fallback.data;
+  }
 
   const products = ((productRows as Product[] | null) ?? [])
     .map(normalizeProduct)
-    .filter((product) => !excludeVendorId || product.vendor_id !== excludeVendorId);
+    .filter((product) => {
+      if (excludeVendorId && product.vendor_id === excludeVendorId) {
+        return false;
+      }
+      // Defense in depth when catalog_kind filter was unavailable.
+      if (product.catalog_kind === "cj_import") return false;
+      return true;
+    });
 
   if (products.length === 0) {
     return [];

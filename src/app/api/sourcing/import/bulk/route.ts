@@ -18,7 +18,8 @@ type BulkImportBody = {
 
 /**
  * POST /api/sourcing/import/bulk
- * One-click import of multiple supplier catalog products.
+ * One-click bulk import from the CJ Dropshipping catalog only.
+ * Marketplace / independent vendor product IDs are rejected.
  */
 export async function POST(request: Request) {
   let body: BulkImportBody;
@@ -38,7 +39,21 @@ export async function POST(request: Request) {
     .filter((item) => item.providerKind && item.externalProductId);
 
   if (items.length === 0) {
-    return jsonError("Select at least one supplier product to import.", 400);
+    return jsonError(
+      "Select at least one CJ Dropshipping catalog product to import.",
+      400,
+    );
+  }
+
+  const nonCj = items.filter((item) => {
+    const kind = item.providerKind.toLowerCase();
+    return kind !== "cj_dropshipping" && kind !== "cj" && !kind.includes("cj_drop");
+  });
+  if (nonCj.length > 0) {
+    return jsonError(
+      "Bulk import only accepts CJ Dropshipping catalog items. Use /vendor/import/marketplace for independent vendor products.",
+      400,
+    );
   }
 
   if (items.length > MAX_BULK_IMPORT_ITEMS) {
@@ -49,7 +64,10 @@ export async function POST(request: Request) {
   }
 
   const result = await bulkImportExternalSupplierProductsAction({
-    items,
+    items: items.map((item) => ({
+      providerKind: "cj_dropshipping",
+      externalProductId: item.externalProductId,
+    })),
     regionCode: body.region_code,
     includeComparePrice: Boolean(body.include_compare_price),
   });
@@ -66,6 +84,8 @@ export async function POST(request: Request) {
     imported: result.imported,
     failed: result.failed,
     productIds: result.productIds,
+    catalog_kind: "cj_import",
+    provider: "cj_dropshipping",
     max_per_request: MAX_BULK_IMPORT_ITEMS,
   });
 }

@@ -18,7 +18,7 @@ export default async function VendorImportExtensionPage() {
       <div className="space-y-2">
         <p className="text-sm text-zinc-500">
           <Link href="/vendor/import" className="underline">
-            ← Import catalog
+            ← Bulk import from CJ
           </Link>
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">
@@ -27,6 +27,18 @@ export default async function VendorImportExtensionPage() {
         <p className="max-w-2xl text-zinc-600">
           Use these authenticated endpoints from a browser extension or bookmarklet
           while signed in as an approved vendor. Cookies from this site are required.
+        </p>
+        <p className="max-w-2xl text-sm text-amber-900">
+          <strong>/api/dropship/*</strong> is for reselling independent marketplace
+          vendors only. For CJ Dropshipping bulk import use{" "}
+          <code className="rounded bg-zinc-100 px-1">/api/suppliers/catalog</code>{" "}
+          and{" "}
+          <code className="rounded bg-zinc-100 px-1">/api/sourcing/import/bulk</code>
+          , or the{" "}
+          <Link href="/vendor/import" className="font-medium underline">
+            Bulk import from CJ
+          </Link>{" "}
+          UI.
         </p>
       </div>
 
@@ -60,7 +72,8 @@ Content-Type: application/json
       <section className="space-y-3 rounded-xl border border-zinc-200 bg-white p-5">
         <h2 className="text-lg font-semibold">GET /api/dropship/catalog</h2>
         <p className="text-sm text-zinc-600">
-          List importable active supplier products (excludes your own catalog).
+          List importable independent marketplace products (excludes your own
+          catalog and CJ Dropshipping imports).
         </p>
         <pre className="overflow-x-auto rounded-lg bg-zinc-950 p-4 text-xs text-zinc-100">
 {`GET /api/dropship/catalog?limit=24

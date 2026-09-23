@@ -245,10 +245,18 @@ export function UnifiedSupplierSourcingCatalog({
     }
     const items = selectedEligible
       .slice(0, MAX_BULK_IMPORT_ITEMS)
+      .filter((product) => product.providerKind === "cj_dropshipping")
       .map((product) => ({
-        providerKind: product.providerKind,
+        providerKind: "cj_dropshipping" as const,
         externalProductId: product.externalProductId,
       }));
+
+    if (items.length === 0) {
+      setBulkError(
+        "Bulk import only supports CJ Dropshipping catalog products.",
+      );
+      return;
+    }
 
     startBulkImport(async () => {
       setBulkError(null);

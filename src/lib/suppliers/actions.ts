@@ -1079,9 +1079,9 @@ export async function importExternalSupplierProductAction(
 }
 
 /**
- * One-click bulk import: import multiple supplier catalog rows under separate
- * listings (each with its full color/size matrix when CJ). Compare-at is off
- * by default so new listings do not show a strikethrough price.
+ * One-click bulk import from the **CJ Dropshipping** catalog only.
+ * Independent / marketplace vendor products are never accepted here —
+ * those use the separate reseller import flow (`import_dropship_product`).
  */
 export async function bulkImportExternalSupplierProductsAction(args: {
   items: BulkExternalImportItem[];
@@ -1110,15 +1110,26 @@ export async function bulkImportExternalSupplierProductsAction(args: {
     const providerKind = String(raw.providerKind ?? "").trim();
     const externalProductId = String(raw.externalProductId ?? "").trim();
     if (!providerKind || !externalProductId) continue;
-    const key = `${providerKind}:${externalProductId}`;
+    // Bulk import is CJ Dropshipping only — never marketplace / independent vendors.
+    if (parseSupplierKind(providerKind) !== "cj_dropshipping") {
+      continue;
+    }
+    const key = `cj_dropshipping:${externalProductId}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    items.push({ providerKind, externalProductId });
+    items.push({
+      providerKind: "cj_dropshipping",
+      externalProductId,
+    });
     if (items.length >= MAX_BULK_IMPORT_ITEMS) break;
   }
 
   if (items.length === 0) {
-    return { ...empty, error: "Select at least one supplier product to import." };
+    return {
+      ...empty,
+      error:
+        "Select at least one CJ Dropshipping catalog product to bulk import. Marketplace / independent vendor listings are not supported here.",
+    };
   }
 
   const includeCompare = Boolean(args.includeComparePrice);

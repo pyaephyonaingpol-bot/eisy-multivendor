@@ -6,7 +6,9 @@ import { getVendorForOwner } from "@/lib/vendors/queries";
 export const dynamic = "force-dynamic";
 
 /**
- * Browser-extension friendly catalog of importable supplier products.
+ * Browser-extension friendly catalog of **independent marketplace** products
+ * that may be resold. Does not include CJ Dropshipping catalog items —
+ * use /api/suppliers/catalog and /api/sourcing/import/bulk for CJ.
  */
 export async function GET(request: Request) {
   const session = await getSessionProfile();
@@ -35,6 +37,9 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     ok: true,
+    catalog: "marketplace_reseller",
+    note:
+      "Independent vendor products only. CJ Dropshipping bulk import uses /api/suppliers/catalog + /api/sourcing/import/bulk.",
     products: products.map((product) => ({
       id: product.id,
       name: product.name,
@@ -45,6 +50,7 @@ export async function GET(request: Request) {
       product_type: product.product_type,
       stock_quantity: product.stock_quantity,
       images: product.images,
+      catalog_kind: product.catalog_kind ?? "manual",
       vendor: product.vendor,
       product_url: `/products/${product.id}`,
       import_hint: {

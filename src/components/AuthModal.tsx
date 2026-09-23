@@ -398,7 +398,7 @@ export function AuthModal({
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   required
-                  className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none ring-zinc-950 focus:ring-2"
+                  className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-base outline-none ring-zinc-950 focus:ring-2"
                   placeholder="Your name"
                 />
               </label>
@@ -412,7 +412,7 @@ export function AuthModal({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none ring-zinc-950 focus:ring-2"
+                className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-base outline-none ring-zinc-950 focus:ring-2"
                 placeholder="you@example.com"
               />
             </label>
@@ -444,7 +444,7 @@ export function AuthModal({
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={6}
-                  className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none ring-zinc-950 focus:ring-2"
+                  className="w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-base outline-none ring-zinc-950 focus:ring-2"
                   placeholder="••••••••"
                 />
               </label>

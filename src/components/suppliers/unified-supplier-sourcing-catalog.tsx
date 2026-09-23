@@ -330,7 +330,7 @@ export function UnifiedSupplierSourcingCatalog({
               }
             }}
             placeholder={t("sourcing.searchPlaceholder")}
-            className="mt-1 w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm"
+            className="mt-1 w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-base"
           />
         </label>
         <label className="min-w-0 text-xs font-medium text-zinc-600">
@@ -338,7 +338,7 @@ export function UnifiedSupplierSourcingCatalog({
           <select
             value={regionCode}
             onChange={(event) => setRegionCode(event.target.value)}
-            className="mt-1 block w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm"
+            className="mt-1 block w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-base"
           >
             {regions.length === 0 ? (
               <option value="GLOBAL">GLOBAL</option>
@@ -358,7 +358,7 @@ export function UnifiedSupplierSourcingCatalog({
             onChange={(event) =>
               setDeliverySpeed(event.target.value as DeliverySpeedFilter)
             }
-            className="mt-1 block w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm"
+            className="mt-1 block w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-base"
           >
             <option value="any">{t("sourcing.anySpeed")}</option>
             <option value="fast">{t("sourcing.fastDispatchFilter")}</option>

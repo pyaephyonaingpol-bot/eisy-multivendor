@@ -65,6 +65,16 @@ body {
   max-width: 100%;
 }
 
+/*
+ * iOS Safari / Android Chrome zoom focused fields when font-size < 16px.
+ * Keep text controls at least text-base (16px), including over Tailwind text-sm.
+ */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]),
+textarea,
+select {
+  font-size: 16px;
+}
+
 img,
 video,
 canvas,

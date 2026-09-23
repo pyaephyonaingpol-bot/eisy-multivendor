@@ -85,7 +85,7 @@ export async function BuyerMarketHeader({
             type="search"
             defaultValue={initialQuery}
             placeholder="Search products and stores"
-            className="h-11 w-full max-w-full rounded-2xl border border-[var(--market-line)] bg-white py-2 pl-10 pr-4 text-sm text-[var(--market-ink)] outline-none transition placeholder:text-[var(--market-muted)] focus:border-[var(--market-accent)] focus:ring-2 focus:ring-[var(--market-accent-soft)]"
+            className="h-11 w-full max-w-full rounded-2xl border border-[var(--market-line)] bg-white py-2 pl-10 pr-4 text-base text-[var(--market-ink)] outline-none transition placeholder:text-[var(--market-muted)] focus:border-[var(--market-accent)] focus:ring-2 focus:ring-[var(--market-accent-soft)]"
           />
         </form>
       </div>

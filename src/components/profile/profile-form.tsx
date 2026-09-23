@@ -11,7 +11,7 @@ import { BUYER_COUNTRY_OPTIONS } from "@/lib/sourcing/constants";
 const initialState: ProfileActionState = null;
 
 const fieldClassName =
-  "w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-950 outline-none transition focus:border-zinc-400";
+  "w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-base text-zinc-950 outline-none transition focus:border-zinc-400";
 
 type ProfileFormProps = {
   profile: Profile;

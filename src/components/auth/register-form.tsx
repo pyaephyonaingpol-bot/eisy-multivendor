@@ -10,7 +10,7 @@ import { register, type AuthActionState } from "@/lib/auth/actions";
 const initialState: AuthActionState = null;
 
 const fieldClassName =
-  "w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm";
+  "w-full rounded-lg border border-zinc-200 px-3 py-2 text-base";
 
 function RegisterFormFields() {
   const [state, formAction, pending] = useActionState(register, initialState);

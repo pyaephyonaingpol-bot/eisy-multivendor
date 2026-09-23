@@ -111,7 +111,7 @@ export function ExternalSupplierCatalogPanel({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search products"
-          className="w-full min-w-0 max-w-full flex-1 rounded-lg border border-zinc-200 px-3 py-2.5 text-sm sm:py-2"
+          className="w-full min-w-0 max-w-full flex-1 rounded-lg border border-zinc-200 px-3 py-2.5 text-base sm:py-2"
         />
         <button
           type="button"

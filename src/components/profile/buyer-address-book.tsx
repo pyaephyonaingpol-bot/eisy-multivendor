@@ -14,7 +14,7 @@ import type { BuyerAddress } from "@/lib/types/database";
 const initialState: AddressActionState = null;
 
 const fieldClassName =
-  "w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-950";
+  "w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-base text-zinc-950";
 
 type BuyerAddressBookProps = {
   addresses: BuyerAddress[];

@@ -330,7 +330,7 @@ export function UnifiedSupplierSourcingCatalog({
               }
             }}
             placeholder={t("sourcing.searchPlaceholder")}
-            className="mt-1 w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-sm"
+            className="mt-1 w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-base"
           />
         </label>
         <label className="min-w-0 text-xs font-medium text-zinc-600">

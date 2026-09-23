@@ -49,7 +49,7 @@ export function LoginForm({ nextPath = "/" }: LoginFormProps) {
               placeholder="you@example.com"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-950"
+              className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-base text-zinc-950"
             />
           </label>
 
@@ -98,7 +98,7 @@ export function LoginForm({ nextPath = "/" }: LoginFormProps) {
             placeholder="you@example.com"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-950"
+            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-base text-zinc-950"
           />
         </label>
         <label className="block space-y-1.5 text-sm">
@@ -118,7 +118,7 @@ export function LoginForm({ nextPath = "/" }: LoginFormProps) {
             required
             autoComplete="current-password"
             placeholder="••••••••"
-            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-950"
+            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-base text-zinc-950"
           />
         </label>
         {state?.error ? (

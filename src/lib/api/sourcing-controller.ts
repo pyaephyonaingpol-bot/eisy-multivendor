@@ -5,6 +5,7 @@ import {
   shippingSpeedTagsForProduct,
   type DeliverySpeedFilter,
 } from "@/lib/api/sourcing-filters";
+import { DEFAULT_CJ_SOURCING_REGION } from "@/lib/sourcing/constants";
 import {
   kindsForSourceTab,
   parseSourceTab,
@@ -190,7 +191,10 @@ export async function importSourcingProduct(input: {
   const formData = new FormData();
   formData.set("provider_kind", String(input.provider_kind ?? ""));
   formData.set("external_product_id", String(input.external_product_id ?? ""));
-  formData.set("region_code", String(input.region_code ?? "GLOBAL"));
+  formData.set(
+    "region_code",
+    String(input.region_code ?? DEFAULT_CJ_SOURCING_REGION),
+  );
   if (input.price != null && input.price !== "") {
     formData.set("price", String(input.price));
   } else if (input.price_usdt != null && input.price_usdt !== "") {

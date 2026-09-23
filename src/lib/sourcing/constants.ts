@@ -7,7 +7,10 @@ export const BUYER_COUNTRY_COOKIE = "eisy_buyer_country";
 export const BUYER_REGION_COOKIE = "eisy_buyer_region";
 
 export const DEFAULT_BUYER_COUNTRY = "MM";
-export const DEFAULT_BUYER_REGION = "MM";
+/** Default marketplace / CJ sourcing region — worldwide catalog, not Myanmar-only. */
+export const DEFAULT_BUYER_REGION = "GLOBAL";
+/** CJ Dropshipping catalog + import flows always default to the global region. */
+export const DEFAULT_CJ_SOURCING_REGION = "GLOBAL";
 
 /**
  * CJ Dropshipping official destination countries for checkout / address selectors.
@@ -24,7 +27,7 @@ export const FALLBACK_REGIONS: {
   country_codes: string[];
   is_default: boolean;
 }[] = [
-  { code: "MM", name: "Myanmar", country_codes: ["MM"], is_default: true },
+  { code: "MM", name: "Myanmar", country_codes: ["MM"], is_default: false },
   {
     code: "SEA",
     name: "Southeast Asia",
@@ -68,7 +71,7 @@ export const FALLBACK_REGIONS: {
     country_codes: ["AE", "BH", "KW", "OM", "QA", "SA"],
     is_default: false,
   },
-  { code: "GLOBAL", name: "Rest of world", country_codes: [], is_default: false },
+  { code: "GLOBAL", name: "Rest of world", country_codes: [], is_default: true },
 ];
 
 export function normalizeCountryCode(value: string | null | undefined): string {

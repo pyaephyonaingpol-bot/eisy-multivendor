@@ -15,6 +15,7 @@ import {
   kindsForSourceTab,
   type SupplierSourceTab,
 } from "@/lib/suppliers";
+import { DEFAULT_CJ_SOURCING_REGION } from "@/lib/sourcing/constants";
 import {
   ONE_CLICK_IMPORT_MARKUP,
   MIN_IMPORT_STOCK_QUANTITY,
@@ -30,6 +31,7 @@ export type SourcingRegionOption = {
   id: string;
   code: string;
   name: string;
+  is_default?: boolean;
 };
 
 type DeliverySpeedFilter = "any" | "fast" | "local";
@@ -89,10 +91,11 @@ export function UnifiedSupplierSourcingCatalog({
   );
   const [query, setQuery] = useState("wireless earbuds");
   const [regionCode, setRegionCode] = useState(
-    regions.find((region) => region.code === "MM")?.code ??
+    regions.find((region) => region.code === DEFAULT_CJ_SOURCING_REGION)?.code ??
       regions.find((region) => region.code === "GLOBAL")?.code ??
+      regions.find((region) => region.is_default)?.code ??
       regions[0]?.code ??
-      "GLOBAL",
+      DEFAULT_CJ_SOURCING_REGION,
   );
   const [deliverySpeed, setDeliverySpeed] =
     useState<DeliverySpeedFilter>("any");
@@ -341,7 +344,9 @@ export function UnifiedSupplierSourcingCatalog({
             className="mt-1 block w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-base"
           >
             {regions.length === 0 ? (
-              <option value="GLOBAL">GLOBAL</option>
+              <option value={DEFAULT_CJ_SOURCING_REGION}>
+                {DEFAULT_CJ_SOURCING_REGION}
+              </option>
             ) : (
               regions.map((region) => (
                 <option key={region.id} value={region.code}>

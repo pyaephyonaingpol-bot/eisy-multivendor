@@ -13,6 +13,22 @@ export const ONE_CLICK_IMPORT_MARKUP = 1.35;
 /** Imported listings must have at least this much supplier stock on hand. */
 export const MIN_IMPORT_STOCK_QUANTITY = 10;
 
+/** Max products per bulk import request (avoids long-running server actions). */
+export const MAX_BULK_IMPORT_ITEMS = 20;
+
+export type BulkExternalImportItem = {
+  providerKind: string;
+  externalProductId: string;
+};
+
+export type BulkExternalImportResult = {
+  error?: string;
+  success?: string;
+  imported: number;
+  failed: Array<{ externalProductId: string; error: string }>;
+  productIds: string[];
+};
+
 export type ExternalProductVariant = {
   externalVariantId: string;
   externalSku: string | null;

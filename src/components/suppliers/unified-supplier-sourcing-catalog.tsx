@@ -15,10 +15,8 @@ import {
   kindsForSourceTab,
   type SupplierSourceTab,
 } from "@/lib/suppliers";
-import {
-  bulkImportExternalSupplierProductsAction,
-  MAX_BULK_IMPORT_ITEMS,
-} from "@/lib/suppliers/actions";
+import { bulkImportExternalSupplierProductsAction } from "@/lib/suppliers/actions";
+import { MAX_BULK_IMPORT_ITEMS } from "@/lib/suppliers/types";
 import { DEFAULT_CJ_SOURCING_REGION } from "@/lib/sourcing/constants";
 import {
   ONE_CLICK_IMPORT_MARKUP,

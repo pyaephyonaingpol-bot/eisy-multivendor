@@ -1,8 +1,6 @@
-import {
-  bulkImportExternalSupplierProductsAction,
-  MAX_BULK_IMPORT_ITEMS,
-} from "@/lib/suppliers/actions";
+import { bulkImportExternalSupplierProductsAction } from "@/lib/suppliers/actions";
 import { jsonError, jsonOk, statusFromMessage } from "@/lib/api/http";
+import { MAX_BULK_IMPORT_ITEMS } from "@/lib/suppliers/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

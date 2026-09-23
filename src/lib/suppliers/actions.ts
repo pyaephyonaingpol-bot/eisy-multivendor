@@ -20,12 +20,15 @@ import {
 } from "@/lib/suppliers/catalog-dto";
 import {
   MIN_IMPORT_STOCK_QUANTITY,
+  MAX_BULK_IMPORT_ITEMS,
   ONE_CLICK_IMPORT_MARKUP,
   meetsMinImportStock,
   productMatchesSourcingRegion,
   slugifyExternalName,
   supplierPlatformLabel,
   warehouseCountryToRegionCodes,
+  type BulkExternalImportItem,
+  type BulkExternalImportResult,
 } from "@/lib/suppliers/types";
 import { createClient } from "@/lib/supabase/server";
 import { getVendorForOwner, isVendorKycApproved } from "@/lib/vendors/queries";
@@ -1074,22 +1077,6 @@ export async function importExternalSupplierProductAction(
     oneClick,
   };
 }
-
-/** Max products per bulk import request (avoids long-running server actions). */
-export const MAX_BULK_IMPORT_ITEMS = 20;
-
-export type BulkExternalImportItem = {
-  providerKind: string;
-  externalProductId: string;
-};
-
-export type BulkExternalImportResult = {
-  error?: string;
-  success?: string;
-  imported: number;
-  failed: Array<{ externalProductId: string; error: string }>;
-  productIds: string[];
-};
 
 /**
  * One-click bulk import: import multiple supplier catalog rows under separate

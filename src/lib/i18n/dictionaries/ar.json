@@ -111,7 +111,9 @@
     "bulkImportPartial": "تم استيراد {ok} من {total}. فشل {failed}.",
     "bulkNoneEligible": "المنتجات المحددة لا تستوفي الحد الأدنى للمخزون.",
     "bulkMaxHint": "حتى {max} منتجات لكل استيراد جماعي.",
-    "bulkSelectHint": "حدّد المنتجات ثم استوردها بنقرة واحدة بالهامش الافتراضي."
+    "bulkSelectHint": "حدّد المنتجات ثم استوردها بنقرة واحدة بالهامش الافتراضي.",
+    "previewImportAll": "معاينة · استيراد كل {count} خيارات",
+    "importAllVariantsHint": "تُستورد كل خيارات اللون/المقاس ({count}) معاً"
   },
   "escrow": {
     "title": "الضمان",

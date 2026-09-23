@@ -111,7 +111,9 @@
     "bulkImportPartial": "Imported {ok} of {total}. {failed} failed.",
     "bulkNoneEligible": "No selected products meet the stock minimum.",
     "bulkMaxHint": "Up to {max} products per bulk import.",
-    "bulkSelectHint": "Select products, then import them in one click with the default markup."
+    "bulkSelectHint": "Select products, then import them in one click with the default markup.",
+    "previewImportAll": "Preview · import all {count} options",
+    "importAllVariantsHint": "All {count} color/size options import together"
   },
   "escrow": {
     "title": "Escrow",

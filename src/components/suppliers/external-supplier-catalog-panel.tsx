@@ -237,7 +237,11 @@ export function ExternalSupplierCatalogPanel({
                         disabled={pendingImport || atLimit}
                         className="min-h-11 w-full max-w-full rounded-lg bg-emerald-800 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60 sm:min-h-0"
                       >
-                        {pendingImport ? "Importing…" : "Import to Store"}
+                        {pendingImport
+                          ? "Importing…"
+                          : (product.variants?.length ?? 0) > 1
+                            ? `Import all ${product.variants!.length} options`
+                            : "Import to Store"}
                       </button>
                     </form>
                   </div>

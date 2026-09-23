@@ -111,7 +111,9 @@
     "bulkImportPartial": "Importados {ok} de {total}. Fallaron {failed}.",
     "bulkNoneEligible": "Ningún producto seleccionado cumple el stock mínimo.",
     "bulkMaxHint": "Hasta {max} productos por importación masiva.",
-    "bulkSelectHint": "Selecciona productos e impórtalos con un clic."
+    "bulkSelectHint": "Selecciona productos e impórtalos con un clic.",
+    "previewImportAll": "Vista previa · importar las {count} opciones",
+    "importAllVariantsHint": "Las {count} opciones de color/talla se importan juntas"
   },
   "escrow": {
     "title": "Depósito",

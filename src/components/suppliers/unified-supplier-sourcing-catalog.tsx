@@ -731,6 +731,13 @@ export function UnifiedSupplierSourcingCatalog({
                       {" → "}
                       {formatMoney(suggested, MARKETPLACE_CURRENCY)}
                     </p>
+                    {(product.variants?.length ?? 0) > 1 ? (
+                      <p className="text-xs font-medium text-emerald-800">
+                        {t("sourcing.importAllVariantsHint", {
+                          count: product.variants!.length,
+                        })}
+                      </p>
+                    ) : null}
                     {!stockOk ? (
                       <p className="text-xs text-amber-700">
                         {t("sourcing.stockBelowMin", {
@@ -748,7 +755,11 @@ export function UnifiedSupplierSourcingCatalog({
                     }}
                     className="mt-auto min-h-11 w-full max-w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
                   >
-                    {t("sourcing.previewImport")}
+                    {(product.variants?.length ?? 0) > 1
+                      ? t("sourcing.previewImportAll", {
+                          count: product.variants!.length,
+                        })
+                      : t("sourcing.previewImport")}
                   </button>
                 </div>
               </li>

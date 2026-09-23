@@ -122,6 +122,11 @@ export function SupplierProductPreviewModal({
   });
   /** New imports default to no strikethrough price; toggle on when needed. */
   const [showComparePrice, setShowComparePrice] = useState(false);
+  /**
+   * When false (default), import all color/size options together with one click.
+   * When true, show the optional default-option picker (still imports every variant).
+   */
+  const [customizeDefault, setCustomizeDefault] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [, startTransition] = useTransition();
 
@@ -140,6 +145,7 @@ export function SupplierProductPreviewModal({
     setLoadError(null);
     // New listing import: compare-at off until the vendor enables it.
     setShowComparePrice(false);
+    setCustomizeDefault(false);
 
     if (seedProduct && seedProduct.externalProductId === externalProductId) {
       setProduct(seedProduct);
@@ -271,6 +277,16 @@ export function SupplierProductPreviewModal({
   const showSkeleton = loading && !product;
   const canImport =
     Boolean(product) && !loading && sellOk && compareOk && !quota.atImportLimit;
+  const variantCount = product?.variants?.length ?? 0;
+  const importAllLabel =
+    variantCount > 1
+      ? `Import all ${variantCount} options`
+      : "Import to Store";
+  const confirmImportLabel = importPending
+    ? "Importing…"
+    : variantCount > 1
+      ? `Confirm · import all ${variantCount}`
+      : "Confirm import";
 
   function applyVariant(v: ExternalProductVariant) {
     setSelectedVariant(v);
@@ -424,11 +440,9 @@ export function SupplierProductPreviewModal({
                   <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                     Variants
                   </p>
-                  {!showSkeleton && (product?.variants?.length ?? 0) > 0 ? (
-                    <p className="text-[11px] text-zinc-500">
-                      {product!.variants!.length} option
-                      {product!.variants!.length === 1 ? "" : "s"} · all
-                      imported together
+                  {!showSkeleton && variantCount > 0 ? (
+                    <p className="text-[11px] font-medium text-emerald-800">
+                      {variantCount} option{variantCount === 1 ? "" : "s"}
                     </p>
                   ) : null}
                 </div>
@@ -438,69 +452,110 @@ export function SupplierProductPreviewModal({
                     <SkeletonBlock className="h-12 w-32" />
                     <SkeletonBlock className="h-12 w-24" />
                   </div>
-                ) : (product?.variants?.length ?? 0) > 0 ? (
-                  <div className="space-y-2">
-                    <p className="text-xs text-zinc-600">
-                      Import keeps every color/size under this one product.
-                      Choose the default option buyers see first:
-                    </p>
-                    <label className="block space-y-1">
-                      <span className="sr-only">Select default color / size</span>
-                      <select
-                        value={selectedVariant?.externalVariantId ?? ""}
-                        onChange={(event) => {
-                          const next = product!.variants!.find(
-                            (variant) =>
-                              variant.externalVariantId === event.target.value,
-                          );
-                          if (next) applyVariant(next);
-                        }}
-                        className="h-11 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-950 outline-none focus:border-emerald-700"
-                      >
-                        {product!.variants!.map((variant) => (
-                          <option
-                            key={variant.externalVariantId}
-                            value={variant.externalVariantId}
-                          >
-                            {variant.label}
-                            {" · "}
-                            {formatMoney(variant.priceUsdt, MARKETPLACE_CURRENCY)}
-                            {variant.stockQuantity != null
-                              ? ` · ${variant.stockQuantity} in stock`
-                              : ""}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto">
-                      {product!.variants!.map((v) => {
-                        const selected =
-                          selectedVariant?.externalVariantId ===
-                          v.externalVariantId;
-                        return (
-                          <button
-                            key={v.externalVariantId}
-                            type="button"
-                            onClick={() => applyVariant(v)}
-                            className={`min-h-12 max-w-full rounded-lg border px-3 py-2 text-left text-xs transition ${
-                              selected
-                                ? "border-emerald-700 bg-emerald-50 text-zinc-950"
-                                : "border-zinc-200 bg-white text-zinc-600 hover:border-emerald-600"
-                            }`}
-                          >
-                            <span className="block break-words font-medium text-zinc-950">
-                              {v.label}
-                            </span>
-                            <span className="text-zinc-500">
-                              {formatMoney(v.priceUsdt, MARKETPLACE_CURRENCY)}
-                              {v.stockQuantity != null
-                                ? ` · ${v.stockQuantity} in stock`
-                                : " · stock unknown"}
-                            </span>
-                          </button>
-                        );
-                      })}
+                ) : variantCount > 0 ? (
+                  <div className="space-y-3">
+                    {/* Primary: one-click import of the full matrix */}
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-3">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0 space-y-1">
+                          <p className="text-sm font-semibold text-emerald-950">
+                            Import all options together
+                          </p>
+                          <p className="break-words text-xs text-emerald-900/90">
+                            One product listing keeps every color/size (
+                            {variantCount}). No need to pick each option.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={!canImport || importPending}
+                          onClick={() => {
+                            setCustomizeDefault(false);
+                            setConfirmOpen(true);
+                          }}
+                          className="min-h-10 shrink-0 rounded-lg bg-emerald-800 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                          {variantCount > 1
+                            ? `Import all ${variantCount}`
+                            : "Import"}
+                        </button>
+                      </div>
                     </div>
+
+                    {variantCount > 1 ? (
+                      <div className="space-y-2">
+                        <button
+                          type="button"
+                          onClick={() => setCustomizeDefault((prev) => !prev)}
+                          aria-expanded={customizeDefault}
+                          className="flex w-full items-center justify-between gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-left text-xs font-medium text-zinc-800 hover:bg-zinc-50"
+                        >
+                          <span>
+                            {customizeDefault
+                              ? "Hide default option picker"
+                              : "Optional: choose default option buyers see first"}
+                          </span>
+                          <span className="text-zinc-400" aria-hidden>
+                            {customizeDefault ? "−" : "+"}
+                          </span>
+                        </button>
+
+                        {customizeDefault ? (
+                          <div className="space-y-2 rounded-lg border border-zinc-100 bg-zinc-50/80 p-2">
+                            <p className="px-1 text-[11px] text-zinc-600">
+                              Still imports all {variantCount} options. Your
+                              pick is only the default SKU on the listing.
+                            </p>
+                            <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto">
+                              {product!.variants!.map((v) => {
+                                const selected =
+                                  selectedVariant?.externalVariantId ===
+                                  v.externalVariantId;
+                                return (
+                                  <button
+                                    key={v.externalVariantId}
+                                    type="button"
+                                    onClick={() => applyVariant(v)}
+                                    className={`min-h-12 max-w-full rounded-lg border px-3 py-2 text-left text-xs transition ${
+                                      selected
+                                        ? "border-emerald-700 bg-emerald-50 text-zinc-950"
+                                        : "border-zinc-200 bg-white text-zinc-600 hover:border-emerald-600"
+                                    }`}
+                                  >
+                                    <span className="block break-words font-medium text-zinc-950">
+                                      {v.label}
+                                    </span>
+                                    <span className="text-zinc-500">
+                                      {formatMoney(
+                                        v.priceUsdt,
+                                        MARKETPLACE_CURRENCY,
+                                      )}
+                                      {v.stockQuantity != null
+                                        ? ` · ${v.stockQuantity} in stock`
+                                        : " · stock unknown"}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {selectedVariant ? (
+                              <p className="px-1 text-[11px] text-zinc-500">
+                                Default: {selectedVariant.label}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-zinc-500">
+                            Default option:{" "}
+                            <span className="font-medium text-zinc-700">
+                              {selectedVariant?.label ??
+                                product?.variants?.[0]?.label ??
+                                "first SKU"}
+                            </span>
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 ) : (
                   <p className="text-xs text-zinc-500">
@@ -785,7 +840,9 @@ export function SupplierProductPreviewModal({
           <p className="break-words text-[11px] text-zinc-500">
             {confirmOpen
               ? "Confirm the import details below."
-              : "Import saves every color/size under one product. Your selection is only the default option."}
+              : variantCount > 1
+                ? `One click imports all ${variantCount} color/size options under a single listing.`
+                : "Import saves this product to your store."}
           </p>
           {!confirmOpen ? (
             <button
@@ -794,7 +851,7 @@ export function SupplierProductPreviewModal({
               onClick={() => setConfirmOpen(true)}
               className="min-h-11 w-full shrink-0 rounded-md bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 sm:min-h-0 sm:w-auto"
             >
-              {loading && !product ? "Loading…" : "Import to Store"}
+              {loading && !product ? "Loading…" : importAllLabel}
             </button>
           ) : (
             <div className="flex w-full min-w-0 max-w-full flex-col gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 sm:max-w-md">
@@ -805,8 +862,8 @@ export function SupplierProductPreviewModal({
                 {editComparePrice.trim() !== "" && compareOk
                   ? ` (compare ${formatMoney(parsedCompare, MARKETPLACE_CURRENCY)})`
                   : ""}
-                {(product?.variants?.length ?? 0) > 1
-                  ? ` with all ${product!.variants!.length} color/size options`
+                {variantCount > 1
+                  ? ` with all ${variantCount} color/size options`
                   : ""}
                 ?
               </p>
@@ -825,7 +882,7 @@ export function SupplierProductPreviewModal({
                   onClick={submitImport}
                   className="min-h-11 w-full rounded-md bg-emerald-800 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 sm:min-h-0 sm:w-auto"
                 >
-                  {importPending ? "Importing…" : "Confirm import"}
+                  {confirmImportLabel}
                 </button>
                 <button
                   type="button"

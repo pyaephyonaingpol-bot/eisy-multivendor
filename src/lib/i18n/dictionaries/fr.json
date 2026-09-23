@@ -111,7 +111,9 @@
     "bulkImportPartial": "{ok} sur {total} importés. {failed} échec(s).",
     "bulkNoneEligible": "Aucun produit sélectionné n’atteint le stock minimum.",
     "bulkMaxHint": "Jusqu’à {max} produits par import groupé.",
-    "bulkSelectHint": "Sélectionnez des produits, puis importez-les en un clic."
+    "bulkSelectHint": "Sélectionnez des produits, puis importez-les en un clic.",
+    "previewImportAll": "Aperçu · importer les {count} options",
+    "importAllVariantsHint": "Les {count} couleurs/tailles s’importent ensemble"
   },
   "escrow": {
     "title": "Séquestre",

@@ -111,7 +111,9 @@
     "bulkImportPartial": "Импортировано {ok} из {total}. Ошибок: {failed}.",
     "bulkNoneEligible": "Выбранные товары не достигают минимума склада.",
     "bulkMaxHint": "До {max} товаров за один массовый импорт.",
-    "bulkSelectHint": "Выберите товары и импортируйте их одним кликом."
+    "bulkSelectHint": "Выберите товары и импортируйте их одним кликом.",
+    "previewImportAll": "Просмотр · импорт всех {count} вариантов",
+    "importAllVariantsHint": "Все {count} цветов/размеров импортируются вместе"
   },
   "escrow": {
     "title": "Эскроу",

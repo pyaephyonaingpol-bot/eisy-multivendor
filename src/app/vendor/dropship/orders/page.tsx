@@ -4,6 +4,7 @@ import { getSessionProfile } from "@/lib/auth/session";
 import { formatMoney } from "@/lib/money";
 import { listCjOrdersForVendor } from "@/lib/orders/queries";
 import { getVendorForOwner } from "@/lib/vendors/queries";
+import { formatDateTime } from "@/lib/datetime";
 
 export const dynamic = "force-dynamic";
 
@@ -67,7 +68,7 @@ export default async function DropshipCjOrdersPage() {
                     </span>
                   </div>
                   <p className="text-sm text-zinc-500">
-                    {new Date(order.created_at).toLocaleString()} ·{" "}
+                    {formatDateTime(order.created_at)} ·{" "}
                     {order.status} / {order.payment_status}
                   </p>
                   <p className="text-sm text-zinc-600">

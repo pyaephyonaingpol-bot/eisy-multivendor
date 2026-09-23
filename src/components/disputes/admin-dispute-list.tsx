@@ -11,6 +11,7 @@ import {
 import type { DisputeWithRelations } from "@/lib/disputes/queries";
 import { formatMoney } from "@/lib/money";
 import type { DisputeReason, DisputeStatus } from "@/lib/types/database";
+import { formatDateTime } from "@/lib/datetime";
 
 async function refundAction(formData: FormData) {
   "use server";
@@ -80,9 +81,9 @@ export function AdminDisputeList({
                   <p className="text-zinc-600">{dispute.description}</p>
                 ) : null}
                 <p className="text-xs text-zinc-400">
-                  Opened {new Date(dispute.created_at).toLocaleString()}
+                  Opened {formatDateTime(dispute.created_at)}
                   {dispute.resolved_at
-                    ? ` · Resolved ${new Date(dispute.resolved_at).toLocaleString()}`
+                    ? ` · Resolved ${formatDateTime(dispute.resolved_at)}`
                     : ""}
                 </p>
                 {dispute.resolution_note ? (

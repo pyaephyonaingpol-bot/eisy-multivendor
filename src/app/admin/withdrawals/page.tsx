@@ -8,6 +8,7 @@ import {
   listRecentWalletReviews,
   type AdminWalletTransaction,
 } from "@/lib/wallets/queries";
+import { formatDateTime } from "@/lib/datetime";
 
 export const dynamic = "force-dynamic";
 
@@ -60,11 +61,11 @@ function ReviewCard({
           {tx.reviewed_at ? (
             <p className="text-xs text-zinc-400">
               {tx.status} by {tx.reviewer_email ?? tx.reviewed_by} ·{" "}
-              {new Date(tx.reviewed_at).toLocaleString()}
+              {formatDateTime(tx.reviewed_at)}
             </p>
           ) : (
             <p className="text-xs text-zinc-400">
-              Requested {new Date(tx.created_at).toLocaleString()}
+              Requested {formatDateTime(tx.created_at)}
             </p>
           )}
         </div>

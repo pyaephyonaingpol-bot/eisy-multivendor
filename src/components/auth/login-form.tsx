@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useActionState, useState } from "react";
+import { ClientOnly } from "@/components/client-only";
+import { FormSkeleton } from "@/components/form-skeleton";
 import {
   login,
   requestPasswordReset,
@@ -16,7 +18,7 @@ type LoginFormProps = {
 
 type LoginView = "signin" | "forgot";
 
-export function LoginForm({ nextPath = "/" }: LoginFormProps) {
+function LoginFormFields({ nextPath = "/" }: LoginFormProps) {
   const [view, setView] = useState<LoginView>("signin");
   const [email, setEmail] = useState("");
   const [state, formAction, pending] = useActionState(login, initialState);
@@ -142,5 +144,13 @@ export function LoginForm({ nextPath = "/" }: LoginFormProps) {
         </Link>
       </p>
     </div>
+  );
+}
+
+export function LoginForm(props: LoginFormProps) {
+  return (
+    <ClientOnly fallback={<FormSkeleton rows={2} />}>
+      <LoginFormFields {...props} />
+    </ClientOnly>
   );
 }

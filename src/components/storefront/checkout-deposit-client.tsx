@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
+import { formatDateTime } from "@/lib/datetime";
 
 export type CheckoutDepositItem = {
   id: string;
@@ -268,7 +269,7 @@ export function CheckoutDepositClient({
               </button>
               {expiresAt ? (
                 <p className="text-xs text-zinc-500">
-                  Intent expires {new Date(expiresAt).toLocaleString()}
+                  Intent expires {formatDateTime(expiresAt)}
                 </p>
               ) : null}
             </div>

@@ -109,7 +109,7 @@ function ProductFormFields({
     const next: PreviewItem[] = Array.from(fileList)
       .slice(0, remaining)
       .map((file) => ({
-        id: `${file.name}-${file.size}-${file.lastModified}-${Math.random()}`,
+        id: crypto.randomUUID(),
         url: URL.createObjectURL(file),
         file,
       }));

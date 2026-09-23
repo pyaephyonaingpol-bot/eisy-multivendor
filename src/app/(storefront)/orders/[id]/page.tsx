@@ -15,6 +15,7 @@ import {
   payoutStatusBadgeClass,
   payoutStatusLabel,
 } from "@/lib/orders/status";
+import { formatDateTime } from "@/lib/datetime";
 
 export const dynamic = "force-dynamic";
 
@@ -69,7 +70,7 @@ export default async function OrderDetailPage({
             Order details
           </h1>
           <p className="text-sm text-zinc-600">
-            Placed {new Date(order.created_at).toLocaleString()}
+            Placed {formatDateTime(order.created_at)}
             {order.seller?.name ? ` · Sold by ${order.seller.name}` : ""}
           </p>
           <div className="flex flex-wrap gap-2">
@@ -199,7 +200,7 @@ export default async function OrderDetailPage({
           <p className="mt-2 text-xs text-zinc-400">
             Sync: {order.fulfillment_sync_status}
             {order.fulfillment_synced_at
-              ? ` · ${new Date(order.fulfillment_synced_at).toLocaleString()}`
+              ? ` · ${formatDateTime(order.fulfillment_synced_at)}`
               : ""}
           </p>
         </div>
@@ -256,7 +257,7 @@ export default async function OrderDetailPage({
                   </span>
                 </p>
                 <p className="text-zinc-500">
-                  {new Date(event.created_at).toLocaleString()}
+                  {formatDateTime(event.created_at)}
                   {event.tracking_number
                     ? ` · ${event.tracking_carrier ?? "Tracking"} ${event.tracking_number}`
                     : ""}

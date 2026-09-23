@@ -8,6 +8,7 @@ import {
 } from "@/lib/orders/status";
 import { formatMoney } from "@/lib/money";
 import type { OrderPayoutStatus } from "@/lib/types/database";
+import { formatDateTime } from "@/lib/datetime";
 
 export const dynamic = "force-dynamic";
 
@@ -141,7 +142,7 @@ export default async function AdminTransactionsPage({ searchParams }: Props) {
                     )}
                   </td>
                   <td className="px-4 py-3 text-zinc-500">
-                    {new Date(order.created_at).toLocaleString()}
+                    {formatDateTime(order.created_at)}
                   </td>
                 </tr>
               ))}

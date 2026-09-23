@@ -8,6 +8,7 @@ import {
   type VendorActionState,
 } from "@/lib/vendors/actions";
 import type { Vendor, VendorKycStatus } from "@/lib/types/database";
+import { formatDateTime } from "@/lib/datetime";
 
 const initialState: VendorActionState = null;
 
@@ -44,7 +45,7 @@ function VendorKycFormFields({ vendor }: VendorKycFormProps) {
         </span>
         {vendor.kyc_submitted_at ? (
           <span className="text-xs text-zinc-500">
-            Submitted {new Date(vendor.kyc_submitted_at).toLocaleString()}
+            Submitted {formatDateTime(vendor.kyc_submitted_at)}
           </span>
         ) : null}
       </div>

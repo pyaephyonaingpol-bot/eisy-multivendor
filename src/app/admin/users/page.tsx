@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { setProfileRole } from "@/lib/disputes/actions";
 import type { Profile, UserRole } from "@/lib/types/database";
+import { formatDate } from "@/lib/datetime";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,7 @@ export default async function AdminUsersPage() {
               </p>
               <p className="text-zinc-500">{profile.email}</p>
               <p className="text-xs text-zinc-400">
-                Joined {new Date(profile.created_at).toLocaleDateString()}
+                Joined {formatDate(profile.created_at)}
               </p>
             </div>
             <form action={changeRoleAction} className="flex items-center gap-2">

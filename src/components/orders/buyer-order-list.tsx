@@ -7,6 +7,7 @@ import {
   paymentStatusLabel,
 } from "@/lib/orders/status";
 import type { BuyerOrderRow } from "@/lib/orders/queries";
+import { formatDateTime } from "@/lib/datetime";
 
 export function BuyerOrderList({ orders }: { orders: BuyerOrderRow[] }) {
   if (orders.length === 0) {
@@ -56,7 +57,7 @@ export function BuyerOrderList({ orders }: { orders: BuyerOrderRow[] }) {
                   </span>
                 </div>
                 <p className="text-sm text-zinc-500">
-                  {new Date(order.created_at).toLocaleString()} · {itemCount}{" "}
+                  {formatDateTime(order.created_at)} · {itemCount}{" "}
                   item{itemCount === 1 ? "" : "s"}
                   {order.seller?.name ? ` · ${order.seller.name}` : ""}
                 </p>

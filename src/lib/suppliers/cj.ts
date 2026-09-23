@@ -696,8 +696,16 @@ function mapCjVariant(
   stockOverride?: number | null,
   fallbackPriceUsdt?: number | null,
 ): ExternalProductVariant | null {
+  // Prefer true CJ vids; fall back to barcode / SKU so single-option products
+  // (and inventory-only payloads) still produce an importable matrix row.
   const externalVariantId = String(
-    row.vid ?? row.variantId ?? row.id ?? "",
+    row.vid ??
+      row.variantId ??
+      row.barcode ??
+      row.variantSku ??
+      row.sku ??
+      row.id ??
+      "",
   ).trim();
   if (!externalVariantId) return null;
 
@@ -760,7 +768,13 @@ function collectCjVariantRows(
       const variantRow = asRecord(item);
       if (!variantRow) continue;
       const vid = String(
-        variantRow.vid ?? variantRow.variantId ?? variantRow.id ?? "",
+        variantRow.vid ??
+          variantRow.variantId ??
+          variantRow.barcode ??
+          variantRow.variantSku ??
+          variantRow.sku ??
+          variantRow.id ??
+          "",
       ).trim();
       const key = vid || JSON.stringify(variantRow).slice(0, 80);
       if (seen.has(key)) continue;
@@ -783,7 +797,13 @@ function mapCjVariants(
 
   for (const variantRow of variantsRaw) {
     const vid = String(
-      variantRow.vid ?? variantRow.variantId ?? variantRow.id ?? "",
+      variantRow.vid ??
+        variantRow.variantId ??
+        variantRow.barcode ??
+        variantRow.variantSku ??
+        variantRow.sku ??
+        variantRow.id ??
+        "",
     ).trim();
     const override = vid ? stockByVid.get(vid) : undefined;
     const mapped = mapCjVariant(variantRow, override, productPriceUsdt);
@@ -810,60 +830,131 @@ function mapCjVariants(
   return variants;
 }
 
+/** Pull raw variant rows from the many CJ variant/query payload shapes. */
+function extractCjVariantQueryRows(json: CjJson): unknown[] {
+  // Prefer `data`; never treat boolean `result: true` as the payload body.
+  const data = json.data != null ? json.data : json;
+  if (Array.isArray(data)) return data;
+
+  const record = asRecord(data);
+  if (!record) return [];
+
+  const candidates = [
+    record.list,
+    record.variants,
+    record.variantList,
+    record.productVariants,
+    record.productVariantList,
+    record.variantInfos,
+    record.content,
+    record.productList,
+  ];
+  for (const candidate of candidates) {
+    const parsed = parseMaybeJson(candidate);
+    if (Array.isArray(parsed)) return parsed;
+  }
+  return [];
+}
+
 /**
- * Fetch every SKU/color/size for a CJ pid via /product/variant/query.
+ * Fetch every SKU/color/size for a CJ product via /product/variant/query.
  * Product detail (`/product/query`) sometimes omits or truncates `variants`.
+ * Accepts pid and/or productSku (CJ requires one of pid / productSku / variantSku).
  */
 async function fetchCjVariantsByPid(
   pid: string,
   credentials?: SupplierCredentials | null,
   fallbackPriceUsdt = 0.01,
+  options?: { productSku?: string | null },
 ): Promise<ExternalProductVariant[]> {
-  const json = await cjFetch("/product/variant/query", {
-    credentials,
-    query: { pid },
-  });
-
-  const data = json.data ?? json.result ?? json;
-  const record = asRecord(data);
-  const rows = Array.isArray(data)
-    ? data
-    : Array.isArray(record?.list)
-      ? (record!.list as unknown[])
-      : Array.isArray(record?.variants)
-        ? (record!.variants as unknown[])
-        : Array.isArray(record?.productVariants)
-          ? (record!.productVariants as unknown[])
-          : Array.isArray(record?.productVariantList)
-            ? (record!.productVariantList as unknown[])
-            : Array.isArray(record?.content)
-              ? (record!.content as unknown[])
-              : [];
+  const queries: Record<string, string>[] = [];
+  const trimmedPid = pid.trim();
+  const trimmedSku = options?.productSku?.trim() || "";
+  if (trimmedPid) queries.push({ pid: trimmedPid });
+  if (trimmedSku && trimmedSku !== trimmedPid) {
+    queries.push({ productSku: trimmedSku });
+  }
+  if (queries.length === 0) return [];
 
   const variants: ExternalProductVariant[] = [];
   const seen = new Set<string>();
-  for (const item of rows) {
-    const variantRow = asRecord(item);
-    if (!variantRow) continue;
-    // Nested productList-style blocks occasionally appear.
-    const nestedList = variantRow.productList;
-    if (Array.isArray(nestedList)) {
-      for (const nested of nestedList) {
-        const nestedRow = asRecord(nested);
-        if (!nestedRow) continue;
-        const mappedNested = mapCjVariant(nestedRow, null, fallbackPriceUsdt);
-        if (!mappedNested || seen.has(mappedNested.externalVariantId)) continue;
-        seen.add(mappedNested.externalVariantId);
-        variants.push(mappedNested);
+
+  for (const query of queries) {
+    try {
+      const json = await cjFetch("/product/variant/query", {
+        credentials,
+        query,
+      });
+      const rows = extractCjVariantQueryRows(json);
+      for (const item of rows) {
+        const variantRow = asRecord(item);
+        if (!variantRow) continue;
+        // Nested productList-style blocks occasionally appear.
+        const nestedList = variantRow.productList;
+        if (Array.isArray(nestedList)) {
+          for (const nested of nestedList) {
+            const nestedRow = asRecord(nested);
+            if (!nestedRow) continue;
+            const mappedNested = mapCjVariant(
+              nestedRow,
+              null,
+              fallbackPriceUsdt,
+            );
+            if (!mappedNested || seen.has(mappedNested.externalVariantId)) {
+              continue;
+            }
+            seen.add(mappedNested.externalVariantId);
+            variants.push(mappedNested);
+          }
+          continue;
+        }
+        const mapped = mapCjVariant(variantRow, null, fallbackPriceUsdt);
+        if (!mapped || seen.has(mapped.externalVariantId)) continue;
+        seen.add(mapped.externalVariantId);
+        variants.push(mapped);
       }
-      continue;
+      if (variants.length > 0) break;
+    } catch {
+      // Try the next identifier (pid → productSku) before giving up.
     }
-    const mapped = mapCjVariant(variantRow, null, fallbackPriceUsdt);
-    if (!mapped || seen.has(mapped.externalVariantId)) continue;
-    seen.add(mapped.externalVariantId);
-    variants.push(mapped);
   }
+
   return variants;
+}
+
+/**
+ * Guarantee at least one matrix row for bulk import / storefront selectors.
+ * CJ sometimes returns only product-level vid/sku with an empty variants[].
+ */
+export function ensureCjProductVariants(
+  product: ExternalCatalogProduct,
+): ExternalCatalogProduct {
+  if (product.variants && product.variants.length > 0) {
+    return product;
+  }
+
+  const vid = product.externalVariantId?.trim() || null;
+  const sku = product.externalSku?.trim() || null;
+  if (!vid && !sku) {
+    return product;
+  }
+
+  const externalVariantId = vid || sku!;
+  const synthetic: ExternalProductVariant = {
+    externalVariantId,
+    externalSku: sku,
+    label: product.name?.trim() || externalVariantId,
+    priceUsdt: product.priceUsdt > 0 ? product.priceUsdt : 0.01,
+    stockQuantity: product.stockQuantity,
+    imageUrl: product.imageUrl,
+  };
+
+  return {
+    ...product,
+    variants: [synthetic],
+    externalVariantId: vid ?? product.externalVariantId,
+    externalSku: sku ?? product.externalSku,
+  };
 }
 
 function mergeCjVariants(
@@ -1507,7 +1598,7 @@ export async function getCjProduct(
       catalog[0] ??
       null;
     if (!hit) return null;
-    return { ...hit, externalProductId };
+    return ensureCjProductVariants({ ...hit, externalProductId });
   }
 
   try {
@@ -1546,6 +1637,7 @@ export async function getCjProduct(
         mapped.externalProductId,
         credentials,
         mapped.priceUsdt,
+        { productSku: mapped.externalSku },
       );
       if (allVariants.length > 0) {
         const merged = mergeCjVariants(mapped.variants, allVariants);
@@ -1569,9 +1661,12 @@ export async function getCjProduct(
       // Detail still usable with whatever variants product/query returned.
     }
 
+    // Also pull inventory when the matrix is empty — getInventoryByPid often
+    // exposes vids that product/query and variant/query omitted.
     const needsInventoryEnrich =
+      !mapped.variants?.length ||
       mapped.stockQuantity == null ||
-      (mapped.variants?.some((v) => v.stockQuantity == null) ?? false);
+      mapped.variants.some((v) => v.stockQuantity == null);
 
     if (needsInventoryEnrich) {
       try {
@@ -1589,16 +1684,18 @@ export async function getCjProduct(
       }
     }
 
-    return mapped;
+    // Single-SKU / truncated payloads: synthesize one matrix row from product
+    // vid/sku so bulk import + storefront selectors always have options.
+    return ensureCjProductVariants(mapped);
   } catch (error) {
     return maybeMockFallback(credentials, error, () => {
-      return (
+      const hit =
         mockCatalog(externalProductId).find(
           (p) => p.externalProductId === externalProductId,
         ) ??
         mockCatalog(externalProductId)[0] ??
-        null
-      );
+        null;
+      return hit ? ensureCjProductVariants(hit) : null;
     });
   }
 }

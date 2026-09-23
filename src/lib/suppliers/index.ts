@@ -53,6 +53,7 @@ export type {
 
 export {
   checkCjFulfillmentStock,
+  ensureCjProductVariants,
   queryCjVariantAvailableStock,
 } from "@/lib/suppliers/cj";
 export type { CjLineStockCheck } from "@/lib/suppliers/cj";

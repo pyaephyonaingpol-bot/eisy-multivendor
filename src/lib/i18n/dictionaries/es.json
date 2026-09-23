@@ -99,7 +99,19 @@
     "showingCount": "Mostrando {count} productos",
     "relatedCategories": "Categorías CJ relacionadas",
     "allCategories": "Todas",
-    "showingCountOfTotal": "Mostrando {count} de {total} productos"
+    "showingCountOfTotal": "Mostrando {count} de {total} productos",
+    "bulkSelect": "Seleccionar",
+    "bulkSelected": "{count} seleccionados",
+    "bulkSelectAll": "Seleccionar visibles",
+    "bulkClear": "Borrar",
+    "bulkImportSelected": "Importar seleccionados",
+    "bulkImporting": "Importando…",
+    "bulkIncludeCompare": "Incluir precios de comparación",
+    "bulkImportSuccess": "Importados {ok} de {total} productos.",
+    "bulkImportPartial": "Importados {ok} de {total}. Fallaron {failed}.",
+    "bulkNoneEligible": "Ningún producto seleccionado cumple el stock mínimo.",
+    "bulkMaxHint": "Hasta {max} productos por importación masiva.",
+    "bulkSelectHint": "Selecciona productos e impórtalos con un clic."
   },
   "escrow": {
     "title": "Depósito",

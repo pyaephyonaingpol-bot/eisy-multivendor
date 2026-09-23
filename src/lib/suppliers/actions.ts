@@ -20,12 +20,15 @@ import {
 } from "@/lib/suppliers/catalog-dto";
 import {
   MIN_IMPORT_STOCK_QUANTITY,
+  MAX_BULK_IMPORT_ITEMS,
   ONE_CLICK_IMPORT_MARKUP,
   meetsMinImportStock,
   productMatchesSourcingRegion,
   slugifyExternalName,
   supplierPlatformLabel,
   warehouseCountryToRegionCodes,
+  type BulkExternalImportItem,
+  type BulkExternalImportResult,
 } from "@/lib/suppliers/types";
 import { createClient } from "@/lib/supabase/server";
 import { getVendorForOwner, isVendorKycApproved } from "@/lib/vendors/queries";
@@ -154,12 +157,25 @@ function productPriceFields(
 /**
  * Prefer an explicit compare-at from the preview form; otherwise fall back to
  * the supplier catalog value when it is above the sell price.
+ * Pass disable_compare_at=1 (or show_compare_at=0) to omit compare-at entirely —
+ * useful for new listings that should not show a strikethrough price.
  */
 function resolveImportCompareAtPrice(
   formData: FormData,
   sellPrice: number,
   remoteCompareAt: number | null | undefined,
 ): number | null {
+  const disableRaw = String(formData.get("disable_compare_at") ?? "").trim();
+  const showRaw = String(formData.get("show_compare_at") ?? "").trim();
+  const compareDisabled =
+    disableRaw === "1" ||
+    disableRaw.toLowerCase() === "true" ||
+    showRaw === "0" ||
+    showRaw.toLowerCase() === "false";
+  if (compareDisabled) {
+    return null;
+  }
+
   const raw = String(
     formData.get("compare_at_price") ?? formData.get("compare_price") ?? "",
   ).trim();
@@ -1060,6 +1076,99 @@ export async function importExternalSupplierProductAction(
     productId: product.id,
     oneClick,
   };
+}
+
+/**
+ * One-click bulk import: import multiple supplier catalog rows under separate
+ * listings (each with its full color/size matrix when CJ). Compare-at is off
+ * by default so new listings do not show a strikethrough price.
+ */
+export async function bulkImportExternalSupplierProductsAction(args: {
+  items: BulkExternalImportItem[];
+  regionCode?: string;
+  /** When true, keep supplier compare-at / suggested strikethrough prices. */
+  includeComparePrice?: boolean;
+}): Promise<BulkExternalImportResult> {
+  const empty: BulkExternalImportResult = {
+    imported: 0,
+    failed: [],
+    productIds: [],
+  };
+
+  const gate = await requireKycApprovedVendor();
+  if ("error" in gate) {
+    return { ...empty, error: gate.error };
+  }
+
+  const regionCode =
+    (args.regionCode ?? DEFAULT_CJ_SOURCING_REGION).trim() ||
+    DEFAULT_CJ_SOURCING_REGION;
+
+  const seen = new Set<string>();
+  const items: BulkExternalImportItem[] = [];
+  for (const raw of args.items ?? []) {
+    const providerKind = String(raw.providerKind ?? "").trim();
+    const externalProductId = String(raw.externalProductId ?? "").trim();
+    if (!providerKind || !externalProductId) continue;
+    const key = `${providerKind}:${externalProductId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    items.push({ providerKind, externalProductId });
+    if (items.length >= MAX_BULK_IMPORT_ITEMS) break;
+  }
+
+  if (items.length === 0) {
+    return { ...empty, error: "Select at least one supplier product to import." };
+  }
+
+  const includeCompare = Boolean(args.includeComparePrice);
+  const failed: BulkExternalImportResult["failed"] = [];
+  const productIds: string[] = [];
+
+  for (const item of items) {
+    const formData = new FormData();
+    formData.set("provider_kind", item.providerKind);
+    formData.set("external_product_id", item.externalProductId);
+    formData.set("region_code", regionCode);
+    formData.set("one_click", "1");
+    if (!includeCompare) {
+      formData.set("disable_compare_at", "1");
+    }
+
+    const result = await importExternalSupplierProductAction(null, formData);
+    if (result?.error) {
+      failed.push({
+        externalProductId: item.externalProductId,
+        error: result.error,
+      });
+      // Stop early when the catalog cap is hit — remaining items will also fail.
+      if (/import limit|catalog cap|quota/i.test(result.error)) {
+        break;
+      }
+      continue;
+    }
+    if (result?.productId) {
+      productIds.push(result.productId);
+    }
+  }
+
+  const imported = productIds.length;
+  if (imported === 0) {
+    return {
+      ...empty,
+      failed,
+      error:
+        failed[0]?.error ??
+        "Bulk import failed. Check stock minimums and try again.",
+    };
+  }
+
+  const success =
+    failed.length === 0
+      ? `Imported ${imported} product${imported === 1 ? "" : "s"} into your store.`
+      : `Imported ${imported} of ${items.length} products. ${failed.length} failed.`;
+
+  return { success, imported, failed, productIds };
 }
 
 export async function syncExternalProductInventoryAction(

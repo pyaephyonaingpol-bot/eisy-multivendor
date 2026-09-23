@@ -99,7 +99,19 @@
     "showingCount": "Showing {count} products",
     "relatedCategories": "Related CJ categories",
     "allCategories": "All",
-    "showingCountOfTotal": "Showing {count} of {total} products"
+    "showingCountOfTotal": "Showing {count} of {total} products",
+    "bulkSelect": "Select",
+    "bulkSelected": "{count} selected",
+    "bulkSelectAll": "Select all visible",
+    "bulkClear": "Clear",
+    "bulkImportSelected": "Import selected",
+    "bulkImporting": "Importing…",
+    "bulkIncludeCompare": "Include compare prices",
+    "bulkImportSuccess": "Imported {ok} of {total} products.",
+    "bulkImportPartial": "Imported {ok} of {total}. {failed} failed.",
+    "bulkNoneEligible": "No selected products meet the stock minimum.",
+    "bulkMaxHint": "Up to {max} products per bulk import.",
+    "bulkSelectHint": "Select products, then import them in one click with the default markup."
   },
   "escrow": {
     "title": "Escrow",

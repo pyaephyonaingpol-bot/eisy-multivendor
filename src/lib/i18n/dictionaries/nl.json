@@ -99,7 +99,19 @@
     "showingCount": "{count} producten getoond",
     "relatedCategories": "Gerelateerde CJ-categorieën",
     "allCategories": "Alles",
-    "showingCountOfTotal": "{count} van {total} producten getoond"
+    "showingCountOfTotal": "{count} van {total} producten getoond",
+    "bulkSelect": "Selecteren",
+    "bulkSelected": "{count} geselecteerd",
+    "bulkSelectAll": "Alles zichtbaar selecteren",
+    "bulkClear": "Wissen",
+    "bulkImportSelected": "Selectie importeren",
+    "bulkImporting": "Bezig met importeren…",
+    "bulkIncludeCompare": "Vergelijkprijzen meenemen",
+    "bulkImportSuccess": "{ok} van {total} producten geïmporteerd.",
+    "bulkImportPartial": "{ok} van {total} geïmporteerd. {failed} mislukt.",
+    "bulkNoneEligible": "Geen geselecteerde producten voldoen aan de voorraadminimum.",
+    "bulkMaxHint": "Maximaal {max} producten per bulkimport.",
+    "bulkSelectHint": "Selecteer producten en importeer ze met één klik."
   },
   "escrow": {
     "title": "Escrow",

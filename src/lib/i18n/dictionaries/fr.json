@@ -99,7 +99,19 @@
     "showingCount": "{count} produits affichés",
     "relatedCategories": "Catégories CJ associées",
     "allCategories": "Tous",
-    "showingCountOfTotal": "{count} produits sur {total} affichés"
+    "showingCountOfTotal": "{count} produits sur {total} affichés",
+    "bulkSelect": "Sélectionner",
+    "bulkSelected": "{count} sélectionné(s)",
+    "bulkSelectAll": "Tout sélectionner (visible)",
+    "bulkClear": "Effacer",
+    "bulkImportSelected": "Importer la sélection",
+    "bulkImporting": "Import…",
+    "bulkIncludeCompare": "Inclure les prix barrés",
+    "bulkImportSuccess": "{ok} sur {total} produits importés.",
+    "bulkImportPartial": "{ok} sur {total} importés. {failed} échec(s).",
+    "bulkNoneEligible": "Aucun produit sélectionné n’atteint le stock minimum.",
+    "bulkMaxHint": "Jusqu’à {max} produits par import groupé.",
+    "bulkSelectHint": "Sélectionnez des produits, puis importez-les en un clic."
   },
   "escrow": {
     "title": "Séquestre",

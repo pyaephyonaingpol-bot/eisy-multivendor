@@ -230,6 +230,7 @@ export function ExternalSupplierCatalogPanel({
                       />
                       <input type="hidden" name="region_code" value="GLOBAL" />
                       <input type="hidden" name="one_click" value="1" />
+                      <input type="hidden" name="disable_compare_at" value="1" />
                       <button
                         type="submit"
                         disabled={pendingImport || atLimit}

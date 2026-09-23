@@ -99,7 +99,19 @@
     "showingCount": "عرض {count} منتجًا",
     "relatedCategories": "فئات CJ ذات الصلة",
     "allCategories": "الكل",
-    "showingCountOfTotal": "عرض {count} من {total} منتجًا"
+    "showingCountOfTotal": "عرض {count} من {total} منتجًا",
+    "bulkSelect": "تحديد",
+    "bulkSelected": "تم تحديد {count}",
+    "bulkSelectAll": "تحديد الكل الظاهر",
+    "bulkClear": "مسح",
+    "bulkImportSelected": "استيراد المحدد",
+    "bulkImporting": "جارٍ الاستيراد…",
+    "bulkIncludeCompare": "تضمين سعر المقارنة",
+    "bulkImportSuccess": "تم استيراد {ok} من {total} منتجًا.",
+    "bulkImportPartial": "تم استيراد {ok} من {total}. فشل {failed}.",
+    "bulkNoneEligible": "المنتجات المحددة لا تستوفي الحد الأدنى للمخزون.",
+    "bulkMaxHint": "حتى {max} منتجات لكل استيراد جماعي.",
+    "bulkSelectHint": "حدّد المنتجات ثم استوردها بنقرة واحدة بالهامش الافتراضي."
   },
   "escrow": {
     "title": "الضمان",

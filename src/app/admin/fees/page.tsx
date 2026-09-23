@@ -10,6 +10,7 @@ import {
 } from "@/lib/fees/queries";
 import { listPlanImportLimits } from "@/lib/import-limits/queries";
 import { formatMoney } from "@/lib/money";
+import { formatDateTime } from "@/lib/datetime";
 
 export const dynamic = "force-dynamic";
 
@@ -138,9 +139,9 @@ export default async function AdminFeesPage() {
                     {run.note ? ` · ${run.note}` : ""}
                   </p>
                   <p className="text-xs text-zinc-400">
-                    Started {new Date(run.started_at).toLocaleString()}
+                    Started {formatDateTime(run.started_at)}
                     {run.finished_at
-                      ? ` · finished ${new Date(run.finished_at).toLocaleString()}`
+                      ? ` · finished ${formatDateTime(run.finished_at)}`
                       : " · in progress"}
                   </p>
                 </div>

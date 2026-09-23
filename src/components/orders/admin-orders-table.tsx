@@ -20,6 +20,7 @@ import {
   tronscanTxUrl,
 } from "@/lib/orders/status";
 import { formatMoney } from "@/lib/money";
+import { formatDateTime, formatDate } from "@/lib/datetime";
 
 const initialActionState: AdminOrderActionState = null;
 
@@ -216,7 +217,7 @@ function OrderDetailModal({
               Order {order.id.slice(0, 8)}…
             </h2>
             <p className="text-sm text-zinc-500">
-              {new Date(order.created_at).toLocaleString()} ·{" "}
+              {formatDateTime(order.created_at)} ·{" "}
               {formatMoney(Number(order.total), order.currency)}
             </p>
           </div>
@@ -372,7 +373,7 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrderRow[] }) {
                       {order.id.slice(0, 8)}…
                     </button>
                     <p className="mt-1 font-sans text-[11px] text-zinc-400">
-                      {new Date(order.created_at).toLocaleDateString()}
+                      {formatDate(order.created_at)}
                     </p>
                   </td>
                   <td className="max-w-[10rem] px-3 py-3 text-xs text-zinc-700">

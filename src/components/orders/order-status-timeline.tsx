@@ -6,6 +6,7 @@ import {
   orderStatusLabel,
   orderStatusStepIndex,
 } from "@/lib/orders/status";
+import { formatDateTime } from "@/lib/datetime";
 
 type OrderStatusTimelineProps = {
   status: OrderStatus;
@@ -62,9 +63,9 @@ export function OrderStatusTimeline({
         const complete = activeIndex >= index;
         const stamp =
           step === "shipped" && shippedAt
-            ? new Date(shippedAt).toLocaleString()
+            ? formatDateTime(shippedAt)
             : step === "delivered" && deliveredAt
-              ? new Date(deliveredAt).toLocaleString()
+              ? formatDateTime(deliveredAt)
               : null;
 
         return (

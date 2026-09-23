@@ -11,6 +11,7 @@ import {
   payoutStatusLabel,
 } from "@/lib/orders/status";
 import { getVendorForOwner } from "@/lib/vendors/queries";
+import { formatDateTime } from "@/lib/datetime";
 
 export const dynamic = "force-dynamic";
 
@@ -68,7 +69,7 @@ export default async function VendorOrdersPage() {
                     Order {order.id.slice(0, 8)}…
                   </p>
                   <p className="text-sm text-zinc-500">
-                    {new Date(order.created_at).toLocaleString()} · {order.status} /{" "}
+                    {formatDateTime(order.created_at)} · {order.status} /{" "}
                     {order.payment_status}
                   </p>
                   <div className="flex flex-wrap gap-2 text-xs">

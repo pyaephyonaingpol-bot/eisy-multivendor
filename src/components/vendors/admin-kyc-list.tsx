@@ -1,6 +1,7 @@
 import { reviewVendorKyc } from "@/lib/vendors/actions";
 import { createKycDocumentSignedUrl } from "@/lib/vendors/kyc";
 import type { Vendor, VendorKycStatus } from "@/lib/types/database";
+import { formatDateTime } from "@/lib/datetime";
 
 const statusStyles: Record<VendorKycStatus, string> = {
   unsubmitted: "bg-zinc-100 text-zinc-700",
@@ -48,7 +49,7 @@ export async function AdminKycList({ vendors }: AdminKycListProps) {
               </p>
               {vendor.kyc_submitted_at ? (
                 <p className="text-xs text-zinc-500">
-                  Submitted {new Date(vendor.kyc_submitted_at).toLocaleString()}
+                  Submitted {formatDateTime(vendor.kyc_submitted_at)}
                 </p>
               ) : null}
               {vendor.kyc_status === "rejected" && vendor.kyc_rejection_reason ? (

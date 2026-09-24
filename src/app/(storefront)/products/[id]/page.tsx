@@ -116,6 +116,8 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
             route={supplierRoute}
             countryCode={sourcing.countryCode}
             regionName={sourcing.regionName}
+            fromProfile={sourcing.fromProfile}
+            isAuthenticated={sourcing.isAuthenticated}
             enableLiveCj={
               product.catalog_kind === "cj_import" ||
               Boolean(product.is_dropship)

@@ -37,6 +37,13 @@ import {
 } from "@/lib/suppliers/types";
 import { createClient } from "@/lib/supabase/server";
 import { getVendorForOwner, isVendorKycApproved } from "@/lib/vendors/queries";
+import { listActiveCategories } from "@/lib/categories/queries";
+import {
+  MAX_PRODUCT_SPECIFICATIONS,
+  normalizeProductSpecifications,
+} from "@/lib/products/specifications";
+import { matchMarketplaceCategoryId } from "@/lib/suppliers/cj-catalog-mapping";
+import type { ProductSpecification } from "@/lib/types/database";
 
 export type SupplierCredentialState = {
   error?: string;
@@ -214,6 +221,8 @@ function importProductCoreFields(args: {
   images: string[];
   stockQuantity: number;
   sku: string | null;
+  specifications: ProductSpecification[];
+  categoryId: string | null;
   originCountryCode?: string | null;
   originRegionId?: string | null;
   shipsToRegionIds?: string[];
@@ -232,6 +241,8 @@ function importProductCoreFields(args: {
     sku: args.sku,
     stock_quantity: Math.max(0, Math.floor(args.stockQuantity)),
     images: Array.isArray(args.images) ? args.images : [],
+    specifications: args.specifications,
+    category_id: args.categoryId,
     ...(args.originCountryCode
       ? { origin_country_code: args.originCountryCode }
       : {}),
@@ -299,6 +310,41 @@ async function resolveImportOriginFromWarehouse(
     originRegionId,
     shipsToRegionIds,
   };
+}
+
+/** Specs from the CJ detail payload (or empty when the supplier has none). */
+function resolveImportSpecifications(
+  remote: ExternalCatalogProduct,
+): ProductSpecification[] {
+  return normalizeProductSpecifications(remote.specifications).slice(
+    0,
+    MAX_PRODUCT_SPECIFICATIONS,
+  );
+}
+
+/**
+ * Map CJ category path → marketplace category uuid.
+ * Optional form override (`category_id`) wins when it is a known active category.
+ */
+async function resolveImportCategoryId(
+  formData: FormData,
+  remote: ExternalCatalogProduct,
+): Promise<string | null> {
+  const categories = await listActiveCategories();
+  if (categories.length === 0) {
+    return null;
+  }
+
+  const override = String(formData.get("category_id") ?? "").trim();
+  if (override) {
+    const hit = categories.find((category) => category.id === override);
+    if (hit) return hit.id;
+  }
+
+  return matchMarketplaceCategoryId(
+    categories,
+    remote.externalCategoryName ?? null,
+  );
 }
 
 /** Upsert the dedicated CJ import registry (separate from manual catalog). */
@@ -723,6 +769,8 @@ export async function importExternalSupplierProductAction(
     sellPrice,
     remote.compareAtPriceUsdt,
   );
+  const importSpecifications = resolveImportSpecifications(remote);
+  const importCategoryId = await resolveImportCategoryId(formData, remote);
 
   if (sellPrice + 1e-9 < minCost) {
     return {
@@ -777,6 +825,8 @@ export async function importExternalSupplierProductAction(
           images: productImages,
           stockQuantity: effectiveStock ?? 0,
           sku: variant.externalSku,
+          specifications: importSpecifications,
+          categoryId: importCategoryId,
           originCountryCode: origin.originCountryCode,
           originRegionId: origin.originRegionId,
           shipsToRegionIds: origin.shipsToRegionIds,
@@ -873,6 +923,8 @@ export async function importExternalSupplierProductAction(
           images: productImages,
           stockQuantity: effectiveStock ?? 0,
           sku: variant.externalSku,
+          specifications: importSpecifications,
+          categoryId: importCategoryId,
           originCountryCode: origin.originCountryCode,
           originRegionId: origin.originRegionId,
           shipsToRegionIds: origin.shipsToRegionIds,
@@ -1006,6 +1058,8 @@ export async function importExternalSupplierProductAction(
       images: productImages,
       stockQuantity: effectiveStock ?? 0,
       sku: variant.externalSku,
+      specifications: importSpecifications,
+      categoryId: importCategoryId,
       originCountryCode: origin.originCountryCode,
       originRegionId: origin.originRegionId,
       shipsToRegionIds: origin.shipsToRegionIds,

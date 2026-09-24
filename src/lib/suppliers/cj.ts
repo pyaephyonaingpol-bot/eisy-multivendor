@@ -8,6 +8,11 @@ import type {
 } from "@/lib/suppliers/types";
 import { useLiveSupplierApi } from "@/lib/suppliers/types";
 import { shouldFallbackToMock } from "@/lib/suppliers/auth";
+import {
+  extractCjCategoryHint,
+  extractCjDescription,
+  extractCjSpecifications,
+} from "@/lib/suppliers/cj-catalog-mapping";
 
 const CJ_API_BASE =
   process.env.CJ_API_BASE?.trim() ||
@@ -68,12 +73,20 @@ function mockCatalog(query: string, page = 1): ExternalCatalogProduct[] {
     ];
     const base = Number((4.5 + (n % 12) * 1.25).toFixed(2));
     const stockFactor = (n % 8) + 1;
+    const name = `CJ ${q} sample #${n}`;
+    const categoryNames = [
+      "Home & Garden, Furniture / Home Storage",
+      "Consumer Electronics / Mobile Accessories",
+      "Apparel & Fashion / Women Clothing",
+      "Home & Living / Kitchen",
+    ];
+    const categoryName = categoryNames[n % categoryNames.length];
     return {
       providerKind: "cj_dropshipping" as const,
       externalProductId: `CJ-MOCK-${q.slice(0, 12).toUpperCase()}-${n}`,
       externalVariantId: `CJ-VID-MOCK-${n}-BLK-S`,
       externalSku: `CJ-SKU-MOCK-${n}-BLK-S`,
-      name: `CJ ${q} sample #${n}`,
+      name,
       description: [
         `Premium ${q} sourced via CJ Dropshipping (mock catalog).`,
         "",
@@ -93,6 +106,14 @@ function mockCatalog(query: string, page = 1): ExternalCatalogProduct[] {
       warehouseCountry: "CN",
       shippingDaysMin: 5,
       shippingDaysMax: 15,
+      specifications: [
+        { key: "Weight", value: `${120 + (n % 9) * 50} g` },
+        { key: "Material", value: n % 2 === 0 ? "ABS plastic" : "Aluminum alloy" },
+        { key: "Packaging", value: "Poly bag" },
+        { key: "Unit", value: "piece" },
+      ],
+      externalCategoryId: `CJ-CAT-MOCK-${(n % 4) + 1}`,
+      externalCategoryName: categoryName,
       variants: [
         {
           externalVariantId: `CJ-VID-MOCK-${n}-BLK-S`,
@@ -1106,6 +1127,9 @@ function mapCjProduct(row: Record<string, unknown>): ExternalCatalogProduct {
     firstVariant && firstVariant.priceUsdt > 0
       ? firstVariant.priceUsdt
       : productPrice;
+  const category = extractCjCategoryHint(row);
+  const specifications = extractCjSpecifications(row);
+  const description = extractCjDescription(row, title);
 
   return {
     providerKind: "cj_dropshipping",
@@ -1119,9 +1143,7 @@ function mapCjProduct(row: Record<string, unknown>): ExternalCatalogProduct {
       pickCjText(row.productSku, row.sku, row.spu) ||
       null,
     name: title,
-    description:
-      pickCjText(row.description, row.productDescription, row.desc) ??
-      title,
+    description,
     imageUrl: images[0] ?? null,
     images,
     priceUsdt,
@@ -1131,6 +1153,9 @@ function mapCjProduct(row: Record<string, unknown>): ExternalCatalogProduct {
     shippingDaysMin: 5,
     shippingDaysMax: 18,
     variants: variants.length > 0 ? variants : undefined,
+    specifications: specifications.length > 0 ? specifications : undefined,
+    externalCategoryId: category.externalCategoryId,
+    externalCategoryName: category.externalCategoryName,
     raw: row,
   };
 }

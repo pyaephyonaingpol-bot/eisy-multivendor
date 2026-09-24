@@ -633,6 +633,47 @@ export function SupplierProductPreviewModal({
                 )}
               </label>
 
+              {!showSkeleton && product ? (
+                <div className="space-y-2 rounded-lg border border-zinc-100 bg-zinc-50/80 px-3 py-2.5">
+                  <p className="text-xs font-medium text-zinc-600">
+                    Auto-imported listing details
+                  </p>
+                  {product.externalCategoryName ? (
+                    <p className="text-xs text-zinc-700">
+                      <span className="font-medium text-zinc-900">Category · </span>
+                      {product.externalCategoryName}
+                      <span className="text-zinc-500">
+                        {" "}
+                        (matched to a storefront category on import)
+                      </span>
+                    </p>
+                  ) : (
+                    <p className="text-xs text-zinc-500">
+                      Category · will use Other when CJ does not return a path
+                    </p>
+                  )}
+                  {product.specifications && product.specifications.length > 0 ? (
+                    <ul className="grid gap-1 sm:grid-cols-2">
+                      {product.specifications.slice(0, 8).map((spec) => (
+                        <li
+                          key={`${spec.key}:${spec.value}`}
+                          className="truncate text-xs text-zinc-700"
+                        >
+                          <span className="font-medium text-zinc-900">
+                            {spec.key}:
+                          </span>{" "}
+                          {spec.value}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-zinc-500">
+                      Specs · none returned for this CJ product
+                    </p>
+                  )}
+                </div>
+              ) : null}
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block min-h-[5.5rem] space-y-1">
                   <span className="text-xs font-medium text-zinc-600">

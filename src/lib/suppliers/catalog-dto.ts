@@ -69,6 +69,9 @@ export function toClientCatalogProduct(
     description: truncateText(product.description, MAX_DESCRIPTION_CHARS),
     images: (product.images ?? []).slice(0, MAX_IMAGES),
     variants: slimVariants(product.variants),
+    specifications: product.specifications?.slice(0, 20),
+    externalCategoryId: product.externalCategoryId ?? null,
+    externalCategoryName: product.externalCategoryName ?? null,
     isMock: isMockProduct(product),
   };
 }
@@ -102,6 +105,9 @@ export function toImportSourcePayload(
     shippingDaysMin: product.shippingDaysMin,
     shippingDaysMax: product.shippingDaysMax,
     variants: slimVariants(product.variants),
+    specifications: product.specifications?.slice(0, 20) ?? [],
+    externalCategoryId: product.externalCategoryId ?? null,
+    externalCategoryName: product.externalCategoryName ?? null,
     capturedAt: new Date().toISOString(),
   };
 }

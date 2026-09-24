@@ -55,6 +55,12 @@ export type ExternalCatalogProduct = {
   shippingDaysMax: number | null;
   /** Optional SKU / option variants for preview + import. */
   variants?: ExternalProductVariant[];
+  /** Normalized key/value specs for marketplace `products.specifications`. */
+  specifications?: Array<{ key: string; value: string }>;
+  /** CJ (or other supplier) category id — never write into marketplace uuid FKs. */
+  externalCategoryId?: string | null;
+  /** CJ category path/name used to match marketplace categories on import. */
+  externalCategoryName?: string | null;
   raw: Record<string, unknown>;
 };
 

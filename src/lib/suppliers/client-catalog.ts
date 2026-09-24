@@ -170,6 +170,21 @@ export function normalizeClientCatalogProduct(
       row.shippingDaysMax ?? row.shipping_days_max ?? row.daysMax,
     ),
     variants: variants && variants.length > 0 ? variants : undefined,
+    specifications: Array.isArray(row.specifications)
+      ? (row.specifications as ExternalCatalogProduct["specifications"])
+      : undefined,
+    externalCategoryId:
+      asString(
+        row.externalCategoryId ??
+          row.external_category_id ??
+          row.categoryId,
+      ) ?? null,
+    externalCategoryName:
+      asString(
+        row.externalCategoryName ??
+          row.external_category_name ??
+          row.categoryName,
+      ) ?? null,
     raw: {},
   };
 }

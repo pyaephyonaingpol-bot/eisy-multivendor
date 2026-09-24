@@ -66,6 +66,22 @@ function ProductFormFields({
     () => sourcingRegions.filter((region) => isSourcingRegionUuid(region.id)),
     [sourcingRegions],
   );
+  // CJ listings sync origin from the supplier warehouse (usually CN) — never MM.
+  const defaultOriginCountry =
+    product?.origin_country_code ?? (showLogistics ? "CN" : "MM");
+  const defaultOriginRegionId = useMemo(() => {
+    if (
+      product?.origin_region_id &&
+      isSourcingRegionUuid(product.origin_region_id)
+    ) {
+      return product.origin_region_id;
+    }
+    const country = defaultOriginCountry;
+    const match = selectableRegions.find((region) =>
+      (region.country_codes ?? []).includes(country),
+    );
+    return match?.id ?? "";
+  }, [product?.origin_region_id, defaultOriginCountry, selectableRegions]);
   const [name, setName] = useState(product?.name ?? "");
   const [slugTouched, setSlugTouched] = useState(Boolean(product));
   const [slug, setSlug] = useState(product?.slug ?? "");
@@ -578,7 +594,8 @@ function ProductFormFields({
           </p>
           <p className="text-xs text-zinc-600">
             Buyers only see this listing when it can ship to their selected
-            country. Leave “ships to” empty to use CJ supplier routes.
+            country. Leave “ships to” empty to use CJ supplier routes. Origin
+            country/region sync from the CJ warehouse on import (not Myanmar).
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -589,7 +606,7 @@ function ProductFormFields({
             <select
               id="origin_country_code"
               name="origin_country_code"
-              defaultValue={product?.origin_country_code ?? "MM"}
+              defaultValue={defaultOriginCountry}
               className={fieldClassName}
             >
               {BUYER_COUNTRY_OPTIONS.map((option) => (
@@ -606,7 +623,7 @@ function ProductFormFields({
             <select
               id="origin_region_id"
               name="origin_region_id"
-              defaultValue={product?.origin_region_id ?? ""}
+              defaultValue={defaultOriginRegionId}
               className={fieldClassName}
             >
               <option value="">Auto from origin country</option>
@@ -649,8 +666,16 @@ function ProductFormFields({
       </div>
       ) : (
         <>
-          <input type="hidden" name="origin_country_code" value={product?.origin_country_code ?? "MM"} />
-          <input type="hidden" name="origin_region_id" value={product?.origin_region_id ?? ""} />
+          <input
+            type="hidden"
+            name="origin_country_code"
+            value={product?.origin_country_code ?? (showLogistics ? "CN" : "MM")}
+          />
+          <input
+            type="hidden"
+            name="origin_region_id"
+            value={product?.origin_region_id ?? ""}
+          />
         </>
       )}
 

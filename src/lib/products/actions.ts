@@ -6,6 +6,7 @@ import { MARKETPLACE_CURRENCY } from "@/lib/money";
 import { resolveProductImages } from "@/lib/products/images";
 import { parseProductSpecificationsFromFormData } from "@/lib/products/specifications";
 import {
+  matchRegionCodeForCountry,
   sanitizeSourcingRegionId,
   sanitizeSourcingRegionIds,
 } from "@/lib/sourcing/constants";
@@ -18,6 +19,41 @@ export type ProductActionState = {
   error?: string;
   success?: string;
 } | null;
+
+/** When origin region is blank, derive it from origin country (warehouse sync). */
+async function resolveOriginRegionFromCountry(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  originCountryCode: string | null,
+  originRegionId: string | null,
+): Promise<string | null> {
+  if (originRegionId) return originRegionId;
+  if (!originCountryCode) return null;
+
+  const { data } = await supabase
+    .from("sourcing_regions")
+    .select("id, code, country_codes, is_default")
+    .eq("is_active", true);
+
+  const regions = ((data as
+    | Array<{
+        id: string;
+        code: string;
+        country_codes: string[] | null;
+        is_default: boolean | null;
+      }>
+    | null) ?? []).map((row) => ({
+    id: row.id,
+    code: row.code,
+    country_codes: Array.isArray(row.country_codes) ? row.country_codes : [],
+    is_default: Boolean(row.is_default),
+  }));
+
+  if (regions.length === 0) return null;
+  const code = matchRegionCodeForCountry(originCountryCode, regions);
+  const hit = regions.find((region) => region.code === code);
+  return sanitizeSourcingRegionId(hit?.id);
+}
 
 function isSchemaCacheColumnError(
   message: string | undefined,
@@ -297,6 +333,12 @@ export async function createProduct(
     return { error: imageResult.error };
   }
 
+  const originRegionId = await resolveOriginRegionFromCountry(
+    supabase,
+    parsed.originCountryCode,
+    parsed.originRegionId,
+  );
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- price_usdt is drifted
   const insertPayload: any = {
     vendor_id: vendor.id,
@@ -322,7 +364,7 @@ export async function createProduct(
     download_label:
       parsed.productType === "digital" ? parsed.downloadLabel || null : null,
     origin_country_code: parsed.originCountryCode,
-    origin_region_id: parsed.originRegionId,
+    origin_region_id: originRegionId,
     ships_to_region_ids: parsed.shipsToRegionIds,
   };
 
@@ -411,6 +453,12 @@ export async function updateProduct(
     return { error: imageResult.error };
   }
 
+  const originRegionId = await resolveOriginRegionFromCountry(
+    supabase,
+    parsed.originCountryCode,
+    parsed.originRegionId,
+  );
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- price_usdt is drifted
   const updatePayload: any = {
     category_id: parsed.categoryId,
@@ -433,7 +481,7 @@ export async function updateProduct(
     download_label:
       parsed.productType === "digital" ? parsed.downloadLabel || null : null,
     origin_country_code: parsed.originCountryCode,
-    origin_region_id: parsed.originRegionId,
+    origin_region_id: originRegionId,
     ships_to_region_ids: parsed.shipsToRegionIds,
   };
 

@@ -104,3 +104,42 @@ export function matchRegionCodeForCountry(
     regions[0];
   return fallback?.code ?? DEFAULT_BUYER_REGION;
 }
+
+/** Strict UUID check for `sourcing_regions.id` and related FK columns. */
+const SOURCING_REGION_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * True when `value` is a real Postgres uuid suitable for sourcing_regions FKs.
+ * Rejects offline placeholders like `fallback-GLOBAL`.
+ */
+export function isSourcingRegionUuid(
+  value: string | null | undefined,
+): value is string {
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed || trimmed.startsWith("fallback-")) return false;
+  return SOURCING_REGION_UUID_RE.test(trimmed);
+}
+
+/** Return a DB-safe region uuid, or `null` (never a text placeholder). */
+export function sanitizeSourcingRegionId(
+  value: string | null | undefined,
+): string | null {
+  const trimmed = String(value ?? "").trim();
+  return isSourcingRegionUuid(trimmed) ? trimmed : null;
+}
+
+/** Filter form/API region id lists down to persisted uuids only. */
+export function sanitizeSourcingRegionIds(
+  values: Array<string | null | undefined>,
+): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const value of values) {
+    const id = sanitizeSourcingRegionId(value);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}

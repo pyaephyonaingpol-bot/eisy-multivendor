@@ -8,6 +8,7 @@ import {
   BUYER_REGION_COOKIE,
   matchRegionCodeForCountry,
   normalizeCountryCode,
+  sanitizeSourcingRegionId,
 } from "@/lib/sourcing/constants";
 import { listSourcingRegions } from "@/lib/sourcing/queries";
 
@@ -95,7 +96,8 @@ export async function upsertProductSupplierRouteAction(
   formData: FormData,
 ): Promise<SupplierRouteFormState> {
   const productId = String(formData.get("product_id") ?? "").trim();
-  const regionId = String(formData.get("region_id") ?? "").trim();
+  const regionIdRaw = String(formData.get("region_id") ?? "").trim();
+  const regionId = sanitizeSourcingRegionId(regionIdRaw);
   const providerId = String(formData.get("provider_id") ?? "").trim();
   const warehouseCountry = normalizeCountryCode(
     String(formData.get("warehouse_country") ?? "CN"),
@@ -109,7 +111,11 @@ export async function upsertProductSupplierRouteAction(
   const routeId = String(formData.get("route_id") ?? "").trim() || null;
 
   if (!productId || !regionId || !providerId) {
-    return { error: "Region and provider are required." };
+    return {
+      error: regionIdRaw && !regionId
+        ? "Choose a saved sourcing region (offline placeholders cannot be stored)."
+        : "Region and provider are required.",
+    };
   }
 
   if (!Number.isFinite(shippingCost) || shippingCost < 0) {

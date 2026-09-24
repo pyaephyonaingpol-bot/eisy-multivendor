@@ -5,6 +5,10 @@ import { redirect } from "next/navigation";
 import { MARKETPLACE_CURRENCY } from "@/lib/money";
 import { resolveProductImages } from "@/lib/products/images";
 import { parseProductSpecificationsFromFormData } from "@/lib/products/specifications";
+import {
+  sanitizeSourcingRegionId,
+  sanitizeSourcingRegionIds,
+} from "@/lib/sourcing/constants";
 import { createClient } from "@/lib/supabase/server";
 import type { ProductStatus, ProductType } from "@/lib/types/database";
 import { getVendorForOwner, isVendorKycApproved } from "@/lib/vendors/queries";
@@ -167,11 +171,12 @@ function parseProductFields(formData: FormData): ParsedProductFields {
     .trim()
     .toUpperCase()
     .slice(0, 2);
-  const originRegionId = String(formData.get("origin_region_id") ?? "").trim();
-  const shipsToRegionIds = formData
-    .getAll("ships_to_region_ids")
-    .map((value) => String(value).trim())
-    .filter(Boolean);
+  const originRegionId = sanitizeSourcingRegionId(
+    String(formData.get("origin_region_id") ?? "").trim(),
+  );
+  const shipsToRegionIds = sanitizeSourcingRegionIds(
+    formData.getAll("ships_to_region_ids").map((value) => String(value).trim()),
+  );
   const specsResult = parseProductSpecificationsFromFormData(formData);
 
   if (!name) {
@@ -237,7 +242,7 @@ function parseProductFields(formData: FormData): ParsedProductFields {
     status,
     categoryId,
     originCountryCode: originCountryCode || null,
-    originRegionId: originRegionId || null,
+    originRegionId,
     shipsToRegionIds,
     specifications: specsResult.specifications,
   };

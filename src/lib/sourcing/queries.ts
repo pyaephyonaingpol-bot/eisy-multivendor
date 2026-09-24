@@ -5,8 +5,10 @@ import {
   DEFAULT_BUYER_COUNTRY,
   DEFAULT_BUYER_REGION,
   FALLBACK_REGIONS,
+  isSourcingRegionUuid,
   matchRegionCodeForCountry,
   normalizeCountryCode,
+  sanitizeSourcingRegionId,
 } from "@/lib/sourcing/constants";
 import type {
   ProductSupplierRoute,
@@ -29,7 +31,10 @@ function fallbackRegion(code: string): SourcingRegion {
   const seed =
     FALLBACK_REGIONS.find((region) => region.code === code) ?? FALLBACK_REGIONS[0];
   return {
-    id: `fallback-${seed.code}`,
+    // Offline-only placeholder: never invent `fallback-GLOBAL` (invalid uuid).
+    // Callers must use sanitizeSourcingRegionId() before any DB write — empty
+    // id means "no persisted region row".
+    id: "",
     code: seed.code,
     name: seed.name,
     country_codes: seed.country_codes,
@@ -127,7 +132,12 @@ export async function getBuyerSourcingContext(
   const regions = await listSourcingRegions();
 
   let region: SourcingRegion | null = null;
-  if (profileRegionId && !hasExplicitCountry && !defaultAddressCountry) {
+  if (
+    profileRegionId &&
+    isSourcingRegionUuid(profileRegionId) &&
+    !hasExplicitCountry &&
+    !defaultAddressCountry
+  ) {
     region = regions.find((row) => row.id === profileRegionId) ?? null;
   }
   if (!region) {
@@ -176,7 +186,8 @@ export async function resolveProductSupplierRoute(
       return {
         product_id: productId,
         source_product_id: productId,
-        region_id: context.region?.id ?? "",
+        // Never send offline placeholders like `fallback-GLOBAL` into uuid columns.
+        region_id: sanitizeSourcingRegionId(context.region?.id) ?? "",
         region_code: context.regionCode,
         region_name: context.regionName,
         provider_id: null,

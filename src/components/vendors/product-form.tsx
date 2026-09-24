@@ -19,7 +19,10 @@ import type {
   SourcingRegion,
 } from "@/lib/types/database";
 import { slugifyStoreName } from "@/lib/vendors/slug";
-import { BUYER_COUNTRY_OPTIONS } from "@/lib/sourcing/constants";
+import {
+  BUYER_COUNTRY_OPTIONS,
+  isSourcingRegionUuid,
+} from "@/lib/sourcing/constants";
 
 const initialState: ProductActionState = null;
 
@@ -58,6 +61,11 @@ function ProductFormFields({
 }: ProductFormProps) {
   const isEdit = Boolean(product);
   const serverAction = isEdit ? updateProduct : createProduct;
+  // Offline placeholders (empty / non-uuid ids) must never appear as form values.
+  const selectableRegions = useMemo(
+    () => sourcingRegions.filter((region) => isSourcingRegionUuid(region.id)),
+    [sourcingRegions],
+  );
   const [name, setName] = useState(product?.name ?? "");
   const [slugTouched, setSlugTouched] = useState(Boolean(product));
   const [slug, setSlug] = useState(product?.slug ?? "");
@@ -602,7 +610,7 @@ function ProductFormFields({
               className={fieldClassName}
             >
               <option value="">Auto from origin country</option>
-              {sourcingRegions.map((region) => (
+              {selectableRegions.map((region) => (
                 <option key={region.id} value={region.id}>
                   {region.name} ({region.code})
                 </option>
@@ -610,13 +618,13 @@ function ProductFormFields({
             </select>
           </div>
         </div>
-        {sourcingRegions.length > 0 ? (
+        {selectableRegions.length > 0 ? (
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium text-zinc-700">
               Ships to regions
             </legend>
             <div className="grid gap-2 sm:grid-cols-2">
-              {sourcingRegions.map((region) => {
+              {selectableRegions.map((region) => {
                 const checked =
                   product?.ships_to_region_ids?.includes(region.id) ?? false;
                 return (

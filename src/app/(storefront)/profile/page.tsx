@@ -36,10 +36,11 @@ export default async function ProfilePage() {
     );
   }
 
-  const { profile } = result;
+  const { profile, authEmail } = result;
   const addresses = await listBuyerAddresses(profile.id);
   const defaultAddress =
     addresses.find((address) => address.is_default) ?? null;
+  const displayEmail = profile.email?.trim() || authEmail || "—";
 
   return (
     <section className="mx-auto max-w-xl space-y-10 py-2">
@@ -47,10 +48,18 @@ export default async function ProfilePage() {
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">
           Profile
         </h1>
-        <p className="text-sm text-zinc-500">{profile.email}</p>
+        <p className="text-sm text-zinc-500">{displayEmail}</p>
+        {profile.full_name ? (
+          <p className="text-sm font-medium text-zinc-800">{profile.full_name}</p>
+        ) : null}
       </header>
 
-      <ProfileForm profile={profile} />
+      <ProfileForm
+        profile={{
+          ...profile,
+          email: displayEmail === "—" ? profile.email : displayEmail,
+        }}
+      />
 
       <div className="border-t border-zinc-100 pt-10">
         <BuyerAddressBook

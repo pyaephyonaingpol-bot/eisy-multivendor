@@ -9,6 +9,7 @@ import {
   ONE_CLICK_IMPORT_MARKUP,
   type ExternalCatalogProduct,
 } from "@/lib/suppliers/types";
+import { extractCatalogProducts } from "@/lib/suppliers/client-catalog";
 import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
 import {
   SupplierProductPreviewModal,
@@ -84,7 +85,7 @@ export function ExternalSupplierCatalogPanel({
           setProducts([]);
           return;
         }
-        setProducts(payload.products ?? []);
+        setProducts(extractCatalogProducts(payload));
       } catch {
         setError("Could not reach supplier catalog API.");
         setProducts([]);

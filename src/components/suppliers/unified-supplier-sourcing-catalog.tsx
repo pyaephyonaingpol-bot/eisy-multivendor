@@ -19,6 +19,10 @@ import { bulkImportExternalSupplierProductsAction } from "@/lib/suppliers/action
 import { MAX_BULK_IMPORT_ITEMS } from "@/lib/suppliers/types";
 import { DEFAULT_CJ_SOURCING_REGION } from "@/lib/sourcing/constants";
 import {
+  extractCatalogProducts,
+  isLocalWarehouseCountry,
+} from "@/lib/suppliers/client-catalog";
+import {
   ONE_CLICK_IMPORT_MARKUP,
   MIN_IMPORT_STOCK_QUANTITY,
   meetsMinImportStock,
@@ -64,9 +68,7 @@ function isFastDispatch(product: ExternalCatalogProduct) {
 }
 
 function isLocalWarehouse(product: ExternalCatalogProduct) {
-  return ["US", "EU", "GB", "DE", "FR", "MM", "TH", "SG"].includes(
-    product.warehouseCountry.toUpperCase(),
-  );
+  return isLocalWarehouseCountry(product.warehouseCountry);
 }
 
 function sourceBadge(kind: ExternalSupplierKind) {
@@ -126,6 +128,9 @@ export function UnifiedSupplierSourcingCatalog({
   const [bulkIncludeCompare, setBulkIncludeCompare] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
   const seededRef = useRef(false);
+  /** Ignore stale catalog responses when a newer search has already started. */
+  const searchRequestIdRef = useRef(0);
+  const searchAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -339,12 +344,16 @@ export function UnifiedSupplierSourcingCatalog({
     if (!append) {
       setPreviewSuccess(null);
       setSelectedKeys(new Set());
+      searchAbortRef.current?.abort();
+      searchAbortRef.current = new AbortController();
     }
+    const requestId = ++searchRequestIdRef.current;
     const activeCategoryId =
       overrides && "categoryId" in overrides
         ? overrides.categoryId
         : categoryId;
     const run = append ? startLoadMore : startSearch;
+    const signal = append ? undefined : searchAbortRef.current?.signal;
     run(async () => {
       try {
         // CJ-only catalog while other suppliers are Coming Soon.
@@ -357,7 +366,9 @@ export function UnifiedSupplierSourcingCatalog({
         if (activeCategoryId) {
           params.set("categoryId", activeCategoryId);
         }
-        const response = await fetch(`/api/suppliers/catalog?${params}`);
+        const response = await fetch(`/api/suppliers/catalog?${params}`, {
+          signal,
+        });
         const payload = (await response.json()) as {
           ok?: boolean;
           error?: string;
@@ -369,6 +380,9 @@ export function UnifiedSupplierSourcingCatalog({
           total?: number | null;
           relatedCategories?: { id: string; name: string }[];
         };
+        // A newer search superseded this one — discard late responses.
+        if (requestId !== searchRequestIdRef.current) return;
+
         if (!response.ok || payload.ok === false) {
           setError(payload.error ?? t("sourcing.searchFailed"));
           if (!append) {
@@ -382,7 +396,8 @@ export function UnifiedSupplierSourcingCatalog({
           setHasSearched(true);
           return;
         }
-        const products = payload.products ?? [];
+        // Normalize wire shape (camelCase / snake_case / nested envelopes).
+        const products = extractCatalogProducts(payload);
         setCatalog((prev) => (append ? mergeCatalog(prev, products) : products));
         setUsedMock(
           payload.usedMock === true ||
@@ -402,7 +417,9 @@ export function UnifiedSupplierSourcingCatalog({
           setRelatedCategories(payload.relatedCategories ?? []);
         }
         setHasSearched(true);
-      } catch {
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        if (requestId !== searchRequestIdRef.current) return;
         setError(t("sourcing.catalogUnreachable"));
         if (!append) {
           setCatalog([]);

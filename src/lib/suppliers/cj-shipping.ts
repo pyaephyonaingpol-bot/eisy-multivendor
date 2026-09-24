@@ -404,6 +404,8 @@ async function mapPool<T, R>(
  * Location filter for marketplace catalog: keep non-CJ products, and only CJ
  * listings that have at least one live freight method to `countryCode`.
  * When CJ live API is disabled, CJ products are kept (mock/offline fail-open).
+ * Transport / timeout failures also fail-open so a flaky CJ freight API cannot
+ * blank the entire storefront after a successful products fetch.
  */
 export async function filterCjProductsShippableToCountry(
   productIds: string[],
@@ -441,21 +443,60 @@ export async function filterCjProductsShippableToCountry(
     ...new Map(lines.filter((line) => line.vid).map((line) => [line.productId, line])).values(),
   ];
 
+  const FREIGHT_CHECK_TIMEOUT_MS = 4_000;
+
   const shipChecks = await mapPool(uniqueLines, 4, async (line) => {
-    const freight = await freightCalculateCjShipping(
-      {
-        startCountryCode: line.warehouseCountry?.trim() || "CN",
-        endCountryCode: normalizedCountry,
-        products: [{ vid: line.vid, quantity: 1 }],
-      },
-      creds,
-    );
-    const ok = freight.ok && freight.methods.length > 0;
-    return { productId: line.productId, ok };
+    try {
+      const freight = await Promise.race([
+        freightCalculateCjShipping(
+          {
+            startCountryCode: line.warehouseCountry?.trim() || "CN",
+            endCountryCode: normalizedCountry,
+            products: [{ vid: line.vid, quantity: 1 }],
+          },
+          creds,
+        ),
+        new Promise<null>((resolve) => {
+          setTimeout(() => resolve(null), FREIGHT_CHECK_TIMEOUT_MS);
+        }),
+      ]);
+
+      // Timed out — keep listing (fail-open) so the UI still renders products.
+      if (freight == null) {
+        return { productId: line.productId, keep: true };
+      }
+
+      if (freight.ok && freight.methods.length > 0) {
+        return { productId: line.productId, keep: true };
+      }
+
+      // Explicit empty methods from a successful CJ response ⇒ unshippable.
+      if (freight.ok && freight.methods.length === 0) {
+        return { productId: line.productId, keep: false };
+      }
+
+      // freight.ok === false: distinguish unsupported destination vs API error.
+      const errLower = (freight.error ?? "").toLowerCase();
+      const unsupported =
+        errLower.includes("ship") ||
+        errLower.includes("logistic") ||
+        errLower.includes("country") ||
+        errLower.includes("destination") ||
+        errLower.includes("not support");
+
+      if (unsupported) {
+        return { productId: line.productId, keep: false };
+      }
+
+      // Network / auth / parse errors — keep the product visible.
+      return { productId: line.productId, keep: true };
+    } catch {
+      return { productId: line.productId, keep: true };
+    }
   });
 
   for (const check of shipChecks) {
-    if (!check.ok) {
+    if (!check.keep) {
       allowed.delete(check.productId);
     }
   }

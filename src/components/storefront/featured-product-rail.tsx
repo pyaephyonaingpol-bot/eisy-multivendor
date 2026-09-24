@@ -20,7 +20,11 @@ export function FeaturedProductRail({ products }: FeaturedProductRailProps) {
     <div className="relative -mx-4 sm:hidden">
       <ul className="mobile-scroll-x flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 pt-1">
         {products.map((product) => {
-          const image = product.images[0] ?? null;
+          const images = Array.isArray(product.images) ? product.images : [];
+          const image =
+            images.find((url) => typeof url === "string" && url.trim()) ?? null;
+          const name = product.name?.trim() || "Untitled product";
+          const price = Number(product.price);
           return (
             <li
               key={product.id}
@@ -35,7 +39,7 @@ export function FeaturedProductRail({ products }: FeaturedProductRailProps) {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={image}
-                      alt={product.name}
+                      alt={name}
                       className="h-full w-full object-cover object-center"
                     />
                   ) : (
@@ -47,14 +51,17 @@ export function FeaturedProductRail({ products }: FeaturedProductRailProps) {
                 <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 p-3">
                   <div className="min-w-0 space-y-1">
                     <p className="line-clamp-2 break-words text-sm font-semibold text-[var(--market-ink)]">
-                      {product.name}
+                      {name}
                     </p>
                     {product.vendor?.status === "approved" && product.vendor ? (
                       <SoldByBadge vendor={product.vendor} as="text" />
                     ) : null}
                   </div>
                   <p className="break-words text-sm font-semibold text-[var(--market-ink)]">
-                    {formatMoney(Number(product.price), MARKETPLACE_CURRENCY)}
+                    {formatMoney(
+                      Number.isFinite(price) ? price : 0,
+                      MARKETPLACE_CURRENCY,
+                    )}
                   </p>
                 </div>
               </Link>

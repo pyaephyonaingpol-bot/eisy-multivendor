@@ -2,16 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { AddToCartButton } from "@/components/storefront/add-to-cart-button";
-import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
+import {
+  ProductVariantSelector,
+  type ProductVariantOption,
+} from "@/components/storefront/product-variant-selector";
 
-export type BuyerCatalogVariant = {
-  externalVariantId: string;
-  externalSku: string | null;
-  label: string;
-  priceUsdt: number | null;
-  stockQuantity: number | null;
-  imageUrl: string | null;
-};
+export type BuyerCatalogVariant = ProductVariantOption;
 
 type Props = {
   productId: string;
@@ -24,6 +20,8 @@ type Props = {
   maxQuantity: number | null;
   disabled?: boolean;
   variants: BuyerCatalogVariant[];
+  /** Notify parent (e.g. gallery) when the selected option changes. */
+  onVariantChange?: (variant: BuyerCatalogVariant | null) => void;
 };
 
 export function ProductPurchasePanel({
@@ -37,6 +35,7 @@ export function ProductPurchasePanel({
   maxQuantity,
   disabled = false,
   variants,
+  onVariantChange,
 }: Props) {
   const [selectedId, setSelectedId] = useState(
     variants[0]?.externalVariantId ?? "",
@@ -49,6 +48,14 @@ export function ProductPurchasePanel({
       null,
     [variants, selectedId],
   );
+
+  function selectVariant(variantId: string) {
+    setSelectedId(variantId);
+    const next =
+      variants.find((variant) => variant.externalVariantId === variantId) ??
+      null;
+    onVariantChange?.(next);
+  }
 
   const displayName = selected ? `${name} — ${selected.label}` : name;
   const displayImage = selected?.imageUrl || imageUrl;
@@ -84,41 +91,11 @@ export function ProductPurchasePanel({
 
   return (
     <div className="space-y-4">
-      <label className="block space-y-1.5">
-        <span className="text-sm font-medium text-zinc-700">
-          Color / size
-          <span className="ml-1 font-normal text-zinc-500">
-            ({variants.length} options)
-          </span>
-        </span>
-        <select
-          value={selected?.externalVariantId ?? ""}
-          onChange={(event) => setSelectedId(event.target.value)}
-          className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-950"
-        >
-          {variants.map((variant) => (
-            <option
-              key={variant.externalVariantId}
-              value={variant.externalVariantId}
-            >
-              {variant.label}
-              {variant.priceUsdt != null
-                ? ` · ${formatMoney(variant.priceUsdt, MARKETPLACE_CURRENCY)} cost ref`
-                : ""}
-              {variant.stockQuantity != null
-                ? ` · ${variant.stockQuantity} avail`
-                : ""}
-            </option>
-          ))}
-        </select>
-        {selected ? (
-          <p className="text-xs text-zinc-500">
-            Selected:{" "}
-            <span className="font-medium text-zinc-800">{selected.label}</span>
-            {selected.externalSku ? ` · SKU ${selected.externalSku}` : null}
-          </p>
-        ) : null}
-      </label>
+      <ProductVariantSelector
+        variants={variants}
+        value={selected?.externalVariantId ?? ""}
+        onChange={selectVariant}
+      />
 
       <AddToCartButton
         productId={productId}
@@ -129,7 +106,7 @@ export function ProductPurchasePanel({
         imageUrl={displayImage}
         productType={productType}
         maxQuantity={effectiveMax}
-        disabled={outOfStock}
+        disabled={outOfStock || !selected}
         variantId={selected?.externalVariantId ?? null}
         variantSku={selected?.externalSku ?? null}
         variantLabel={selected?.label ?? null}

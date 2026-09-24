@@ -111,7 +111,9 @@
     "bulkImportPartial": "{ok} von {total} importiert. {failed} fehlgeschlagen.",
     "bulkNoneEligible": "Keine ausgewählten Produkte erfüllen das Mindestlager.",
     "bulkMaxHint": "Bis zu {max} Produkte pro Bulk-Import.",
-    "bulkSelectHint": "Produkte auswählen und mit einem Klick importieren."
+    "bulkSelectHint": "Produkte auswählen und mit einem Klick importieren.",
+    "previewImportAll": "Vorschau · alle {count} Optionen importieren",
+    "importAllVariantsHint": "Alle {count} Farben/Größen werden gemeinsam importiert"
   },
   "escrow": {
     "title": "Treuhand",

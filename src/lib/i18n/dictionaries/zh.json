@@ -111,7 +111,9 @@
     "bulkImportPartial": "已导入 {ok}/{total}。失败 {failed} 个。",
     "bulkNoneEligible": "所选商品未达到最低库存。",
     "bulkMaxHint": "每次最多导入 {max} 个商品。",
-    "bulkSelectHint": "选择商品后一键导入（默认加价）。"
+    "bulkSelectHint": "选择商品后一键导入（默认加价）。",
+    "previewImportAll": "预览 · 一次导入全部 {count} 个规格",
+    "importAllVariantsHint": "全部 {count} 个颜色/尺码将一并导入"
   },
   "escrow": {
     "title": "托管",

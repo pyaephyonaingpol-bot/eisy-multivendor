@@ -14,7 +14,9 @@ import { ensureCjProductVariants } from "@/lib/suppliers/cj";
 import { loadPlatformSupplierContext } from "@/lib/suppliers/platform-credentials";
 import {
   DEFAULT_CJ_SOURCING_REGION,
+  matchRegionCodeForCountry,
   sanitizeSourcingRegionId,
+  sanitizeSourcingRegionIds,
 } from "@/lib/sourcing/constants";
 import {
   toClientCatalogProducts,
@@ -212,6 +214,9 @@ function importProductCoreFields(args: {
   images: string[];
   stockQuantity: number;
   sku: string | null;
+  originCountryCode?: string | null;
+  originRegionId?: string | null;
+  shipsToRegionIds?: string[];
 }) {
   const name = args.name.trim() || "Untitled product";
   const description =
@@ -227,6 +232,72 @@ function importProductCoreFields(args: {
     sku: args.sku,
     stock_quantity: Math.max(0, Math.floor(args.stockQuantity)),
     images: Array.isArray(args.images) ? args.images : [],
+    ...(args.originCountryCode
+      ? { origin_country_code: args.originCountryCode }
+      : {}),
+    ...(args.originRegionId != null
+      ? { origin_region_id: args.originRegionId }
+      : {}),
+    ...(args.shipsToRegionIds
+      ? { ships_to_region_ids: args.shipsToRegionIds }
+      : {}),
+  };
+}
+
+/**
+ * Sync marketplace origin country/region from the CJ (or other supplier)
+ * warehouse location — never default to Myanmar buyer region.
+ */
+async function resolveImportOriginFromWarehouse(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  remote: ExternalCatalogProduct,
+): Promise<{
+  originCountryCode: string;
+  originRegionId: string | null;
+  shipsToRegionIds: string[];
+}> {
+  const raw = String(remote.warehouseCountry ?? "")
+    .trim()
+    .toUpperCase()
+    .slice(0, 2);
+  // CJ fulfillment is China-first when the payload omits a warehouse country.
+  const originCountryCode = /^[A-Z]{2}$/.test(raw) ? raw : "CN";
+
+  const { data: regionRows } = await supabase
+    .from("sourcing_regions")
+    .select("id, code, country_codes, is_default")
+    .eq("is_active", true);
+
+  const regions = ((regionRows as
+    | Array<{
+        id: string;
+        code: string;
+        country_codes: string[] | null;
+        is_default: boolean | null;
+      }>
+    | null) ?? []).map((row) => ({
+    id: row.id,
+    code: row.code,
+    country_codes: Array.isArray(row.country_codes) ? row.country_codes : [],
+    is_default: Boolean(row.is_default),
+  }));
+
+  const byCode = new Map(regions.map((region) => [region.code, region.id]));
+  const coveredCodes = warehouseCountryToRegionCodes(originCountryCode);
+  const originRegionCode =
+    coveredCodes.find((code) => code !== "GLOBAL" && byCode.has(code)) ??
+    matchRegionCodeForCountry(originCountryCode, regions);
+
+  const originRegionId = sanitizeSourcingRegionId(byCode.get(originRegionCode));
+  const shipsToRegionIds = sanitizeSourcingRegionIds(
+    coveredCodes.map((code) => byCode.get(code) ?? null),
+  );
+
+  return {
+    originCountryCode,
+    originRegionId,
+    shipsToRegionIds,
   };
 }
 
@@ -678,6 +749,9 @@ export async function importExternalSupplierProductAction(
       ? [remote.imageUrl]
       : [];
 
+  // Origin country/region follow the supplier warehouse — not Myanmar buyer defaults.
+  const origin = await resolveImportOriginFromWarehouse(supabase, remote);
+
   // Re-import of the same external SKU updates the existing listing (no new quota slot).
   if (linked?.providerId) {
     const { data: existingImport, error: existingError } = await supabase
@@ -703,6 +777,9 @@ export async function importExternalSupplierProductAction(
           images: productImages,
           stockQuantity: effectiveStock ?? 0,
           sku: variant.externalSku,
+          originCountryCode: origin.originCountryCode,
+          originRegionId: origin.originRegionId,
+          shipsToRegionIds: origin.shipsToRegionIds,
         }),
         catalog_kind: kind === "cj_dropshipping" ? "cj_import" : "manual",
         is_dropship: true,
@@ -796,6 +873,9 @@ export async function importExternalSupplierProductAction(
           images: productImages,
           stockQuantity: effectiveStock ?? 0,
           sku: variant.externalSku,
+          originCountryCode: origin.originCountryCode,
+          originRegionId: origin.originRegionId,
+          shipsToRegionIds: origin.shipsToRegionIds,
         }),
         catalog_kind: kind === "cj_dropshipping" ? "cj_import" : "manual",
         is_dropship: true,
@@ -926,6 +1006,9 @@ export async function importExternalSupplierProductAction(
       images: productImages,
       stockQuantity: effectiveStock ?? 0,
       sku: variant.externalSku,
+      originCountryCode: origin.originCountryCode,
+      originRegionId: origin.originRegionId,
+      shipsToRegionIds: origin.shipsToRegionIds,
     }),
     status: "active" as const,
     product_type: "physical" as const,
@@ -967,14 +1050,17 @@ export async function importExternalSupplierProductAction(
   }
 
   if (linked?.providerId) {
+    // Buyer-facing supplier route uses the catalog filter region (where the
+    // listing is offered). Origin country/region already came from warehouse.
     const { data: region } = await supabase
       .from("sourcing_regions")
       .select("id, code")
       .eq("code", regionCode)
       .maybeSingle();
 
-    const regionId = sanitizeSourcingRegionId(
+    const routeRegionId = sanitizeSourcingRegionId(
       region?.id ??
+        origin.originRegionId ??
         (
           await supabase
             .from("sourcing_regions")
@@ -984,17 +1070,17 @@ export async function importExternalSupplierProductAction(
         ).data?.id,
     );
 
-    if (regionId) {
+    if (routeRegionId) {
       await supabase.from("product_supplier_routes").upsert(
         {
           product_id: product.id,
-          region_id: regionId,
+          region_id: routeRegionId,
           provider_id: linked.providerId,
           external_sku:
             variant.externalVariantId ||
             variant.externalSku ||
             remote.externalProductId,
-          warehouse_country: remote.warehouseCountry || "CN",
+          warehouse_country: origin.originCountryCode,
           shipping_days_min: remote.shippingDaysMin,
           shipping_days_max: remote.shippingDaysMax,
           shipping_cost_usdt: 0,
@@ -1003,13 +1089,16 @@ export async function importExternalSupplierProductAction(
         },
         { onConflict: "product_id,region_id,provider_id" },
       );
+    }
 
-      // Apply storefront regional filtering on the imported listing.
+    // Keep origin in sync even when core insert stripped those columns.
+    if (origin.originCountryCode || origin.originRegionId) {
       await supabase
         .from("products")
         .update({
-          origin_region_id: regionId,
-          ships_to_region_ids: [regionId],
+          origin_country_code: origin.originCountryCode,
+          origin_region_id: origin.originRegionId,
+          ships_to_region_ids: origin.shipsToRegionIds,
           updated_at: new Date().toISOString(),
         })
         .eq("id", product.id)

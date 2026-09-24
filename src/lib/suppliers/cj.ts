@@ -1011,6 +1011,80 @@ function productLevelStock(row: Record<string, unknown>): number | null {
   return parseCjStockNumber(inventoryField) ?? parseCjStockNumber(row.stock);
 }
 
+/**
+ * Prefer an explicit warehouse country field, then the inventory country with
+ * the most stock (CJ variants often nest `inventories[].countryCode`).
+ */
+function pickCjWarehouseCountry(row: Record<string, unknown>): string {
+  const direct = pickCjText(
+    row.warehouseCountryCode,
+    row.warehouseCountry,
+    row.warehouseAreaCountry,
+    row.areaCountryCode,
+  );
+  if (direct && /^[A-Z]{2}$/i.test(direct)) {
+    return direct.toUpperCase();
+  }
+
+  const scores = new Map<string, number>();
+
+  const scoreInventoryList = (inventories: unknown) => {
+    const list = parseMaybeJson(inventories);
+    if (!Array.isArray(list)) return;
+    for (const entry of list) {
+      const rec = asRecord(entry);
+      if (!rec) continue;
+      const code = pickCjText(rec.countryCode, rec.warehouseCountryCode);
+      if (!code || !/^[A-Z]{2}$/i.test(code)) continue;
+      const qty =
+        parseCjStockNumber(rec.totalInventory) ??
+        parseCjStockNumber(rec.totalInventoryNum) ??
+        parseCjStockNumber(rec.cjInventory) ??
+        parseCjStockNumber(rec.inventory) ??
+        1;
+      const key = code.toUpperCase();
+      scores.set(key, (scores.get(key) ?? 0) + Math.max(0, qty ?? 1));
+    }
+  };
+
+  scoreInventoryList(row.inventories);
+  scoreInventoryList(row.variantInventories);
+
+  for (const variantRow of collectCjVariantRows(row)) {
+    scoreInventoryList(variantRow.inventories);
+    scoreInventoryList(variantRow.variantInventories);
+    scoreInventoryList(variantRow.stock);
+    const variantCountry = pickCjText(
+      variantRow.countryCode,
+      variantRow.warehouseCountryCode,
+      variantRow.warehouseCountry,
+    );
+    if (variantCountry && /^[A-Z]{2}$/i.test(variantCountry)) {
+      const key = variantCountry.toUpperCase();
+      scores.set(key, (scores.get(key) ?? 0) + 1);
+    }
+  }
+
+  let best: string | null = null;
+  let bestScore = -1;
+  for (const [code, score] of scores) {
+    if (score > bestScore) {
+      best = code;
+      bestScore = score;
+    }
+  }
+  if (best) return best;
+
+  // Last resort: product-level countryCode (list filters / sparse payloads).
+  const fallback = pickCjText(row.countryCode);
+  if (fallback && /^[A-Z]{2}$/i.test(fallback)) {
+    return fallback.toUpperCase();
+  }
+
+  // CJ's primary fulfillment footprint is China when the API omits warehouse.
+  return "CN";
+}
+
 function mapCjProduct(row: Record<string, unknown>): ExternalCatalogProduct {
   const images = collectImages(row);
   const productPrice = pickCjPriceUsdt(row) ?? 0.01;
@@ -1053,12 +1127,7 @@ function mapCjProduct(row: Record<string, unknown>): ExternalCatalogProduct {
     priceUsdt,
     compareAtPriceUsdt: pickCjCompareAtPriceUsdt(row, priceUsdt),
     stockQuantity,
-    warehouseCountry:
-      pickCjText(
-        row.warehouseCountryCode,
-        row.countryCode,
-        row.warehouseCountry,
-      ) ?? "CN",
+    warehouseCountry: pickCjWarehouseCountry(row),
     shippingDaysMin: 5,
     shippingDaysMax: 18,
     variants: variants.length > 0 ? variants : undefined,
@@ -1106,6 +1175,13 @@ function applyCjPidInventory(
   return {
     ...product,
     stockQuantity: product.stockQuantity ?? productStock ?? variantStockSum,
+    warehouseCountry: pickCjWarehouseCountry({
+      ...inventoryData,
+      warehouseCountryCode:
+        inventoryData.warehouseCountryCode ?? product.warehouseCountry,
+      warehouseCountry:
+        inventoryData.warehouseCountry ?? product.warehouseCountry,
+    }),
     variants: variants.length > 0 ? variants : product.variants,
     externalVariantId:
       product.externalVariantId ?? variants[0]?.externalVariantId ?? null,

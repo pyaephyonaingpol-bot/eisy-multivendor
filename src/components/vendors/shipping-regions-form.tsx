@@ -7,6 +7,7 @@ import {
   updateVendorShippingRegions,
   type VendorActionState,
 } from "@/lib/vendors/actions";
+import { isSourcingRegionUuid } from "@/lib/sourcing/constants";
 import type { SourcingRegion, Vendor } from "@/lib/types/database";
 
 const initialState: VendorActionState = null;
@@ -22,6 +23,10 @@ function ShippingRegionsFormFields({ vendor, regions }: ShippingRegionsFormProps
     initialState,
   );
   const selected = new Set(vendor.ships_to_region_ids ?? []);
+  // Only persisted uuids — never offline empty / placeholder ids.
+  const selectableRegions = regions.filter((region) =>
+    isSourcingRegionUuid(region.id),
+  );
 
   return (
     <form action={formAction} className="max-w-xl space-y-5">
@@ -30,7 +35,7 @@ function ShippingRegionsFormFields({ vendor, regions }: ShippingRegionsFormProps
         worldwide. Buyers outside your selection will not see your products.
       </p>
 
-      {regions.length === 0 ? (
+      {selectableRegions.length === 0 ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           No sourcing regions are available yet. Ask an admin to seed regions,
           or leave this blank for worldwide shipping.
@@ -41,7 +46,7 @@ function ShippingRegionsFormFields({ vendor, regions }: ShippingRegionsFormProps
             Ships to regions
           </legend>
           <div className="grid gap-2 sm:grid-cols-2">
-            {regions.map((region) => (
+            {selectableRegions.map((region) => (
               <label
                 key={region.id}
                 className="flex items-start gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700 hover:border-zinc-300"
@@ -86,7 +91,7 @@ function ShippingRegionsFormFields({ vendor, regions }: ShippingRegionsFormProps
 
       <button
         type="submit"
-        disabled={pending || regions.length === 0}
+        disabled={pending || selectableRegions.length === 0}
         className="rounded-lg bg-zinc-950 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
       >
         {pending ? "Saving…" : "Save shipping regions"}

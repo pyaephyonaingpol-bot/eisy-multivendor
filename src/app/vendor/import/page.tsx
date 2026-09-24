@@ -145,12 +145,16 @@ export default async function VendorImportPage() {
       </div>
 
       <UnifiedSupplierSourcingCatalog
-        regions={regions.map((region) => ({
-          id: region.id,
-          code: region.code,
-          name: region.name,
-          is_default: region.is_default,
-        }))}
+        regions={regions
+          .filter((region) => region.code)
+          .map((region) => ({
+            // Prefer persisted uuid; fall back to code for React keys only —
+            // catalog search uses `code`, never writes `id` to Postgres.
+            id: region.id || region.code,
+            code: region.code,
+            name: region.name,
+            is_default: region.is_default,
+          }))}
         importDisabled={quota?.at_import_limit ?? false}
         quota={quotaHints}
       />

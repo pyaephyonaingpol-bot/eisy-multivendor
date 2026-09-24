@@ -10,6 +10,7 @@ import {
   DEFAULT_BUYER_COUNTRY,
   matchRegionCodeForCountry,
   normalizeCountryCode,
+  sanitizeSourcingRegionIds,
 } from "@/lib/sourcing/constants";
 import {
   getBuyerSourcingContext,
@@ -136,9 +137,9 @@ export async function updateVendorShippingRegionsApi(input: {
     };
   }
 
-  const regionIds = (input.ships_to_region_ids ?? [])
-    .map((value) => String(value).trim())
-    .filter((value) => /^[0-9a-f-]{36}$/i.test(value));
+  const regionIds = sanitizeSourcingRegionIds(
+    input.ships_to_region_ids ?? [],
+  );
 
   const supabase = await createClient();
   let shipsToRegionIds = regionIds;

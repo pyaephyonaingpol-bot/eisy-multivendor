@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
+import { sanitizeSourcingRegionIds } from "@/lib/sourcing/constants";
 import { collectLogoFile, uploadVendorLogo } from "@/lib/vendors/branding";
 import { collectKycDocumentFile, uploadVendorKycDocument } from "@/lib/vendors/kyc";
 import { getVendorForOwner } from "@/lib/vendors/queries";
@@ -542,10 +543,9 @@ export async function updateVendorShippingRegions(
   _prev: VendorActionState,
   formData: FormData,
 ): Promise<VendorActionState> {
-  const regionIds = formData
-    .getAll("ships_to_region_ids")
-    .map((value) => String(value).trim())
-    .filter((value) => /^[0-9a-f-]{36}$/i.test(value));
+  const regionIds = sanitizeSourcingRegionIds(
+    formData.getAll("ships_to_region_ids").map((value) => String(value).trim()),
+  );
 
   const supabase = await createClient();
   const {

@@ -9,6 +9,7 @@ import { getRequestLocale } from "@/lib/i18n/locale";
 import { getVendorImportQuota } from "@/lib/import-limits/queries";
 import { listCjImportedProductsForVendor } from "@/lib/products/queries";
 import { listSourcingRegions } from "@/lib/sourcing/queries";
+import { isSourcingRegionUuid } from "@/lib/sourcing/constants";
 import { getVendorForOwner } from "@/lib/vendors/queries";
 
 export const dynamic = "force-dynamic";
@@ -41,8 +42,8 @@ export default async function VendorSourcingIndexPage() {
     getRequestLocale(),
   ]);
   const t = getDictionary(locale);
-  const selectableRegions = regions.filter(
-    (region) => !region.id.startsWith("fallback-"),
+  const selectableRegions = regions.filter((region) =>
+    isSourcingRegionUuid(region.id),
   );
 
   const quotaHints = quota
@@ -89,12 +90,16 @@ export default async function VendorSourcingIndexPage() {
       </section>
 
       <UnifiedSupplierSourcingCatalog
-        regions={regions.map((region) => ({
-          id: region.id,
-          code: region.code,
-          name: region.name,
-          is_default: region.is_default,
-        }))}
+        regions={regions
+          .filter((region) => region.code)
+          .map((region) => ({
+            // Prefer persisted uuid; fall back to code for React keys only —
+            // catalog search uses `code`, never writes `id` to Postgres.
+            id: region.id || region.code,
+            code: region.code,
+            name: region.name,
+            is_default: region.is_default,
+          }))}
         importDisabled={quota?.at_import_limit ?? false}
         quota={quotaHints}
       />

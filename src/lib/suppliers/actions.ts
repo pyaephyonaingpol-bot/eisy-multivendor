@@ -12,7 +12,10 @@ import {
 } from "@/lib/suppliers";
 import { ensureCjProductVariants } from "@/lib/suppliers/cj";
 import { loadPlatformSupplierContext } from "@/lib/suppliers/platform-credentials";
-import { DEFAULT_CJ_SOURCING_REGION } from "@/lib/sourcing/constants";
+import {
+  DEFAULT_CJ_SOURCING_REGION,
+  sanitizeSourcingRegionId,
+} from "@/lib/sourcing/constants";
 import {
   toClientCatalogProducts,
   toImportSourcePayload,
@@ -970,15 +973,16 @@ export async function importExternalSupplierProductAction(
       .eq("code", regionCode)
       .maybeSingle();
 
-    const regionId =
+    const regionId = sanitizeSourcingRegionId(
       region?.id ??
-      (
-        await supabase
-          .from("sourcing_regions")
-          .select("id")
-          .eq("is_default", true)
-          .maybeSingle()
-      ).data?.id;
+        (
+          await supabase
+            .from("sourcing_regions")
+            .select("id")
+            .eq("is_default", true)
+            .maybeSingle()
+        ).data?.id,
+    );
 
     if (regionId) {
       await supabase.from("product_supplier_routes").upsert(

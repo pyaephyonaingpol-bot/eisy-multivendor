@@ -8,6 +8,7 @@ import {
   type SupplierRouteFormState,
 } from "@/lib/sourcing/actions";
 import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
+import { isSourcingRegionUuid } from "@/lib/sourcing/constants";
 import type {
   ProductSupplierRoute,
   SourcingRegion,
@@ -41,6 +42,10 @@ export function SupplierRoutesManager({
   providers,
   isDropshipListing = false,
 }: SupplierRoutesManagerProps) {
+  // Only persisted uuids can be written to product_supplier_routes.region_id.
+  const selectableRegions = regions.filter((region) =>
+    isSourcingRegionUuid(region.id),
+  );
   const [upsertState, upsertAction, upsertPending] = useActionState(
     upsertProductSupplierRouteAction,
     initialState,
@@ -163,9 +168,13 @@ export function SupplierRoutesManager({
               name="region_id"
               required
               className={fieldClassName}
-              defaultValue={regions[0]?.id}
+              defaultValue={selectableRegions[0]?.id}
+              disabled={selectableRegions.length === 0}
             >
-              {regions.map((region) => (
+              {selectableRegions.length === 0 ? (
+                <option value="">No saved regions available</option>
+              ) : null}
+              {selectableRegions.map((region) => (
                 <option key={region.id} value={region.id}>
                   {region.name} ({region.code})
                 </option>

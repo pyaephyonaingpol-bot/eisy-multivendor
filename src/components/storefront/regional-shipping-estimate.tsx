@@ -45,6 +45,9 @@ export function RegionalShippingEstimate({
         Delivers to {destination}
         {eta ? ` · ${eta}` : ""}
       </p>
+      <p className="text-xs text-zinc-500">
+        Based on your delivery address or profile country.
+      </p>
       <p className="text-zinc-600">
         Estimated shipping:{" "}
         <span className="font-medium text-zinc-950">

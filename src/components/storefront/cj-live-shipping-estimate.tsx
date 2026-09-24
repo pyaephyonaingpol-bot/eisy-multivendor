@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { RegionalShippingEstimate } from "@/components/storefront/regional-shipping-estimate";
-import { BuyerCountrySelect } from "@/components/storefront/buyer-country-select";
 import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
-import { setBuyerSourcingPreference } from "@/lib/sourcing/actions";
+import { countryLabelForCode } from "@/lib/sourcing/countries";
 import type { ResolvedSupplierRoute } from "@/lib/types/database";
 
 type Method = {
@@ -40,32 +40,35 @@ type QuoteState =
 
 type CjLiveShippingEstimateProps = {
   productId: string;
+  /** Destination from the buyer's default address or profile country. */
   countryCode: string;
   regionName: string;
   route: ResolvedSupplierRoute | null;
   /** When false, only show the static regional estimate (non-CJ listings). */
   enableLiveCj?: boolean;
+  /** True when country came from a signed-in address/profile (not guest default). */
+  fromProfile?: boolean;
+  isAuthenticated?: boolean;
 };
 
-const fieldClassName =
-  "w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-950";
-
 /**
- * Buyer-facing shipping options. Uses live freight under the hood but does not
- * expose supplier/warehouse/routing internals on the product page.
+ * Buyer-facing shipping options. Destination is always the customer's
+ * registered address / profile country — no manual country picker on PDP.
  */
 export function CjLiveShippingEstimate({
   productId,
-  countryCode: initialCountry,
+  countryCode,
   regionName,
   route,
   enableLiveCj = true,
+  fromProfile = false,
+  isAuthenticated = false,
 }: CjLiveShippingEstimateProps) {
-  const [country, setCountry] = useState(initialCountry || "MM");
+  const destinationCode = (countryCode || "MM").trim().toUpperCase() || "MM";
+  const destinationLabel = countryLabelForCode(destinationCode);
   const [quote, setQuote] = useState<QuoteState>(
     enableLiveCj ? { status: "loading" } : { status: "skipped" },
   );
-  const [, startTransition] = useTransition();
 
   useEffect(() => {
     if (!enableLiveCj || !productId) {
@@ -81,7 +84,7 @@ export function CjLiveShippingEstimate({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            country,
+            country: destinationCode,
             includeAvailability: true,
             items: [{ product_id: productId, quantity: 1 }],
           }),
@@ -116,11 +119,11 @@ export function CjLiveShippingEstimate({
             error:
               data.error?.includes("does not ship") ||
               data.error?.toLowerCase().includes("location")
-                ? "This item cannot be delivered to the selected country. Try another destination."
-                : "Shipping is unavailable for the selected country.",
+                ? `This item cannot be delivered to ${destinationLabel}. Update your delivery address to see other options.`
+                : `Shipping is unavailable for ${destinationLabel}.`,
             methods: data.methods ?? [],
             availability,
-            countryCode: data.countryCode ?? country,
+            countryCode: data.countryCode ?? destinationCode,
           });
           return;
         }
@@ -129,7 +132,7 @@ export function CjLiveShippingEstimate({
           status: "ok",
           methods: data.methods ?? [],
           availability,
-          countryCode: data.countryCode ?? country,
+          countryCode: data.countryCode ?? destinationCode,
         });
       } catch (error) {
         if (controller.signal.aborted) return;
@@ -138,7 +141,7 @@ export function CjLiveShippingEstimate({
           error:
             error instanceof Error
               ? error.message
-              : "Could not load shipping options for this country.",
+              : `Could not load shipping options for ${destinationLabel}.`,
         });
       }
     }, 220);
@@ -147,20 +150,13 @@ export function CjLiveShippingEstimate({
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [country, productId, enableLiveCj]);
-
-  function onCountryChange(next: string) {
-    setCountry(next);
-    startTransition(() => {
-      void setBuyerSourcingPreference(next);
-    });
-  }
+  }, [destinationCode, destinationLabel, productId, enableLiveCj]);
 
   if (!enableLiveCj || quote.status === "skipped") {
     return (
       <RegionalShippingEstimate
         route={route}
-        countryCode={country}
+        countryCode={destinationCode}
         regionName={regionName}
       />
     );
@@ -171,25 +167,30 @@ export function CjLiveShippingEstimate({
       <div className="space-y-0.5">
         <p className="font-medium text-zinc-950">Shipping</p>
         <p className="text-xs text-zinc-500">
-          Choose a delivery country to see available options and costs.
+          Options and costs are calculated for your delivery country
+          automatically.
         </p>
       </div>
 
-      <div className="space-y-1.5">
-        <label
-          htmlFor="buyer-ship-country"
-          className="text-xs font-medium text-zinc-600"
-        >
-          Deliver to
-        </label>
-        <BuyerCountrySelect
-          id="buyer-ship-country"
-          name="buyer_ship_country"
-          value={country}
-          onChange={onCountryChange}
-          className={fieldClassName}
-          aria-label="Deliver to"
-        />
+      <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
+        <p className="text-xs font-medium text-zinc-600">Deliver to</p>
+        <p className="mt-0.5 font-medium text-zinc-950">
+          {destinationLabel}{" "}
+          <span className="font-normal text-zinc-500">({destinationCode})</span>
+        </p>
+        <p className="mt-1 text-xs text-zinc-500">
+          {fromProfile
+            ? "Based on your default address or profile country."
+            : isAuthenticated
+              ? "Add a delivery address or set your country in Profile to personalize estimates."
+              : "Sign in and save a delivery address for accurate shipping estimates."}{" "}
+          <Link
+            href={isAuthenticated ? "/profile" : "/login?next=/profile"}
+            className="font-medium text-zinc-800 underline"
+          >
+            {isAuthenticated ? "Update in Profile" : "Sign in"}
+          </Link>
+        </p>
       </div>
 
       {quote.status === "loading" ? (
@@ -205,8 +206,7 @@ export function CjLiveShippingEstimate({
         >
           <p className="font-medium">Shipping options unavailable</p>
           <p className="mt-1 text-xs">
-            Try another country, or continue — checkout will confirm shipping
-            before payment.
+            Checkout will confirm shipping for your address before payment.
           </p>
         </div>
       ) : null}
@@ -236,9 +236,7 @@ export function CjLiveShippingEstimate({
                 <div className="min-w-0">
                   <p className="font-medium text-zinc-950">{method.name}</p>
                   {method.days ? (
-                    <p className="text-xs text-zinc-500">
-                      {method.days} days
-                    </p>
+                    <p className="text-xs text-zinc-500">{method.days} days</p>
                   ) : null}
                 </div>
                 <p className="shrink-0 font-medium text-zinc-950">

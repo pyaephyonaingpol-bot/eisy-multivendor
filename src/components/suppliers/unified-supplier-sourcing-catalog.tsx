@@ -80,8 +80,8 @@ function catalogItemKey(product: ExternalCatalogProduct) {
   return `${product.providerKind}:${product.externalProductId}`;
 }
 
-/** Client-side catalog fetch budget (covers CJ synonym fan-out + queue). */
-const CATALOG_FETCH_TIMEOUT_MS = 40_000;
+/** Client-side catalog fetch budget — fail fast with a clear message. */
+const CATALOG_FETCH_TIMEOUT_MS = 15_000;
 
 function matchesSourceTab(
   product: ExternalCatalogProduct,
@@ -116,8 +116,10 @@ export function UnifiedSupplierSourcingCatalog({
     null,
   );
   const [previewSuccess, setPreviewSuccess] = useState<string | null>(null);
-  const [pendingSearch, startSearch] = useTransition();
-  const [pendingMore, startLoadMore] = useTransition();
+  // Explicit searching flag — useTransition can leave "Searching…" visible too
+  // long while React keeps the transition pending around a slow fetch.
+  const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [pendingBulk, startBulkImport] = useTransition();
   const [hasSearched, setHasSearched] = useState(false);
   const [page, setPage] = useState(1);
@@ -353,8 +355,10 @@ export function UnifiedSupplierSourcingCatalog({
       overrides && "categoryId" in overrides
         ? overrides.categoryId
         : categoryId;
-    const run = append ? startLoadMore : startSearch;
-    const controller = append ? new AbortController() : (searchAbortRef.current ?? new AbortController());
+    const run = append ? setIsLoadingMore : setIsSearching;
+    const controller = append
+      ? new AbortController()
+      : (searchAbortRef.current ?? new AbortController());
     if (!append) {
       searchAbortRef.current = controller;
     }
@@ -363,7 +367,8 @@ export function UnifiedSupplierSourcingCatalog({
       timedOut = true;
       controller.abort();
     }, CATALOG_FETCH_TIMEOUT_MS);
-    run(async () => {
+    run(true);
+    void (async () => {
       try {
         // CJ-only catalog while other suppliers are Coming Soon.
         const params = new URLSearchParams({
@@ -451,12 +456,15 @@ export function UnifiedSupplierSourcingCatalog({
         setHasSearched(true);
       } finally {
         window.clearTimeout(timeoutId);
+        if (requestId === searchRequestIdRef.current) {
+          run(false);
+        }
       }
-    });
+    })();
   }
 
   function loadMore() {
-    if (!hasMore || pendingSearch || pendingMore) return;
+    if (!hasMore || isSearching || isLoadingMore) return;
     runSearch(page + 1, true);
   }
 
@@ -564,10 +572,10 @@ export function UnifiedSupplierSourcingCatalog({
             setCategoryId(null);
             runSearch(1, false, { categoryId: null });
           }}
-          disabled={!isMounted || pendingSearch}
+          disabled={!isMounted || isSearching}
           className="min-h-11 w-full rounded-lg bg-zinc-950 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 sm:col-span-2 lg:col-span-1 lg:w-auto"
         >
-          {pendingSearch ? t("sourcing.searching") : t("sourcing.searchButton")}
+          {isSearching ? t("sourcing.searching") : t("sourcing.searchButton")}
         </button>
       </div>
 
@@ -580,7 +588,7 @@ export function UnifiedSupplierSourcingCatalog({
             <button
               type="button"
               onClick={() => selectCategory(null)}
-              disabled={pendingSearch || pendingMore}
+              disabled={isSearching || isLoadingMore}
               className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium ${
                 !categoryId
                   ? "border-zinc-900 bg-zinc-900 text-white"
@@ -594,7 +602,7 @@ export function UnifiedSupplierSourcingCatalog({
                 key={category.id}
                 type="button"
                 onClick={() => selectCategory(category.id)}
-                disabled={pendingSearch || pendingMore}
+                disabled={isSearching || isLoadingMore}
                 className={`max-w-full truncate rounded-lg border px-2.5 py-1.5 text-xs font-medium ${
                   categoryId === category.id
                     ? "border-zinc-900 bg-zinc-900 text-white"
@@ -609,9 +617,23 @@ export function UnifiedSupplierSourcingCatalog({
       ) : null}
 
       {error ? (
-        <p className="text-sm text-red-600" role="alert">
-          {error}
-        </p>
+        <div
+          className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-950 sm:flex-row sm:items-center sm:justify-between sm:px-4"
+          role="alert"
+        >
+          <p className="min-w-0 break-words">{error}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setCategoryId(null);
+              runSearch(1, false, { categoryId: null });
+            }}
+            disabled={isSearching}
+            className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-950 hover:bg-amber-100 disabled:opacity-60"
+          >
+            {t("sourcing.searchButton")}
+          </button>
+        </div>
       ) : null}
       {previewSuccess ? (
         <p className="text-sm text-emerald-700">{previewSuccess}</p>
@@ -841,10 +863,10 @@ export function UnifiedSupplierSourcingCatalog({
           <button
             type="button"
             onClick={loadMore}
-            disabled={pendingMore || pendingSearch}
+            disabled={isLoadingMore || isSearching}
             className="min-h-11 w-full max-w-xs rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
           >
-            {pendingMore ? t("sourcing.loadingMore") : t("sourcing.loadMore")}
+            {isLoadingMore ? t("sourcing.loadingMore") : t("sourcing.loadMore")}
           </button>
         </div>
       ) : hasSearched && catalog.length > 0 ? (

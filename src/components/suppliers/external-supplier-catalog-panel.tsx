@@ -15,6 +15,11 @@ import {
   SupplierProductPreviewModal,
   type PreviewQuotaHints,
 } from "@/components/suppliers/supplier-product-preview-modal";
+import {
+  DEFAULT_IMPORT_SHIPPING_COUNTRY,
+  IMPORT_SHIPPING_TARGET_COUNTRIES,
+  suggestedImportSellPrice,
+} from "@/lib/suppliers/shipping-buffer";
 
 const initialState: ExternalImportState = null;
 
@@ -27,8 +32,15 @@ type Props = {
   quota?: ImportQuotaHints | null;
 };
 
-function defaultSellPrice(supplierCost: number) {
-  return Number((supplierCost * ONE_CLICK_IMPORT_MARKUP).toFixed(2));
+function defaultSellPrice(
+  product: ExternalCatalogProduct,
+  shippingCountry: string,
+) {
+  return suggestedImportSellPrice(
+    product.priceUsdt,
+    product,
+    shippingCountry,
+  ).sellPrice;
 }
 
 const fallbackQuota: PreviewQuotaHints = {
@@ -49,6 +61,9 @@ export function ExternalSupplierCatalogPanel({
   quota = null,
 }: Props) {
   const [query, setQuery] = useState("");
+  const [shippingCountry, setShippingCountry] = useState(
+    DEFAULT_IMPORT_SHIPPING_COUNTRY,
+  );
   const [products, setProducts] = useState<ExternalCatalogProduct[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [customPriceFor, setCustomPriceFor] = useState<string | null>(null);
@@ -119,19 +134,34 @@ export function ExternalSupplierCatalogPanel({
           Search the {providerLabel} catalog, open <strong>Preview</strong> to review
           images, variants, and description, then <strong>Import to Store</strong>.
           One-click listing uses a default{" "}
-          {Math.round((ONE_CLICK_IMPORT_MARKUP - 1) * 100)}% markup. Imports respect
+          {Math.round((ONE_CLICK_IMPORT_MARKUP - 1) * 100)}% markup plus an
+          estimated shipping buffer for your target country. Imports respect
           your max catalog cap ({maxImports}) and the {minActive}-item monthly fee
           floor.
         </p>
       </div>
 
-      <div className="flex w-full max-w-full flex-col gap-2 sm:flex-row">
+      <div className="flex w-full max-w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search products"
           className="w-full min-w-0 max-w-full flex-1 rounded-lg border border-zinc-200 px-3 py-2.5 text-base sm:py-2"
         />
+        <label className="min-w-0 text-xs font-medium text-zinc-600 sm:w-44">
+          Price for country
+          <select
+            value={shippingCountry}
+            onChange={(event) => setShippingCountry(event.target.value)}
+            className="mt-1 block w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-base sm:py-2"
+          >
+            {IMPORT_SHIPPING_TARGET_COUNTRIES.map((country) => (
+              <option key={country.code} value={country.code}>
+                {country.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <button
           type="button"
           onClick={runSearch}
@@ -185,7 +215,12 @@ export function ExternalSupplierCatalogPanel({
       ) : (
         <ul className="grid w-full max-w-full grid-cols-1 gap-3">
           {products.map((product) => {
-            const suggested = defaultSellPrice(product.priceUsdt);
+            const suggested = defaultSellPrice(product, shippingCountry);
+            const bufferUsdt = suggestedImportSellPrice(
+              product.priceUsdt,
+              product,
+              shippingCountry,
+            ).bufferUsdt;
             const showCustom = customPriceFor === product.externalProductId;
             return (
               <li
@@ -228,6 +263,12 @@ export function ExternalSupplierCatalogPanel({
                       One-click lists at{" "}
                       {formatMoney(suggested, MARKETPLACE_CURRENCY)}
                     </p>
+                    {bufferUsdt > 0 ? (
+                      <p className="text-[11px] text-zinc-500">
+                        Incl. ~{formatMoney(bufferUsdt, MARKETPLACE_CURRENCY)}{" "}
+                        ship buffer → {shippingCountry}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
@@ -248,6 +289,11 @@ export function ExternalSupplierCatalogPanel({
                         value={product.externalProductId}
                       />
                       <input type="hidden" name="region_code" value="GLOBAL" />
+                      <input
+                        type="hidden"
+                        name="shipping_country"
+                        value={shippingCountry}
+                      />
                       <input type="hidden" name="one_click" value="1" />
                       <input type="hidden" name="disable_compare_at" value="1" />
                       <button
@@ -292,6 +338,11 @@ export function ExternalSupplierCatalogPanel({
                         value={product.externalProductId}
                       />
                       <input type="hidden" name="region_code" value="GLOBAL" />
+                      <input
+                        type="hidden"
+                        name="shipping_country"
+                        value={shippingCountry}
+                      />
                       <label className="min-w-0 flex-1 text-xs text-zinc-600">
                         Sell price (USDT)
                         <input
@@ -327,6 +378,7 @@ export function ExternalSupplierCatalogPanel({
           providerKind={providerKind}
           externalProductId={previewId}
           regionCode="GLOBAL"
+          shippingCountry={shippingCountry}
           quota={previewQuota}
           seedProduct={previewProduct}
           onImported={({ productId, success }) => {

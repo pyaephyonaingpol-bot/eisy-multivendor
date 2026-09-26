@@ -13,6 +13,7 @@ import {
   extractCjDescription,
   extractCjSpecifications,
 } from "@/lib/suppliers/cj-catalog-mapping";
+import { parseCjWeightGrams } from "@/lib/suppliers/shipping-buffer";
 
 const CJ_API_BASE =
   process.env.CJ_API_BASE?.trim() ||
@@ -109,6 +110,7 @@ function mockCatalog(query: string, page = 1): ExternalCatalogProduct[] {
       compareAtPriceUsdt: Number((7 + (n % 12) * 1.5).toFixed(2)),
       stockQuantity: 50 * stockFactor,
       warehouseCountry: "CN",
+      weightGrams: 120 + (n % 9) * 50,
       shippingDaysMin: 5,
       shippingDaysMax: 15,
       specifications: [
@@ -1163,6 +1165,7 @@ function mapCjProduct(row: Record<string, unknown>): ExternalCatalogProduct {
   const category = extractCjCategoryHint(row);
   const specifications = extractCjSpecifications(row);
   const description = extractCjDescription(row, title);
+  const weightGrams = parseCjWeightGrams(row);
 
   return {
     providerKind: "cj_dropshipping",
@@ -1183,6 +1186,7 @@ function mapCjProduct(row: Record<string, unknown>): ExternalCatalogProduct {
     compareAtPriceUsdt: pickCjCompareAtPriceUsdt(row, priceUsdt),
     stockQuantity,
     warehouseCountry: pickCjWarehouseCountry(row),
+    weightGrams,
     shippingDaysMin: 5,
     shippingDaysMax: 18,
     variants: variants.length > 0 ? variants : undefined,

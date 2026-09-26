@@ -34,6 +34,7 @@ import {
   warehouseCountryToRegionCodes,
   type BulkExternalImportItem,
   type BulkExternalImportResult,
+  type SupplierCredentials,
 } from "@/lib/suppliers/types";
 import { createClient } from "@/lib/supabase/server";
 import { getVendorForOwner, isVendorKycApproved } from "@/lib/vendors/queries";
@@ -43,6 +44,12 @@ import {
   normalizeProductSpecifications,
 } from "@/lib/products/specifications";
 import { matchMarketplaceCategoryId } from "@/lib/suppliers/cj-catalog-mapping";
+import {
+  estimateImportShippingBuffer,
+  normalizeImportShippingCountry,
+  regionCodeToShippingCountry,
+  sellPriceWithShippingBuffer,
+} from "@/lib/suppliers/shipping-buffer";
 import type { ProductSpecification } from "@/lib/types/database";
 
 export type SupplierCredentialState = {
@@ -384,10 +391,18 @@ async function upsertCjImportedProductRegistry(args: {
   }
 }
 
-function resolveImportSellPrice(
-  formData: FormData,
-  supplierCostUsdt: number,
-): { price: number; oneClick: boolean } | { error: string } {
+async function resolveImportSellPrice(args: {
+  formData: FormData;
+  supplierCostUsdt: number;
+  remote: ExternalCatalogProduct;
+  variantId: string | null;
+  regionCode: string;
+  credentials?: SupplierCredentials | null;
+}): Promise<
+  | { price: number; oneClick: boolean; shippingBufferUsdt: number }
+  | { error: string }
+> {
+  const { formData, supplierCostUsdt, remote, variantId, regionCode } = args;
   const oneClickFlag =
     String(formData.get("one_click") ?? "").trim() === "1" ||
     String(formData.get("one_click") ?? "").trim() === "true";
@@ -397,11 +412,34 @@ function resolveImportSellPrice(
   const parsed = rawPrice === "" ? NaN : Number(rawPrice);
   const safeCost = sanitizeUsdtPrice(supplierCostUsdt);
 
+  const shippingCountry = normalizeImportShippingCountry(
+    String(
+      formData.get("shipping_country") ??
+        formData.get("target_country") ??
+        "",
+    ).trim() || regionCodeToShippingCountry(regionCode),
+  );
+
+  let shippingBufferUsdt = 0;
+  try {
+    const estimate = await estimateImportShippingBuffer({
+      product: remote,
+      destinationCountry: shippingCountry,
+      credentials: args.credentials ?? null,
+      variantId,
+    });
+    shippingBufferUsdt = estimate.bufferUsdt;
+  } catch {
+    shippingBufferUsdt = 0;
+  }
+
   // Explicit sell price from preview / custom-price forms wins over one-click markup.
+  // Preview already bakes the shipping buffer into the suggested price field.
   if (Number.isFinite(parsed) && parsed > 0) {
     return {
       price: sanitizeUsdtPrice(parsed),
       oneClick: oneClickFlag && rawPrice === "",
+      shippingBufferUsdt,
     };
   }
 
@@ -410,13 +448,23 @@ function resolveImportSellPrice(
   }
 
   if (oneClickFlag) {
-    const price = sanitizeUsdtPrice(safeCost * ONE_CLICK_IMPORT_MARKUP, safeCost);
-    return { price, oneClick: true };
+    const price = sanitizeUsdtPrice(
+      sellPriceWithShippingBuffer(safeCost, shippingBufferUsdt),
+      safeCost,
+    );
+    return { price, oneClick: true, shippingBufferUsdt };
   }
 
-  // Last resort: use supplier cost so NOT NULL price_usdt/price never receive null.
+  // Last resort: cost + shipping buffer so NOT NULL price columns never get null.
   if (safeCost > 0) {
-    return { price: safeCost, oneClick: false };
+    return {
+      price: sanitizeUsdtPrice(
+        sellPriceWithShippingBuffer(safeCost, shippingBufferUsdt, 1),
+        safeCost,
+      ),
+      oneClick: false,
+      shippingBufferUsdt,
+    };
   }
 
   return { error: "Enter a sell price greater than zero." };
@@ -758,11 +806,18 @@ export async function importExternalSupplierProductAction(
   }
 
   const listing = resolveImportListingCopy(formData, remote);
-  const priced = resolveImportSellPrice(formData, variant.supplierCostUsdt);
+  const priced = await resolveImportSellPrice({
+    formData,
+    supplierCostUsdt: variant.supplierCostUsdt,
+    remote,
+    variantId: variant.externalVariantId,
+    regionCode,
+    credentials: linked?.credentials ?? null,
+  });
   if ("error" in priced) {
     return { error: priced.error };
   }
-  const { price: sellPrice, oneClick } = priced;
+  const { price: sellPrice, oneClick, shippingBufferUsdt } = priced;
   const minCost = sanitizeUsdtPrice(variant.supplierCostUsdt);
   const compareAtPriceUsdt = resolveImportCompareAtPrice(
     formData,
@@ -1209,8 +1264,16 @@ export async function importExternalSupplierProductAction(
       ? ` Imported ${variantCount} color/size options under one listing.`
       : "";
   const priceNote = oneClick
-    ? ` Listed at ${sellPrice.toFixed(2)} USDT (${Math.round((ONE_CLICK_IMPORT_MARKUP - 1) * 100)}% markup).`
-    : ` Listed at ${sellPrice.toFixed(2)} USDT after preview review.`;
+    ? ` Listed at ${sellPrice.toFixed(2)} USDT (${Math.round((ONE_CLICK_IMPORT_MARKUP - 1) * 100)}% markup${
+        shippingBufferUsdt > 0
+          ? ` + ${shippingBufferUsdt.toFixed(2)} USDT shipping buffer`
+          : ""
+      }).`
+    : ` Listed at ${sellPrice.toFixed(2)} USDT after preview review${
+        shippingBufferUsdt > 0
+          ? ` (shipping buffer est. ${shippingBufferUsdt.toFixed(2)} USDT)`
+          : ""
+      }.`;
   const isCjImport = kind === "cj_dropshipping";
   const quotaNote = isCjImport
     ? activeAfter < minActive
@@ -1233,6 +1296,8 @@ export async function importExternalSupplierProductAction(
 export async function bulkImportExternalSupplierProductsAction(args: {
   items: BulkExternalImportItem[];
   regionCode?: string;
+  /** ISO country for shipping-buffer pricing (e.g. AE). */
+  shippingCountry?: string;
   /** When true, keep supplier compare-at / suggested strikethrough prices. */
   includeComparePrice?: boolean;
 }): Promise<BulkExternalImportResult> {
@@ -1250,6 +1315,9 @@ export async function bulkImportExternalSupplierProductsAction(args: {
   const regionCode =
     (args.regionCode ?? DEFAULT_CJ_SOURCING_REGION).trim() ||
     DEFAULT_CJ_SOURCING_REGION;
+  const shippingCountry = normalizeImportShippingCountry(
+    args.shippingCountry || regionCodeToShippingCountry(regionCode),
+  );
 
   const seen = new Set<string>();
   const items: BulkExternalImportItem[] = [];
@@ -1288,6 +1356,7 @@ export async function bulkImportExternalSupplierProductsAction(args: {
     formData.set("provider_kind", item.providerKind);
     formData.set("external_product_id", item.externalProductId);
     formData.set("region_code", regionCode);
+    formData.set("shipping_country", shippingCountry);
     formData.set("one_click", "1");
     if (!includeCompare) {
       formData.set("disable_compare_at", "1");

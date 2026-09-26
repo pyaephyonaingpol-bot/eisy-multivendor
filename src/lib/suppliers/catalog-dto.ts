@@ -102,6 +102,7 @@ export function toImportSourcePayload(
     compareAtPriceUsdt: product.compareAtPriceUsdt,
     stockQuantity: product.stockQuantity,
     warehouseCountry: product.warehouseCountry,
+    weightGrams: product.weightGrams ?? null,
     shippingDaysMin: product.shippingDaysMin,
     shippingDaysMax: product.shippingDaysMax,
     variants: slimVariants(product.variants),

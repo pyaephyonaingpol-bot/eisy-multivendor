@@ -21,6 +21,15 @@ import { ONE_CLICK_IMPORT_MARKUP } from "@/lib/suppliers/types";
 import { normalizeClientCatalogProduct } from "@/lib/suppliers/client-catalog";
 import { MARKETPLACE_CURRENCY, formatMoney } from "@/lib/money";
 import { lockBodyScroll } from "@/lib/dom/lock-body-scroll";
+import {
+  DEFAULT_IMPORT_SHIPPING_COUNTRY,
+  IMPORT_SHIPPING_TARGET_COUNTRIES,
+  normalizeImportShippingCountry,
+  regionCodeToShippingCountry,
+  sellPriceWithShippingBuffer,
+  suggestedImportSellPrice,
+  type ShippingBufferEstimate,
+} from "@/lib/suppliers/shipping-buffer";
 
 export type PreviewQuotaHints = {
   minActiveItems: number;
@@ -39,6 +48,8 @@ type Props = {
   providerKind: ExternalSupplierKind;
   externalProductId: string;
   regionCode?: string;
+  /** ISO destination country for shipping-buffer pricing (e.g. AE). */
+  shippingCountry?: string;
   quota: PreviewQuotaHints;
   seedProduct?: ExternalCatalogProduct | null;
   onImported?: (result: { productId: string; success?: string }) => void;
@@ -49,8 +60,22 @@ const initialImportState: ExternalImportState = {};
 /** Fixed thumbnail strip height so the layout does not jump when galleries load. */
 const THUMB_STRIP_CLASS = "flex h-14 max-w-full gap-2 overflow-x-auto";
 
-function suggestedSellPrice(costUsdt: number) {
-  return Math.round(costUsdt * ONE_CLICK_IMPORT_MARKUP * 100) / 100;
+function suggestedSellPrice(
+  costUsdt: number,
+  product: Pick<
+    ExternalCatalogProduct,
+    "weightGrams" | "specifications" | "raw" | "warehouseCountry"
+  > | null,
+  shippingCountry: string,
+  bufferOverride?: number | null,
+) {
+  if (bufferOverride != null && Number.isFinite(bufferOverride)) {
+    return sellPriceWithShippingBuffer(costUsdt, bufferOverride);
+  }
+  if (!product) {
+    return Math.round(costUsdt * ONE_CLICK_IMPORT_MARKUP * 100) / 100;
+  }
+  return suggestedImportSellPrice(costUsdt, product, shippingCountry).sellPrice;
 }
 
 function suggestedComparePrice(
@@ -86,6 +111,7 @@ export function SupplierProductPreviewModal({
   providerKind,
   externalProductId,
   regionCode = "GLOBAL",
+  shippingCountry: shippingCountryProp,
   quota,
   seedProduct = null,
   onImported,
@@ -104,19 +130,36 @@ export function SupplierProductPreviewModal({
   const [editDescription, setEditDescription] = useState(
     seedProduct?.description ?? "",
   );
+  const [shippingCountry, setShippingCountry] = useState(() =>
+    normalizeImportShippingCountry(
+      shippingCountryProp || regionCodeToShippingCountry(regionCode),
+    ),
+  );
+  const [shippingEstimate, setShippingEstimate] =
+    useState<ShippingBufferEstimate | null>(null);
+  const [shippingLoading, setShippingLoading] = useState(false);
   const [editPrice, setEditPrice] = useState(
     seedProduct
       ? String(
           suggestedSellPrice(
             seedProduct.variants?.[0]?.priceUsdt ?? seedProduct.priceUsdt,
+            seedProduct,
+            normalizeImportShippingCountry(
+              shippingCountryProp || regionCodeToShippingCountry(regionCode),
+            ),
           ),
         )
       : "",
   );
   const [editComparePrice, setEditComparePrice] = useState(() => {
     if (!seedProduct) return "";
+    const country = normalizeImportShippingCountry(
+      shippingCountryProp || regionCodeToShippingCountry(regionCode),
+    );
     const sell = suggestedSellPrice(
       seedProduct.variants?.[0]?.priceUsdt ?? seedProduct.priceUsdt,
+      seedProduct,
+      country,
     );
     return String(suggestedComparePrice(sell, seedProduct.compareAtPriceUsdt));
   });
@@ -137,6 +180,15 @@ export function SupplierProductPreviewModal({
 
   useEffect(() => {
     if (!open) return;
+    setShippingCountry(
+      normalizeImportShippingCountry(
+        shippingCountryProp || regionCodeToShippingCountry(regionCode),
+      ),
+    );
+  }, [open, shippingCountryProp, regionCode]);
+
+  useEffect(() => {
+    if (!open) return;
 
     let cancelled = false;
     setConfirmOpen(false);
@@ -147,6 +199,10 @@ export function SupplierProductPreviewModal({
     setShowComparePrice(false);
     setCustomizeDefault(false);
 
+    const country = normalizeImportShippingCountry(
+      shippingCountryProp || regionCodeToShippingCountry(regionCode),
+    );
+
     if (seedProduct && seedProduct.externalProductId === externalProductId) {
       setProduct(seedProduct);
       setEditName(seedProduct.name);
@@ -155,6 +211,8 @@ export function SupplierProductPreviewModal({
       setSelectedVariant(firstVariant);
       const sell = suggestedSellPrice(
         firstVariant?.priceUsdt ?? seedProduct.priceUsdt,
+        seedProduct,
+        country,
       );
       setEditPrice(String(sell));
       setEditComparePrice(
@@ -215,7 +273,11 @@ export function SupplierProductPreviewModal({
             ) ||
             variants[0] ||
             null;
-          const sell = suggestedSellPrice(preferred?.priceUsdt ?? p.priceUsdt);
+          const sell = suggestedSellPrice(
+            preferred?.priceUsdt ?? p.priceUsdt,
+            p,
+            country,
+          );
           setEditPrice(String(sell));
           setEditComparePrice(
             String(suggestedComparePrice(sell, p.compareAtPriceUsdt)),
@@ -243,7 +305,128 @@ export function SupplierProductPreviewModal({
       controller.abort();
       window.clearTimeout(timeoutId);
     };
-  }, [open, providerKind, externalProductId, seedProduct]);
+  }, [
+    open,
+    providerKind,
+    externalProductId,
+    seedProduct,
+    shippingCountryProp,
+    regionCode,
+  ]);
+
+  // Live CJ freight (or weight-bracket fallback) → bake buffer into sell price.
+  useEffect(() => {
+    if (!open || !product) {
+      setShippingEstimate(null);
+      return;
+    }
+
+    let cancelled = false;
+    const controller = new AbortController();
+    const costUsdt = selectedVariant?.priceUsdt ?? product.priceUsdt;
+    const vid =
+      selectedVariant?.externalVariantId ?? product.externalVariantId ?? "";
+
+    setShippingLoading(true);
+    void (async () => {
+      try {
+        const params = new URLSearchParams({
+          provider: providerKind,
+          id: product.externalProductId,
+          country: shippingCountry,
+          cost: String(costUsdt),
+        });
+        if (vid) params.set("variantId", vid);
+        const timeoutId = window.setTimeout(() => controller.abort(), 12_000);
+        const res = await fetch(
+          `/api/suppliers/shipping-buffer?${params}`,
+          { signal: controller.signal },
+        );
+        window.clearTimeout(timeoutId);
+        const data = (await res.json()) as {
+          ok?: boolean;
+          estimate?: ShippingBufferEstimate;
+          suggestedSellPrice?: number;
+          error?: string;
+        };
+        if (cancelled) return;
+        if (!res.ok || !data.estimate) {
+          // Fall back to client weight brackets.
+          const local = suggestedImportSellPrice(
+            costUsdt,
+            product,
+            shippingCountry,
+          );
+          setShippingEstimate({
+            destinationCountry: shippingCountry,
+            warehouseCountry: product.warehouseCountry ?? "CN",
+            weightGrams: product.weightGrams ?? null,
+            freightUsdt: local.bufferUsdt / (1 + 0.1),
+            bufferUsdt: local.bufferUsdt,
+            source: "weight_bracket",
+            methodName: null,
+            error: data.error,
+          });
+          setEditPrice(String(local.sellPrice));
+          if (showComparePrice) {
+            setEditComparePrice(
+              String(
+                suggestedComparePrice(
+                  local.sellPrice,
+                  product.compareAtPriceUsdt,
+                ),
+              ),
+            );
+          }
+          return;
+        }
+        setShippingEstimate(data.estimate);
+        const sell =
+          data.suggestedSellPrice ??
+          sellPriceWithShippingBuffer(costUsdt, data.estimate.bufferUsdt);
+        setEditPrice(String(sell));
+        if (showComparePrice) {
+          setEditComparePrice(
+            String(suggestedComparePrice(sell, product.compareAtPriceUsdt)),
+          );
+        }
+      } catch {
+        if (cancelled) return;
+        const local = suggestedImportSellPrice(
+          costUsdt,
+          product,
+          shippingCountry,
+        );
+        setShippingEstimate({
+          destinationCountry: shippingCountry,
+          warehouseCountry: product.warehouseCountry ?? "CN",
+          weightGrams: product.weightGrams ?? null,
+          freightUsdt: local.bufferUsdt / 1.1,
+          bufferUsdt: local.bufferUsdt,
+          source: "weight_bracket",
+          methodName: null,
+        });
+        setEditPrice(String(local.sellPrice));
+      } finally {
+        if (!cancelled) setShippingLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+    // showComparePrice intentionally omitted — we only refresh sell when
+    // product/country/variant changes; compare toggle uses current sell.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    open,
+    product,
+    shippingCountry,
+    selectedVariant?.externalVariantId,
+    selectedVariant?.priceUsdt,
+    providerKind,
+  ]);
 
   useEffect(() => {
     if (importState?.success && importState.productId) {
@@ -305,7 +488,14 @@ export function SupplierProductPreviewModal({
 
   function applyVariant(v: ExternalProductVariant) {
     setSelectedVariant(v);
-    const sell = suggestedSellPrice(v.priceUsdt);
+    // Sell price refresh is handled by the shipping-buffer effect when
+    // selectedVariant changes; set a local bracket estimate immediately.
+    const sell = suggestedSellPrice(
+      v.priceUsdt,
+      product,
+      shippingCountry,
+      shippingEstimate?.bufferUsdt,
+    );
     setEditPrice(String(sell));
     if (showComparePrice) {
       setEditComparePrice(
@@ -327,6 +517,7 @@ export function SupplierProductPreviewModal({
     fd.set("provider_kind", providerKind);
     fd.set("external_product_id", product.externalProductId);
     fd.set("region_code", regionCode);
+    fd.set("shipping_country", shippingCountry);
     fd.set("price", String(parsedSell));
     if (showComparePrice && editComparePrice.trim() !== "" && compareOk) {
       fd.set("compare_at_price", String(parsedCompare));
@@ -690,6 +881,44 @@ export function SupplierProductPreviewModal({
               ) : null}
 
               <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block min-h-[5.5rem] space-y-1 sm:col-span-2">
+                  <span className="text-xs font-medium text-zinc-600">
+                    Price for destination country
+                  </span>
+                  {showSkeleton ? (
+                    <SkeletonBlock className="h-10 w-full max-w-xs" />
+                  ) : (
+                    <>
+                      <select
+                        value={shippingCountry}
+                        onChange={(e) => setShippingCountry(e.target.value)}
+                        className="h-10 w-full max-w-xs rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-950 outline-none focus:border-emerald-700"
+                      >
+                        {IMPORT_SHIPPING_TARGET_COUNTRIES.map((country) => (
+                          <option key={country.code} value={country.code}>
+                            {country.label} ({country.code})
+                          </option>
+                        ))}
+                      </select>
+                      <p className="min-h-4 text-xs text-zinc-500">
+                        {shippingLoading
+                          ? "Estimating shipping buffer…"
+                          : shippingEstimate
+                            ? `Ship buffer +${formatMoney(shippingEstimate.bufferUsdt, MARKETPLACE_CURRENCY)} (${
+                                shippingEstimate.source === "cj_freight"
+                                  ? shippingEstimate.methodName ?? "CJ freight"
+                                  : "weight bracket"
+                              }${
+                                shippingEstimate.weightGrams != null
+                                  ? ` · ${Math.round(shippingEstimate.weightGrams)} g`
+                                  : ""
+                              }) baked into listing price`
+                            : `Default ${DEFAULT_IMPORT_SHIPPING_COUNTRY} shipping buffer applied to suggested price`}
+                      </p>
+                    </>
+                  )}
+                </label>
+
                 <label className="block min-h-[5.5rem] space-y-1">
                   <span className="text-xs font-medium text-zinc-600">
                     Selling price ({MARKETPLACE_CURRENCY})
@@ -731,7 +960,12 @@ export function SupplierProductPreviewModal({
                       <button
                         type="button"
                         onClick={() => {
-                          const sell = suggestedSellPrice(costUsdt);
+                          const sell = suggestedSellPrice(
+                            costUsdt,
+                            product,
+                            shippingCountry,
+                            shippingEstimate?.bufferUsdt,
+                          );
                           setEditPrice(String(sell));
                           if (showComparePrice) {
                             setEditComparePrice(
@@ -749,6 +983,9 @@ export function SupplierProductPreviewModal({
                         Reset to +
                         {Math.round((ONE_CLICK_IMPORT_MARKUP - 1) * 100)}%
                         markup
+                        {shippingEstimate && shippingEstimate.bufferUsdt > 0
+                          ? ` + ship`
+                          : ""}
                       </button>
                       <p className="min-h-4 text-xs text-zinc-500">
                         {margin != null ? (
@@ -794,7 +1031,12 @@ export function SupplierProductPreviewModal({
                           if (enabled) {
                             const sell = Number.isFinite(parsedSell)
                               ? parsedSell
-                              : suggestedSellPrice(costUsdt);
+                              : suggestedSellPrice(
+                                  costUsdt,
+                                  product,
+                                  shippingCountry,
+                                  shippingEstimate?.bufferUsdt,
+                                );
                             setEditComparePrice(
                               String(
                                 suggestedComparePrice(

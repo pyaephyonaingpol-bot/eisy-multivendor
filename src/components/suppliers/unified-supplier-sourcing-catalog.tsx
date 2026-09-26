@@ -30,6 +30,12 @@ import {
   type ExternalCatalogProduct,
   type ExternalSupplierKind,
 } from "@/lib/suppliers/types";
+import {
+  DEFAULT_IMPORT_SHIPPING_COUNTRY,
+  IMPORT_SHIPPING_TARGET_COUNTRIES,
+  regionCodeToShippingCountry,
+  suggestedImportSellPrice,
+} from "@/lib/suppliers/shipping-buffer";
 
 export type ImportQuotaHints = PreviewQuotaHints;
 
@@ -59,8 +65,15 @@ const fallbackQuota: PreviewQuotaHints = {
   meetsMinimum: false,
 };
 
-function defaultSellPrice(supplierCost: number) {
-  return Number((supplierCost * ONE_CLICK_IMPORT_MARKUP).toFixed(2));
+function defaultSellPrice(
+  product: ExternalCatalogProduct,
+  shippingCountry: string,
+) {
+  return suggestedImportSellPrice(
+    product.priceUsdt,
+    product,
+    shippingCountry,
+  ).sellPrice;
 }
 
 function isFastDispatch(product: ExternalCatalogProduct) {
@@ -105,6 +118,9 @@ export function UnifiedSupplierSourcingCatalog({
   // autofill / extension mutations on the search input).
   const [query, setQuery] = useState("");
   const [regionCode, setRegionCode] = useState(DEFAULT_CJ_SOURCING_REGION);
+  const [shippingCountry, setShippingCountry] = useState(
+    DEFAULT_IMPORT_SHIPPING_COUNTRY,
+  );
   const [deliverySpeed, setDeliverySpeed] =
     useState<DeliverySpeedFilter>("any");
   /** Full multi-source result set — tabs filter this client-side for instant toggles. */
@@ -138,14 +154,15 @@ export function UnifiedSupplierSourcingCatalog({
 
   useEffect(() => {
     setIsMounted(true);
-    setRegionCode(
+    const nextRegion =
       regions.find((region) => region.code === DEFAULT_CJ_SOURCING_REGION)
         ?.code ??
-        regions.find((region) => region.code === "GLOBAL")?.code ??
-        regions.find((region) => region.is_default)?.code ??
-        regions[0]?.code ??
-        DEFAULT_CJ_SOURCING_REGION,
-    );
+      regions.find((region) => region.code === "GLOBAL")?.code ??
+      regions.find((region) => region.is_default)?.code ??
+      regions[0]?.code ??
+      DEFAULT_CJ_SOURCING_REGION;
+    setRegionCode(nextRegion);
+    setShippingCountry(regionCodeToShippingCountry(nextRegion));
     // Initial region snapshot only — do not auto-search a canned query.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -272,6 +289,7 @@ export function UnifiedSupplierSourcingCatalog({
       const result = await bulkImportExternalSupplierProductsAction({
         items,
         regionCode,
+        shippingCountry,
         includeComparePrice: bulkIncludeCompare,
       });
       if (result.error && result.imported === 0) {
@@ -510,7 +528,7 @@ export function UnifiedSupplierSourcingCatalog({
         </p>
       </div>
 
-      <div className="grid w-full max-w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_10rem_10rem_auto] lg:items-end">
+      <div className="grid w-full max-w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_10rem_10rem_10rem_auto] lg:items-end">
         <label className="min-w-0 text-xs font-medium text-zinc-600 sm:col-span-2 lg:col-span-1">
           {t("sourcing.search")}
           <input
@@ -532,7 +550,11 @@ export function UnifiedSupplierSourcingCatalog({
           {t("sourcing.shipToRegion")}
           <select
             value={regionCode}
-            onChange={(event) => setRegionCode(event.target.value)}
+            onChange={(event) => {
+              const next = event.target.value;
+              setRegionCode(next);
+              setShippingCountry(regionCodeToShippingCountry(next));
+            }}
             disabled={!isMounted}
             suppressHydrationWarning
             className="mt-1 block w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-base disabled:opacity-60"
@@ -548,6 +570,22 @@ export function UnifiedSupplierSourcingCatalog({
                 </option>
               ))
             )}
+          </select>
+        </label>
+        <label className="min-w-0 text-xs font-medium text-zinc-600">
+          Price for country
+          <select
+            value={shippingCountry}
+            onChange={(event) => setShippingCountry(event.target.value)}
+            disabled={!isMounted}
+            suppressHydrationWarning
+            className="mt-1 block w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-base disabled:opacity-60"
+          >
+            {IMPORT_SHIPPING_TARGET_COUNTRIES.map((country) => (
+              <option key={country.code} value={country.code}>
+                {country.label}
+              </option>
+            ))}
           </select>
         </label>
         <label className="min-w-0 text-xs font-medium text-zinc-600">
@@ -679,7 +717,12 @@ export function UnifiedSupplierSourcingCatalog({
       ) : (
         <ul className="grid w-full max-w-full grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {visibleProducts.map((product) => {
-            const suggested = defaultSellPrice(product.priceUsdt);
+            const suggested = defaultSellPrice(product, shippingCountry);
+            const bufferUsdt = suggestedImportSellPrice(
+              product.priceUsdt,
+              product,
+              shippingCountry,
+            ).bufferUsdt;
             const stockOk = meetsMinImportStock(product.stockQuantity);
             const fast = isFastDispatch(product);
             const local = isLocalWarehouse(product);
@@ -766,6 +809,14 @@ export function UnifiedSupplierSourcingCatalog({
                       {" → "}
                       {formatMoney(suggested, MARKETPLACE_CURRENCY)}
                     </p>
+                    {bufferUsdt > 0 ? (
+                      <p className="text-[11px] text-zinc-500">
+                        Incl. ~{formatMoney(bufferUsdt, MARKETPLACE_CURRENCY)}{" "}
+                        ship buffer → {shippingCountry} (+
+                        {Math.round((ONE_CLICK_IMPORT_MARKUP - 1) * 100)}%
+                        markup)
+                      </p>
+                    ) : null}
                     {(product.variants?.length ?? 0) > 1 ? (
                       <p className="text-xs font-medium text-emerald-800">
                         {t("sourcing.importAllVariantsHint", {
@@ -890,6 +941,7 @@ export function UnifiedSupplierSourcingCatalog({
           providerKind={previewKind}
           externalProductId={previewId}
           regionCode={regionCode}
+          shippingCountry={shippingCountry}
           quota={previewQuota}
           seedProduct={previewProduct}
           onImported={({ productId, success }) => {

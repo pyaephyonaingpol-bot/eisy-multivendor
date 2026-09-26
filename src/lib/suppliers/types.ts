@@ -51,6 +51,8 @@ export type ExternalCatalogProduct = {
   compareAtPriceUsdt: number | null;
   stockQuantity: number | null;
   warehouseCountry: string;
+  /** Packing / product weight in grams when known (CJ productWeight). */
+  weightGrams?: number | null;
   shippingDaysMin: number | null;
   shippingDaysMax: number | null;
   /** Optional SKU / option variants for preview + import. */

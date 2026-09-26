@@ -337,10 +337,12 @@ export function SupplierProductPreviewModal({
           cost: String(costUsdt),
         });
         if (vid) params.set("variantId", vid);
+        const timeoutId = window.setTimeout(() => controller.abort(), 12_000);
         const res = await fetch(
           `/api/suppliers/shipping-buffer?${params}`,
           { signal: controller.signal },
         );
+        window.clearTimeout(timeoutId);
         const data = (await res.json()) as {
           ok?: boolean;
           estimate?: ShippingBufferEstimate;

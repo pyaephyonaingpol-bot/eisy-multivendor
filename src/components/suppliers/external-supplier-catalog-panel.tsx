@@ -76,7 +76,7 @@ export function ExternalSupplierCatalogPanel({
       const timeoutId = window.setTimeout(() => {
         timedOut = true;
         controller.abort();
-      }, 40_000);
+      }, 15_000);
       try {
         const response = await fetch(
           `/api/suppliers/catalog?provider=${providerKind}&q=${encodeURIComponent(query)}`,

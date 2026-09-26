@@ -19,9 +19,9 @@ const CJ_API_BASE =
   "https://developers.cjdropshipping.com/api2.0/v1";
 
 /** Per-request budget for live CJ HTTP calls (auth / list / product). */
-const CJ_FETCH_TIMEOUT_MS = 20_000;
-/** Soft wall-clock budget for one catalog search page (primary + synonyms). */
-const CJ_SEARCH_PAGE_BUDGET_MS = 35_000;
+const CJ_FETCH_TIMEOUT_MS = 12_000;
+/** Soft wall-clock budget for one catalog search page (primary + rare empty fill). */
+const CJ_SEARCH_PAGE_BUDGET_MS = 14_000;
 
 type CjJson = Record<string, unknown>;
 
@@ -1333,11 +1333,6 @@ const CJ_LIST_V1_PAGE_SIZE = 100;
  * and remapping `page` → startPage carefully for Load more.
  */
 export const CJ_CATALOG_PAGE_SIZE = CJ_LIST_V2_PAGE_SIZE;
-/**
- * Soft fill target when the primary keyword is sparse (synonym / classic list).
- * Must stay ≤ CJ_CATALOG_PAGE_SIZE so Load more page mapping stays 1:1.
- */
-const CJ_SEARCH_TARGET_RESULTS = CJ_CATALOG_PAGE_SIZE;
 
 const CJ_KEYWORD_SYNONYMS: Record<string, string[]> = {
   earbud: ["earbuds", "earphone", "earphones", "headset", "headphones"],
@@ -1403,8 +1398,9 @@ export function expandCjSearchKeywords(query: string): string[] {
     return a.length - b.length;
   });
 
-  // Cap variants to keep API usage reasonable (QPS ~1/sec).
-  return ordered.slice(0, 3);
+    // Cap variants — catalog search uses the primary term only; extras are
+    // reserved for empty-result fill (see searchCjProductsPage).
+  return ordered.slice(0, 2);
 }
 
 function productKey(row: Record<string, unknown>): string {
@@ -1600,19 +1596,19 @@ export async function searchCjProductsPage(
     relatedCategories = primaryResult.relatedCategories;
     primaryPageWasFull = primaryResult.rows.length >= CJ_LIST_V2_PAGE_SIZE;
 
-    // Secondary keywords fill gaps when the exact term is sparse (page 1 only
-    // so Load more stays aligned with primary listV2 pagination).
-    // Run sequentially — CJ QPS is ~1/sec; Promise.all trips rate limits.
+    // Secondary keywords / classic list ONLY when the primary term returned
+    // nothing. Filling sparse pages previously chained 2–4 extra CJ calls
+    // (~1s QPS each) and made the UI sit on "Searching…" for tens of seconds.
     if (
       startPage === 1 &&
       !categoryId &&
-      dedupeCjRows(allRows).length < CJ_SEARCH_TARGET_RESULTS
+      dedupeCjRows(allRows).length === 0
     ) {
       const extras = keywords.slice(1);
       for (const keyword of extras) {
         if (!keyword || keyword === primary) continue;
         if (Date.now() >= deadlineMs) break;
-        if (dedupeCjRows(allRows).length >= CJ_SEARCH_TARGET_RESULTS) break;
+        if (dedupeCjRows(allRows).length > 0) break;
         try {
           const result = await fetchCjListV2Page(
             credentials,
@@ -1630,12 +1626,12 @@ export async function searchCjProductsPage(
       }
     }
 
-    // Classic list (productNameEn) as an additional fuzzy channel (page 1).
+    // Classic list only as an empty-result rescue (still within budget).
     if (
       startPage === 1 &&
       !categoryId &&
       Date.now() < deadlineMs &&
-      dedupeCjRows(allRows).length < CJ_SEARCH_TARGET_RESULTS
+      dedupeCjRows(allRows).length === 0
     ) {
       try {
         const classic = await fetchCjListV1Page(

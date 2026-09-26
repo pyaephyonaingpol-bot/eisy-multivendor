@@ -163,6 +163,9 @@ export function normalizeClientCatalogProduct(
       row.stockQuantity ?? row.stock_quantity ?? row.stock ?? row.inventory,
     ),
     warehouseCountry,
+    weightGrams: asNumber(
+      row.weightGrams ?? row.weight_grams ?? row.packingWeight ?? row.productWeight,
+    ),
     shippingDaysMin: asNumber(
       row.shippingDaysMin ?? row.shipping_days_min ?? row.daysMin,
     ),

@@ -13,6 +13,7 @@ type BulkImportBody = {
     externalProductId?: string;
   }>;
   region_code?: string;
+  shipping_country?: string;
   include_compare_price?: boolean;
 };
 
@@ -71,6 +72,7 @@ export async function POST(request: Request) {
       externalProductId: item.externalProductId,
     })),
     regionCode: body.region_code,
+    shippingCountry: body.shipping_country,
     includeComparePrice: Boolean(body.include_compare_price),
   });
 

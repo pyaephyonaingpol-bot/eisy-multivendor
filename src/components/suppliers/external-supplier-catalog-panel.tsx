@@ -48,7 +48,7 @@ export function ExternalSupplierCatalogPanel({
   importDisabled = false,
   quota = null,
 }: Props) {
-  const [query, setQuery] = useState("wireless earbuds");
+  const [query, setQuery] = useState("");
   const [products, setProducts] = useState<ExternalCatalogProduct[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [customPriceFor, setCustomPriceFor] = useState<string | null>(null);
@@ -71,9 +71,16 @@ export function ExternalSupplierCatalogPanel({
   function runSearch() {
     setError(null);
     startSearch(async () => {
+      const controller = new AbortController();
+      let timedOut = false;
+      const timeoutId = window.setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, 40_000);
       try {
         const response = await fetch(
           `/api/suppliers/catalog?provider=${providerKind}&q=${encodeURIComponent(query)}`,
+          { signal: controller.signal },
         );
         const payload = (await response.json()) as {
           ok?: boolean;
@@ -86,9 +93,20 @@ export function ExternalSupplierCatalogPanel({
           return;
         }
         setProducts(extractCatalogProducts(payload));
-      } catch {
-        setError("Could not reach supplier catalog API.");
+      } catch (err) {
+        const aborted =
+          (err instanceof DOMException && err.name === "AbortError") ||
+          (err instanceof Error && err.name === "AbortError");
+        if (aborted && timedOut) {
+          setError(
+            "Catalog search timed out. Check CJ credentials or try a more specific keyword.",
+          );
+        } else if (!aborted) {
+          setError("Could not reach supplier catalog API.");
+        }
         setProducts([]);
+      } finally {
+        window.clearTimeout(timeoutId);
       }
     });
   }

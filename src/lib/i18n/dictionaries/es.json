@@ -77,6 +77,7 @@
     "mockCatalogBanner": "Showing mock catalog products for local testing. Set SUPPLIER_INTEGRATIONS_MODE=mock, or leave keys unset / enable SUPPLIER_INTEGRATIONS_FALLBACK_MOCK when live CJ keys are missing.",
     "searchFailed": "La búsqueda falló.",
     "catalogUnreachable": "No se pudo alcanzar la API del catálogo de proveedores.",
+    "catalogTimedOut": "La búsqueda del catálogo agotó el tiempo. Inténtalo de nuevo o usa una palabra clave más específica.",
     "sourceTabsLabel": "Fuente del proveedor",
     "importSuccess": "Importado a su tienda (producto {id}…). Siga hasta {min} artículos activos para el mínimo de tarifas.",
     "fastStrategiesTitle": "Estrategias de envío rápido",

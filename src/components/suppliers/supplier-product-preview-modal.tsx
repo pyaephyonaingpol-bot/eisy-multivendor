@@ -171,10 +171,18 @@ export function SupplierProductPreviewModal({
       setLoading(true);
     }
 
+    const controller = new AbortController();
+    let timedOut = false;
+    const timeoutId = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 35_000);
+
     void (async () => {
       try {
         const res = await fetch(
           `/api/suppliers/catalog/product?provider=${encodeURIComponent(providerKind)}&id=${encodeURIComponent(externalProductId)}`,
+          { signal: controller.signal },
         );
         const data = (await res.json()) as {
           product?: ExternalCatalogProduct;
@@ -218,15 +226,22 @@ export function SupplierProductPreviewModal({
         setImageReady(false);
       } catch {
         if (!cancelled && !seedProduct) {
-          setLoadError("Network error loading product");
+          setLoadError(
+            timedOut
+              ? "Product details timed out. Close and try again."
+              : "Network error loading product",
+          );
         }
       } finally {
+        window.clearTimeout(timeoutId);
         if (!cancelled) setLoading(false);
       }
     })();
 
     return () => {
       cancelled = true;
+      controller.abort();
+      window.clearTimeout(timeoutId);
     };
   }, [open, providerKind, externalProductId, seedProduct]);
 

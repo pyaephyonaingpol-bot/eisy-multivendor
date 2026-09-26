@@ -77,6 +77,7 @@
     "mockCatalogBanner": "Showing mock catalog products for local testing. Set SUPPLIER_INTEGRATIONS_MODE=mock, or leave keys unset / enable SUPPLIER_INTEGRATIONS_FALLBACK_MOCK when live CJ keys are missing.",
     "searchFailed": "Zoeken mislukt.",
     "catalogUnreachable": "Kan de leverancierscatalogus-API niet bereiken.",
+    "catalogTimedOut": "Cataloguszoekopdracht verlopen. Probeer opnieuw of gebruik een specifiekere zoekterm.",
     "sourceTabsLabel": "Leveranciersbron",
     "importSuccess": "Geïmporteerd in uw winkel (product {id}…). Bouw door naar {min} actieve items voor de kostendrempel.",
     "fastStrategiesTitle": "Strategieën voor snelle verzending",

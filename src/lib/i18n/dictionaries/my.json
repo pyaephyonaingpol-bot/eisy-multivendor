@@ -77,6 +77,7 @@
     "mockCatalogBanner": "Showing mock catalog products for local testing. Set SUPPLIER_INTEGRATIONS_MODE=mock, or leave keys unset / enable SUPPLIER_INTEGRATIONS_FALLBACK_MOCK when live CJ keys are missing.",
     "searchFailed": "ရှာဖွေမှု မအောင်မြင်ပါ။",
     "catalogUnreachable": "ပေးသွင်းသူ ကတ်တလောက် API သို့ မရောက်နိုင်ပါ။",
+    "catalogTimedOut": "ကတ်တလောက် ရှာဖွေမှု အချိန်ကုန်သွားပါပြီ။ ထပ်စမ်းပါ သို့မဟုတ် ပိုတိကျသော သော့ချက်စာလုံး သုံးပါ။",
     "sourceTabsLabel": "ပေးသွင်းသူအရင်းအမြစ်",
     "importSuccess": "သင့်စတိုးသို့ တင်သွင်းပြီး (ပစ္စည်း {id}…)။ အခကြေးငွေအနိမ့်ဆုံးအတွက် တက်ကြွပစ္စည်း {min} ခုအထိ တည်ဆောက်ပါ။",
     "fastStrategiesTitle": "မြန်ဆန်သော ပို့ဆောင်မှု နည်းဗျူဟာ",

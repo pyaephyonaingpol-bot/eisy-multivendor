@@ -80,6 +80,9 @@ function catalogItemKey(product: ExternalCatalogProduct) {
   return `${product.providerKind}:${product.externalProductId}`;
 }
 
+/** Client-side catalog fetch budget (covers CJ synonym fan-out + queue). */
+const CATALOG_FETCH_TIMEOUT_MS = 40_000;
+
 function matchesSourceTab(
   product: ExternalCatalogProduct,
   tab: SupplierSourceTab,
@@ -127,14 +130,12 @@ export function UnifiedSupplierSourcingCatalog({
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
   const [bulkIncludeCompare, setBulkIncludeCompare] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
-  const seededRef = useRef(false);
   /** Ignore stale catalog responses when a newer search has already started. */
   const searchRequestIdRef = useRef(0);
   const searchAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
-    setQuery("wireless earbuds");
     setRegionCode(
       regions.find((region) => region.code === DEFAULT_CJ_SOURCING_REGION)
         ?.code ??
@@ -143,7 +144,7 @@ export function UnifiedSupplierSourcingCatalog({
         regions[0]?.code ??
         DEFAULT_CJ_SOURCING_REGION,
     );
-    // Initial region snapshot only — later prop changes should not wipe the query.
+    // Initial region snapshot only — do not auto-search a canned query.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const atLimit = importDisabled || quota?.atImportLimit === true;
@@ -353,7 +354,15 @@ export function UnifiedSupplierSourcingCatalog({
         ? overrides.categoryId
         : categoryId;
     const run = append ? startLoadMore : startSearch;
-    const signal = append ? undefined : searchAbortRef.current?.signal;
+    const controller = append ? new AbortController() : (searchAbortRef.current ?? new AbortController());
+    if (!append) {
+      searchAbortRef.current = controller;
+    }
+    let timedOut = false;
+    const timeoutId = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, CATALOG_FETCH_TIMEOUT_MS);
     run(async () => {
       try {
         // CJ-only catalog while other suppliers are Coming Soon.
@@ -367,7 +376,7 @@ export function UnifiedSupplierSourcingCatalog({
           params.set("categoryId", activeCategoryId);
         }
         const response = await fetch(`/api/suppliers/catalog?${params}`, {
-          signal,
+          signal: controller.signal,
         });
         const payload = (await response.json()) as {
           ok?: boolean;
@@ -418,9 +427,19 @@ export function UnifiedSupplierSourcingCatalog({
         }
         setHasSearched(true);
       } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") return;
         if (requestId !== searchRequestIdRef.current) return;
-        setError(t("sourcing.catalogUnreachable"));
+        const aborted =
+          (err instanceof DOMException && err.name === "AbortError") ||
+          (err instanceof Error && err.name === "AbortError");
+        if (aborted && !timedOut) {
+          // Superseded by a newer search — stay quiet.
+          return;
+        }
+        setError(
+          timedOut
+            ? t("sourcing.catalogTimedOut")
+            : t("sourcing.catalogUnreachable"),
+        );
         if (!append) {
           setCatalog([]);
           setUsedMock(false);
@@ -430,6 +449,8 @@ export function UnifiedSupplierSourcingCatalog({
           setRelatedCategories([]);
         }
         setHasSearched(true);
+      } finally {
+        window.clearTimeout(timeoutId);
       }
     });
   }
@@ -445,14 +466,6 @@ export function UnifiedSupplierSourcingCatalog({
     setPreviewKind(null);
     runSearch(1, false, { categoryId: nextCategoryId });
   }
-
-  // Seed catalog once after client defaults are applied (hydration-safe).
-  useEffect(() => {
-    if (!isMounted || seededRef.current || !query) return;
-    seededRef.current = true;
-    runSearch(1, false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot post-mount seed
-  }, [isMounted, query, regionCode]);
 
   return (
     <section className="w-full max-w-full space-y-5 overflow-x-hidden rounded-2xl border border-zinc-200 bg-white p-3 sm:p-5">

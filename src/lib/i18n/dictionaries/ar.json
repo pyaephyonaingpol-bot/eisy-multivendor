@@ -77,6 +77,7 @@
     "mockCatalogBanner": "Showing mock catalog products for local testing. Set SUPPLIER_INTEGRATIONS_MODE=mock, or leave keys unset / enable SUPPLIER_INTEGRATIONS_FALLBACK_MOCK when live CJ keys are missing.",
     "searchFailed": "فشل البحث.",
     "catalogUnreachable": "تعذر الوصول إلى واجهة كتالوج الموردين.",
+    "catalogTimedOut": "انتهت مهلة بحث الكتالوج. أعد المحاولة أو استخدم كلمة مفتاحية أدق.",
     "sourceTabsLabel": "مصدر المورد",
     "importSuccess": "تم الاستيراد إلى متجرك (المنتج {id}…). واصل البناء نحو {min} عناصر نشطة لحد الرسوم.",
     "fastStrategiesTitle": "استراتيجيات الشحن السريع",

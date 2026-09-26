@@ -18,6 +18,11 @@ const CJ_API_BASE =
   process.env.CJ_API_BASE?.trim() ||
   "https://developers.cjdropshipping.com/api2.0/v1";
 
+/** Per-request budget for live CJ HTTP calls (auth / list / product). */
+const CJ_FETCH_TIMEOUT_MS = 20_000;
+/** Soft wall-clock budget for one catalog search page (primary + synonyms). */
+const CJ_SEARCH_PAGE_BUDGET_MS = 35_000;
+
 type CjJson = Record<string, unknown>;
 
 /** Process-local access-token cache keyed by apiKey (or "env"). */
@@ -186,15 +191,29 @@ async function postCjAuth(
   body: Record<string, string>,
 ): Promise<CjJson> {
   const url = `${CJ_API_BASE.replace(/\/$/, "")}${path}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+      signal: AbortSignal.timeout(CJ_FETCH_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.name === "TimeoutError" || error.name === "AbortError")
+    ) {
+      throw new Error(
+        `CJ auth timed out after ${Math.round(CJ_FETCH_TIMEOUT_MS / 1000)}s.`,
+      );
+    }
+    throw error;
+  }
   const text = await response.text();
   let json: CjJson = {};
   try {
@@ -377,12 +396,26 @@ async function cjFetch(
       "CJ-Access-Token": accessToken,
     };
 
-    const response = await fetch(url.toString(), {
-      method: options.method ?? "GET",
-      headers,
-      body: options.body != null ? JSON.stringify(options.body) : undefined,
-      cache: "no-store",
-    });
+    let response: Response;
+    try {
+      response = await fetch(url.toString(), {
+        method: options.method ?? "GET",
+        headers,
+        body: options.body != null ? JSON.stringify(options.body) : undefined,
+        cache: "no-store",
+        signal: AbortSignal.timeout(CJ_FETCH_TIMEOUT_MS),
+      });
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.name === "TimeoutError" || error.name === "AbortError")
+      ) {
+        throw new Error(
+          `CJ API timed out after ${Math.round(CJ_FETCH_TIMEOUT_MS / 1000)}s (${path}).`,
+        );
+      }
+      throw error;
+    }
 
     const text = await response.text();
     let json: CjJson = {};
@@ -1370,8 +1403,8 @@ export function expandCjSearchKeywords(query: string): string[] {
     return a.length - b.length;
   });
 
-  // Cap variants to keep API usage reasonable.
-  return ordered.slice(0, 5);
+  // Cap variants to keep API usage reasonable (QPS ~1/sec).
+  return ordered.slice(0, 3);
 }
 
 function productKey(row: Record<string, unknown>): string {
@@ -1550,6 +1583,7 @@ export async function searchCjProductsPage(
     let totalPages: number | null = null;
     let totalRecords: number | null = null;
     let relatedCategories: CjRelatedCategory[] = [];
+    const deadlineMs = Date.now() + CJ_SEARCH_PAGE_BUDGET_MS;
 
     // Primary keyword: exactly the requested CJ listV2 page (1:1 with UI page).
     const primary = keywords[0] ?? "";
@@ -1577,6 +1611,7 @@ export async function searchCjProductsPage(
       const extras = keywords.slice(1);
       for (const keyword of extras) {
         if (!keyword || keyword === primary) continue;
+        if (Date.now() >= deadlineMs) break;
         if (dedupeCjRows(allRows).length >= CJ_SEARCH_TARGET_RESULTS) break;
         try {
           const result = await fetchCjListV2Page(
@@ -1599,6 +1634,7 @@ export async function searchCjProductsPage(
     if (
       startPage === 1 &&
       !categoryId &&
+      Date.now() < deadlineMs &&
       dedupeCjRows(allRows).length < CJ_SEARCH_TARGET_RESULTS
     ) {
       try {
@@ -1615,7 +1651,11 @@ export async function searchCjProductsPage(
     }
 
     // Absolute fallback when every keyword returned nothing.
-    if (dedupeCjRows(allRows).length === 0 && primary) {
+    if (
+      dedupeCjRows(allRows).length === 0 &&
+      primary &&
+      Date.now() < deadlineMs
+    ) {
       try {
         const classic = await fetchCjListV1Page(
           credentials,

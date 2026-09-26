@@ -21,6 +21,8 @@ import { getVendorForOwner } from "@/lib/vendors/queries";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+/** Allow CJ synonym fan-out + QPS queue without Vercel killing the request early. */
+export const maxDuration = 60;
 
 async function loadCredentialsForKind(
   kind: ExternalSupplierKind,

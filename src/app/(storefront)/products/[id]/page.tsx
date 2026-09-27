@@ -12,10 +12,8 @@ import {
   getBuyerSourcingContext,
   resolveProductSupplierRoute,
 } from "@/lib/sourcing/queries";
-import {
-  priceForBuyerCountryAsync,
-  weightGramsFromProduct,
-} from "@/lib/shipping/region-pricing";
+import { priceForBuyerCountryAsync } from "@/lib/shipping/region-pricing-server";
+import { weightGramsFromProduct } from "@/lib/shipping/region-pricing";
 
 export const dynamic = "force-dynamic";
 

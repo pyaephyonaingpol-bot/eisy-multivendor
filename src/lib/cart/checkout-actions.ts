@@ -205,7 +205,10 @@ export async function checkoutWithUsdt(
   let expectedSettlementExtra = liveShippingFee ?? 0;
   if (isBufferedShippingMarket(shipCountry)) {
     try {
-      const { lookupShippingBufferUsd, weightGramsFromProduct } = await import(
+      const { lookupShippingBufferUsd } = await import(
+        "@/lib/shipping/region-pricing-server"
+      );
+      const { weightGramsFromProduct } = await import(
         "@/lib/shipping/region-pricing"
       );
       const productIds = parsed.items.map((item) => item.product_id);

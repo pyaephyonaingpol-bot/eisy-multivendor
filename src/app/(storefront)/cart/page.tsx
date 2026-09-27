@@ -16,7 +16,7 @@ export default function CartPage() {
           <p className="text-sm text-zinc-600">
             {itemCount === 0
               ? "Your cart is empty."
-              : `${itemCount} item${itemCount === 1 ? "" : "s"} · settles in USDT`}
+              : `${itemCount} item${itemCount === 1 ? "" : "s"} · settles in USDT. AE / PH / MM include Free Shipping; other countries add shipping at checkout.`}
           </p>
         </div>
         <div className="flex gap-2">

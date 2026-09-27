@@ -1,17 +1,27 @@
 import Link from "next/link";
 import { SoldByBadge } from "@/components/storefront/sold-by-badge";
-import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
+import { ShippingOfferBadge } from "@/components/storefront/region-price-display";
+import { formatMoney } from "@/lib/money";
 import type { PublicProductSummary } from "@/lib/products/queries";
+import {
+  FALLBACK_SHIPPING_BUFFERS,
+  priceForBuyerCountry,
+  weightGramsFromProduct,
+} from "@/lib/shipping/region-pricing";
 
 type FeaturedProductRailProps = {
   products: PublicProductSummary[];
+  countryCode?: string;
 };
 
 /**
  * Horizontal snap rail for phones; peeks the next card to invite swipe.
  * Desktop keeps the denser ProductGrid on the home page.
  */
-export function FeaturedProductRail({ products }: FeaturedProductRailProps) {
+export function FeaturedProductRail({
+  products,
+  countryCode = "MM",
+}: FeaturedProductRailProps) {
   if (products.length === 0) {
     return null;
   }
@@ -24,7 +34,12 @@ export function FeaturedProductRail({ products }: FeaturedProductRailProps) {
           const image =
             images.find((url) => typeof url === "string" && url.trim()) ?? null;
           const name = product.name?.trim() || "Untitled product";
-          const price = Number(product.price);
+          const pricing = priceForBuyerCountry({
+            basePriceUsdt: Number(product.price),
+            countryCode,
+            weightGrams: weightGramsFromProduct(product),
+            buffers: FALLBACK_SHIPPING_BUFFERS,
+          });
           return (
             <li
               key={product.id}
@@ -48,21 +63,17 @@ export function FeaturedProductRail({ products }: FeaturedProductRailProps) {
                     </div>
                   )}
                 </div>
-                <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 p-3">
-                  <div className="min-w-0 space-y-1">
-                    <p className="line-clamp-2 break-words text-sm font-semibold text-[var(--market-ink)]">
-                      {name}
-                    </p>
-                    {product.vendor?.status === "approved" && product.vendor ? (
-                      <SoldByBadge vendor={product.vendor} as="text" />
-                    ) : null}
-                  </div>
-                  <p className="break-words text-sm font-semibold text-[var(--market-ink)]">
-                    {formatMoney(
-                      Number.isFinite(price) ? price : 0,
-                      MARKETPLACE_CURRENCY,
-                    )}
+                <div className="flex min-w-0 flex-1 flex-col justify-between gap-1 p-3">
+                  <p className="line-clamp-2 text-sm font-semibold text-[var(--market-ink)]">
+                    {name}
                   </p>
+                  {product.vendor?.status === "approved" && product.vendor ? (
+                    <SoldByBadge vendor={product.vendor} as="text" />
+                  ) : null}
+                  <p className="text-sm font-semibold text-[var(--market-ink)]">
+                    {formatMoney(pricing.displayAmount, pricing.displayCurrency)}
+                  </p>
+                  <ShippingOfferBadge pricing={pricing} />
                 </div>
               </Link>
             </li>

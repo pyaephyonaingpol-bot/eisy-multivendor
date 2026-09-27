@@ -177,6 +177,125 @@ export async function checkoutWithUsdt(
     return { error: cjShip.error };
   }
 
+  const { isBufferedShippingMarket } = await import(
+    "@/lib/shipping/region-pricing"
+  );
+  let liveShippingFee: number | null = null;
+  if (!isBufferedShippingMarket(shipCountry)) {
+    const { quoteCjShippingForCartItems } = await import(
+      "@/lib/suppliers/cj-shipping"
+    );
+    const quote = await quoteCjShippingForCartItems(
+      parsed.items,
+      shipCountry,
+      { zip: parsed.shippingAddress?.postal_code },
+    );
+    if (quote.ok && !quote.skipped && quote.methods.length > 0) {
+      const priced = quote.methods
+        .map((m) => m.amount)
+        .filter((n): n is number => n != null && Number.isFinite(n) && n >= 0)
+        .sort((a, b) => a - b);
+      if (priced[0] != null) {
+        liveShippingFee = Math.round(priced[0] * 100) / 100;
+      }
+    }
+  }
+
+  // Preflight expected settlement add-on so wallet checkouts don't underpay.
+  let expectedSettlementExtra = liveShippingFee ?? 0;
+  if (isBufferedShippingMarket(shipCountry)) {
+    try {
+      const { lookupShippingBufferUsd, weightGramsFromProduct } = await import(
+        "@/lib/shipping/region-pricing"
+      );
+      const productIds = parsed.items.map((item) => item.product_id);
+      const { data: productRows } = await supabase
+        .from("products")
+        .select("id, price, weight_grams, specifications")
+        .in("id", productIds);
+      const byId = new Map(
+        ((productRows as Array<{
+          id: string;
+          price: number;
+          weight_grams?: number | null;
+          specifications?: Array<{ key: string; value: string }> | null;
+        }> | null) ?? []).map((row) => [row.id, row]),
+      );
+      let extra = 0;
+      for (const item of parsed.items) {
+        const product = byId.get(item.product_id);
+        if (!product) continue;
+        const buffer = await lookupShippingBufferUsd(
+          shipCountry,
+          weightGramsFromProduct(product),
+        );
+        extra += buffer * item.quantity;
+      }
+      expectedSettlementExtra = Math.round(extra * 100) / 100;
+    } catch {
+      expectedSettlementExtra = 0;
+    }
+  }
+
+  if (parsed.paymentMethod === "wallet" && expectedSettlementExtra > 0) {
+    try {
+      const productIds = parsed.items.map((item) => item.product_id);
+      const { data: pricedRows } = await supabase
+        .from("products")
+        .select("id, price")
+        .in("id", productIds);
+      const priceById = new Map(
+        ((pricedRows as Array<{ id: string; price: number }> | null) ?? []).map(
+          (row) => [row.id, Number(row.price)],
+        ),
+      );
+      let baseTotal = 0;
+      for (const item of parsed.items) {
+        const unit = priceById.get(item.product_id) ?? 0;
+        baseTotal += unit * item.quantity;
+      }
+      const needed = Math.round((baseTotal + expectedSettlementExtra) * 100) / 100;
+      const { data: walletRow } = await supabase
+        .from("wallets")
+        .select("available_balance")
+        .eq("user_id", user.id)
+        .eq("currency", "USDT")
+        .maybeSingle();
+      const available = Number(walletRow?.available_balance ?? 0);
+      if (Number.isFinite(available) && available + 1e-9 < needed) {
+        return {
+          error: `Insufficient USDT balance. Need about ${needed.toFixed(2)} USDT including region shipping.`,
+        };
+      }
+    } catch {
+      // RPC will still enforce base balance; settlement may warn.
+    }
+  }
+
+  async function applyRegionSettlement(orderIds: string[]) {
+    if (orderIds.length === 0) return;
+    try {
+      // RPC added in migration 074 — may be absent from generated Database types.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: settleError } = await (supabase as any).rpc(
+        "apply_region_shipping_settlement",
+        {
+          p_order_ids: orderIds,
+          p_country_code: shipCountry,
+          p_live_shipping_fee: liveShippingFee,
+        },
+      );
+      if (settleError) {
+        console.warn(
+          "apply_region_shipping_settlement:",
+          settleError.message,
+        );
+      }
+    } catch (err) {
+      console.warn("apply_region_shipping_settlement failed", err);
+    }
+  }
+
   if (
     parsed.saveAsDefault &&
     parsed.shippingAddress?.full_name &&
@@ -235,6 +354,8 @@ export async function checkoutWithUsdt(
       return { error: "Checkout completed but no payment intent was returned." };
     }
 
+    await applyRegionSettlement(orderIds);
+
     // Prefer a unique HD child address per intent when a mnemonic is configured.
     let depositAddress = result?.deposit_address ?? "";
     try {
@@ -256,6 +377,7 @@ export async function checkoutWithUsdt(
             : "Failed to allocate a unique USDT deposit address.",
       };
     }
+    void depositAddress;
 
     revalidatePath("/cart");
     revalidatePath("/checkout");
@@ -284,6 +406,8 @@ export async function checkoutWithUsdt(
   if (orderIds.length === 0) {
     return { error: "Checkout completed but no orders were returned." };
   }
+
+  await applyRegionSettlement(orderIds);
 
   revalidatePath("/cart");
   revalidatePath("/checkout");

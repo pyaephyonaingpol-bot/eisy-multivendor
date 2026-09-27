@@ -9,6 +9,7 @@ import {
 } from "@/components/storefront/quick-category-rail";
 import { listActiveCategories } from "@/lib/categories/queries";
 import { listPublicProducts } from "@/lib/products/queries";
+import { getBuyerSourcingContext } from "@/lib/sourcing/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +18,10 @@ export const dynamic = "force-dynamic";
  * quick categories, promo carousels, and product discovery.
  */
 export default async function StorefrontHomePage() {
-  const [products, categories] = await Promise.all([
+  const [products, categories, sourcing] = await Promise.all([
     listPublicProducts(12),
     listActiveCategories(),
+    getBuyerSourcingContext(),
   ]);
 
   const newest = products[0] ?? null;
@@ -119,9 +121,12 @@ export default async function StorefrontHomePage() {
           </Link>
         </div>
 
-        <FeaturedProductRail products={products} />
+        <FeaturedProductRail
+          products={products}
+          countryCode={sourcing.countryCode}
+        />
         <div className="hidden sm:block">
-          <ProductGrid products={products} />
+          <ProductGrid products={products} countryCode={sourcing.countryCode} />
         </div>
       </section>
     </div>

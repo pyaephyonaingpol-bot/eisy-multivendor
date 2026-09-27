@@ -370,6 +370,8 @@ export type Product = {
    * Empty means deliverability is derived from supplier routes (and local defaults).
    */
   ships_to_region_ids: string[];
+  /** Packing / product weight in grams when known (used for shipping buffers). */
+  weight_grams?: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -503,6 +505,15 @@ export type Order = {
   shipping_address: Record<string, unknown> | null;
   buyer_region_id: string | null;
   buyer_country_code: string | null;
+  /**
+   * included = Free Shipping (buffer in price for AE/PH/MM)
+   * plus_shipping = Global live shipping fee at checkout
+   */
+  shipping_type?: "included" | "plus_shipping" | null;
+  /** Buyer-facing currency label (AED / PHP / USD / USDT). */
+  display_currency?: string | null;
+  /** AE | PH | MM | GLOBAL */
+  target_market?: string | null;
   /** Universal platform commission on GMV (default 10% for manual + CJ). */
   platform_commission_usdt: number;
   tracking_number: string | null;

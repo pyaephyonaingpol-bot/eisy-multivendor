@@ -23,6 +23,15 @@ export function formatMoney(amount: number, currency: string = MARKETPLACE_CURRE
   if (code === "USDT") {
     return `USDT ${Number(amount).toFixed(2)}`;
   }
+  if (code === "USD") {
+    return `USD ${Number(amount).toFixed(2)}`;
+  }
+  if (code === "AED") {
+    return `AED ${Number(amount).toFixed(2)}`;
+  }
+  if (code === "PHP") {
+    return `PHP ${Math.round(Number(amount)).toLocaleString("en-US")}`;
+  }
   if (code === "MMK") {
     return `MMK ${Number(amount).toLocaleString("en-US", {
       maximumFractionDigits: 0,

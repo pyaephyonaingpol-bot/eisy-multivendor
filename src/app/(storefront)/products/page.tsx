@@ -69,7 +69,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           <p className="text-sm text-[var(--market-muted)]">
             Showing items that ship to{" "}
             <strong className="text-[var(--market-ink)]">{sourcing.regionName}</strong>{" "}
-            ({sourcing.countryCode}). Prices in USDT.
+            ({sourcing.countryCode}). Prices shown in local display currency; checkout settles in USDT.
           </p>
         ) : (
           <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950 sm:flex sm:items-center sm:justify-between sm:gap-4">
@@ -90,7 +90,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           or browse all products.
         </p>
       ) : (
-        <ProductGrid products={filtered} />
+        <ProductGrid products={filtered} countryCode={sourcing.countryCode} />
       )}
     </section>
   );

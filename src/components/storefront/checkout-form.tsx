@@ -9,6 +9,10 @@ import {
   type CheckoutActionState,
 } from "@/lib/cart/checkout-actions";
 import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
+import {
+  isBufferedShippingMarket,
+  targetMarketForCountry,
+} from "@/lib/shipping/region-pricing";
 
 const initialState: CheckoutActionState = null;
 
@@ -79,6 +83,17 @@ export function CheckoutForm({
       : 0;
   const walletBlocked = paymentMethod === "wallet" && shortfall > 0;
   const shipBlocked = cjShip.status === "blocked";
+  const bufferedMarket = isBufferedShippingMarket(country);
+  const targetMarket = targetMarketForCountry(country);
+  const liveShipAmount =
+    !bufferedMarket && cjShip.status === "ok" && cjShip.methods[0]?.amount != null
+      ? Number(cjShip.methods[0].amount)
+      : null;
+  const estimatedTotal =
+    subtotal +
+    (liveShipAmount != null && Number.isFinite(liveShipAmount)
+      ? liveShipAmount
+      : 0);
 
   useEffect(() => {
     if (!isSignedIn || items.length === 0) {
@@ -490,6 +505,38 @@ export function CheckoutForm({
             <span className="text-zinc-500">Subtotal</span>
             <span className="font-medium text-zinc-950">
               {formatMoney(subtotal, MARKETPLACE_CURRENCY)}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">Shipping</span>
+            <span
+              className={`font-medium ${
+                bufferedMarket ? "text-emerald-800" : "text-zinc-950"
+              }`}
+            >
+              {bufferedMarket
+                ? "Free Shipping"
+                : liveShipAmount != null
+                  ? formatMoney(liveShipAmount, MARKETPLACE_CURRENCY)
+                  : hasPhysical
+                    ? "Plus Shipping Fee"
+                    : formatMoney(0, MARKETPLACE_CURRENCY)}
+            </span>
+          </div>
+          {!bufferedMarket && hasPhysical ? (
+            <p className="text-[11px] text-zinc-500">
+              Global checkout ({targetMarket}): live shipping is added at pay
+              time.
+            </p>
+          ) : bufferedMarket ? (
+            <p className="text-[11px] text-zinc-500">
+              {targetMarket} market — ship buffer is included in product prices.
+            </p>
+          ) : null}
+          <div className="flex justify-between border-t border-zinc-100 pt-2">
+            <span className="font-medium text-zinc-700">Estimated total</span>
+            <span className="font-semibold text-zinc-950">
+              {formatMoney(estimatedTotal, MARKETPLACE_CURRENCY)}
             </span>
           </div>
           {usdtAvailable != null ? (

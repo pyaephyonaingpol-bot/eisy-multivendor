@@ -46,9 +46,9 @@ import {
 import { matchMarketplaceCategoryId } from "@/lib/suppliers/cj-catalog-mapping";
 import {
   estimateImportShippingBuffer,
+  extractProductWeightGrams,
   normalizeImportShippingCountry,
   regionCodeToShippingCountry,
-  sellPriceWithShippingBuffer,
 } from "@/lib/suppliers/shipping-buffer";
 import type { ProductSpecification } from "@/lib/types/database";
 
@@ -92,6 +92,7 @@ const PRODUCT_SCHEMA_FALLBACK_COLUMNS = [
   "origin_country_code",
   "origin_region_id",
   "ships_to_region_ids",
+  "weight_grams",
   "is_dropship",
   "source_product_id",
   "price_usdt",
@@ -233,6 +234,7 @@ function importProductCoreFields(args: {
   originCountryCode?: string | null;
   originRegionId?: string | null;
   shipsToRegionIds?: string[];
+  weightGrams?: number | null;
 }) {
   const name = args.name.trim() || "Untitled product";
   const description =
@@ -258,6 +260,11 @@ function importProductCoreFields(args: {
       : {}),
     ...(args.shipsToRegionIds
       ? { ships_to_region_ids: args.shipsToRegionIds }
+      : {}),
+    ...(args.weightGrams != null &&
+    Number.isFinite(args.weightGrams) &&
+    args.weightGrams > 0
+      ? { weight_grams: Math.round(args.weightGrams * 100) / 100 }
       : {}),
   };
 }
@@ -448,20 +455,16 @@ async function resolveImportSellPrice(args: {
   }
 
   if (oneClickFlag) {
-    const price = sanitizeUsdtPrice(
-      sellPriceWithShippingBuffer(safeCost, shippingBufferUsdt),
-      safeCost,
-    );
+    // Base listing price = cost × markup only. Country shipping buffers
+    // (AE/PH/MM) are applied at buyer display + checkout settlement time.
+    const price = sanitizeUsdtPrice(safeCost * ONE_CLICK_IMPORT_MARKUP, safeCost);
     return { price, oneClick: true, shippingBufferUsdt };
   }
 
-  // Last resort: cost + shipping buffer so NOT NULL price columns never get null.
+  // Last resort: supplier cost (buffers still applied for buyers later).
   if (safeCost > 0) {
     return {
-      price: sanitizeUsdtPrice(
-        sellPriceWithShippingBuffer(safeCost, shippingBufferUsdt, 1),
-        safeCost,
-      ),
+      price: safeCost,
       oneClick: false,
       shippingBufferUsdt,
     };
@@ -826,6 +829,7 @@ export async function importExternalSupplierProductAction(
   );
   const importSpecifications = resolveImportSpecifications(remote);
   const importCategoryId = await resolveImportCategoryId(formData, remote);
+  const importWeightGrams = extractProductWeightGrams(remote);
 
   if (sellPrice + 1e-9 < minCost) {
     return {
@@ -885,6 +889,7 @@ export async function importExternalSupplierProductAction(
           originCountryCode: origin.originCountryCode,
           originRegionId: origin.originRegionId,
           shipsToRegionIds: origin.shipsToRegionIds,
+          weightGrams: importWeightGrams,
         }),
         catalog_kind: kind === "cj_dropshipping" ? "cj_import" : "manual",
         is_dropship: true,
@@ -983,6 +988,7 @@ export async function importExternalSupplierProductAction(
           originCountryCode: origin.originCountryCode,
           originRegionId: origin.originRegionId,
           shipsToRegionIds: origin.shipsToRegionIds,
+          weightGrams: importWeightGrams,
         }),
         catalog_kind: kind === "cj_dropshipping" ? "cj_import" : "manual",
         is_dropship: true,
@@ -1118,6 +1124,7 @@ export async function importExternalSupplierProductAction(
       originCountryCode: origin.originCountryCode,
       originRegionId: origin.originRegionId,
       shipsToRegionIds: origin.shipsToRegionIds,
+      weightGrams: importWeightGrams,
     }),
     status: "active" as const,
     product_type: "physical" as const,
@@ -1264,14 +1271,14 @@ export async function importExternalSupplierProductAction(
       ? ` Imported ${variantCount} color/size options under one listing.`
       : "";
   const priceNote = oneClick
-    ? ` Listed at ${sellPrice.toFixed(2)} USDT (${Math.round((ONE_CLICK_IMPORT_MARKUP - 1) * 100)}% markup${
+    ? ` Listed at ${sellPrice.toFixed(2)} USDT base (+${Math.round((ONE_CLICK_IMPORT_MARKUP - 1) * 100)}% markup)${
         shippingBufferUsdt > 0
-          ? ` + ${shippingBufferUsdt.toFixed(2)} USDT shipping buffer`
+          ? `; AE/PH/MM buyers get Free Shipping via ~${shippingBufferUsdt.toFixed(2)} USDT weight-bracket buffer`
           : ""
-      }).`
-    : ` Listed at ${sellPrice.toFixed(2)} USDT after preview review${
+      }.`
+    : ` Listed at ${sellPrice.toFixed(2)} USDT base after preview review${
         shippingBufferUsdt > 0
-          ? ` (shipping buffer est. ${shippingBufferUsdt.toFixed(2)} USDT)`
+          ? ` (est. AE/PH/MM ship buffer ${shippingBufferUsdt.toFixed(2)} USDT)`
           : ""
       }.`;
   const isCjImport = kind === "cj_dropshipping";

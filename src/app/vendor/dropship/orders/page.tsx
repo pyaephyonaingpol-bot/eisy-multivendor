@@ -1,5 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  VendorOrderMarketTabs,
+  orderMatchesMarket,
+  parseOrderMarketParam,
+  shippingTypeLabel,
+} from "@/components/orders/vendor-order-market-tabs";
 import { getSessionProfile } from "@/lib/auth/session";
 import { formatMoney } from "@/lib/money";
 import { listCjOrdersForVendor } from "@/lib/orders/queries";
@@ -8,7 +14,11 @@ import { formatDateTime } from "@/lib/datetime";
 
 export const dynamic = "force-dynamic";
 
-export default async function DropshipCjOrdersPage() {
+type Props = {
+  searchParams: Promise<{ market?: string }>;
+};
+
+export default async function DropshipCjOrdersPage({ searchParams }: Props) {
   const session = await getSessionProfile();
   if (!session) {
     redirect("/login?next=/vendor/dropship/orders");
@@ -32,20 +42,38 @@ export default async function DropshipCjOrdersPage() {
     );
   }
 
-  const orders = await listCjOrdersForVendor(vendor.id);
+  const params = await searchParams;
+  const market = parseOrderMarketParam(params.market);
+  const allOrders = await listCjOrdersForVendor(vendor.id);
+  const orders = allOrders.filter((order) => orderMatchesMarket(order, market));
+  const counts = {
+    ALL: allOrders.length,
+    AE: allOrders.filter((o) => orderMatchesMarket(o, "AE")).length,
+    PH: allOrders.filter((o) => orderMatchesMarket(o, "PH")).length,
+    MM: allOrders.filter((o) => orderMatchesMarket(o, "MM")).length,
+    GLOBAL: allOrders.filter((o) => orderMatchesMarket(o, "GLOBAL")).length,
+  };
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">CJ Orders</h1>
         <p className="max-w-2xl text-zinc-600">
-          Orders fulfilled through the CJ Dropshipping API. Tracking, disputes, and fees are under More.
+          Orders fulfilled through the CJ Dropshipping API. Filter by destination
+          market to process Free Shipping (UAE / PH / MM) vs Global plus-shipping
+          orders.
         </p>
       </div>
 
+      <VendorOrderMarketTabs
+        basePath="/vendor/dropship/orders"
+        active={market}
+        counts={counts}
+      />
+
       {orders.length === 0 ? (
         <div className="rounded-xl border border-dashed border-sky-200 bg-sky-50/40 px-6 py-10 text-center">
-          <p className="text-zinc-700">No CJ orders yet.</p>
+          <p className="text-zinc-700">No CJ orders yet for this market.</p>
           <Link
             href="/vendor/sourcing"
             className="mt-3 inline-flex text-sm font-medium underline"
@@ -66,24 +94,35 @@ export default async function DropshipCjOrdersPage() {
                     <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-900 ring-1 ring-inset ring-sky-200">
                       CJ
                     </span>
+                    {order.target_market || order.buyer_country_code ? (
+                      <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-violet-900 ring-1 ring-inset ring-violet-200">
+                        {order.target_market ?? order.buyer_country_code}
+                        {order.display_currency
+                          ? ` · ${order.display_currency}`
+                          : ""}
+                      </span>
+                    ) : null}
+                    <span className="rounded-full bg-zinc-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-700 ring-1 ring-inset ring-zinc-200">
+                      {shippingTypeLabel(order.shipping_type)}
+                    </span>
                   </div>
                   <p className="text-sm text-zinc-500">
-                    {formatDateTime(order.created_at)} ·{" "}
-                    {order.status} / {order.payment_status}
+                    {formatDateTime(order.created_at)} · {order.status} /{" "}
+                    {order.payment_status}
+                    {order.buyer_country_code
+                      ? ` · Ship to ${order.buyer_country_code}`
+                      : ""}
                   </p>
                   <p className="text-sm text-zinc-600">
                     {formatMoney(Number(order.total), order.currency)}
+                    {order.shipping_fee > 0
+                      ? ` · ship ${formatMoney(Number(order.shipping_fee), order.currency)}`
+                      : ""}
                     {order.supplier_order_ref
                       ? ` · CJ ref ${order.supplier_order_ref}`
                       : ""}
                   </p>
                 </div>
-                <Link
-                  href="/vendor/dropship/tracking"
-                  className="inline-flex rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-950 hover:bg-sky-100"
-                >
-                  Tracking
-                </Link>
               </div>
             </li>
           ))}

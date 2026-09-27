@@ -5,12 +5,15 @@ import { ImportToMyStorePanel } from "@/components/storefront/import-to-my-store
 import { ProductDetailBuyLayout } from "@/components/storefront/product-detail-buy-layout";
 import { ProductSpecificationsTable } from "@/components/storefront/product-specifications-table";
 import { CjLiveShippingEstimate } from "@/components/storefront/cj-live-shipping-estimate";
-import { formatMoney, MARKETPLACE_CURRENCY } from "@/lib/money";
+import { RegionPriceDisplay } from "@/components/storefront/region-price-display";
+import { formatMoney } from "@/lib/money";
 import { getPublicProductById } from "@/lib/products/queries";
 import {
   getBuyerSourcingContext,
   resolveProductSupplierRoute,
 } from "@/lib/sourcing/queries";
+import { priceForBuyerCountryAsync } from "@/lib/shipping/region-pricing-server";
+import { weightGramsFromProduct } from "@/lib/shipping/region-pricing";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +49,11 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
     Number.isFinite(availableStock) &&
     availableStock <= 0;
   const variants = product.catalog_variants ?? [];
+  const regionPrice = await priceForBuyerCountryAsync({
+    basePriceUsdt: Number(product.price),
+    countryCode: sourcing.countryCode,
+    weightGrams: weightGramsFromProduct(product),
+  });
 
   return (
     <article className="mx-auto w-full min-w-0 max-w-5xl space-y-10 overflow-x-hidden">
@@ -53,8 +61,8 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
         productId={product.id}
         vendorId={product.vendor_id}
         name={product.name}
-        basePrice={Number(product.price)}
-        currency={MARKETPLACE_CURRENCY}
+        basePrice={regionPrice.priceUsdt}
+        currency="USDT"
         images={images}
         productType={productType}
         maxQuantity={
@@ -75,24 +83,28 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
         </div>
 
         <div className="space-y-1">
-          <p className="text-2xl font-semibold text-zinc-950">
-            {formatMoney(Number(product.price), MARKETPLACE_CURRENCY)}
-          </p>
+          <RegionPriceDisplay pricing={regionPrice} size="lg" />
           {product.compare_at_price != null ? (
             <p className="text-sm text-zinc-500 line-through">
-              {formatMoney(Number(product.compare_at_price), MARKETPLACE_CURRENCY)}
+              {formatMoney(
+                Number(product.compare_at_price),
+                regionPrice.displayCurrency === "USDT"
+                  ? "USDT"
+                  : regionPrice.displayCurrency,
+              )}
             </p>
           ) : null}
           <p className="text-sm text-zinc-500">
+            Delivering to {sourcing.countryCode}
             {productType === "digital"
               ? product.download_label
-                ? `Digital download · ${product.download_label}`
-                : "Digital download"
+                ? ` · Digital download · ${product.download_label}`
+                : " · Digital download"
               : availableStock > 0
                 ? Number.isFinite(availableStock)
-                  ? `${availableStock} in stock`
-                  : "In stock"
-                : "Out of stock"}
+                  ? ` · ${availableStock} in stock`
+                  : " · In stock"
+                : " · Out of stock"}
             {variants.length > 1
               ? ` · ${variants.length} color/size options`
               : null}
@@ -111,25 +123,40 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
         ) : null}
 
         {productType === "physical" ? (
-          <CjLiveShippingEstimate
-            productId={product.id}
-            route={supplierRoute}
-            countryCode={sourcing.countryCode}
-            regionName={sourcing.regionName}
-            fromProfile={sourcing.fromProfile}
-            isAuthenticated={sourcing.isAuthenticated}
-            enableLiveCj={
-              product.catalog_kind === "cj_import" ||
-              Boolean(product.is_dropship)
-            }
-          />
+          regionPrice.freeShipping ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 py-3 text-sm text-emerald-950">
+              <p className="font-medium">Free Shipping to {sourcing.countryCode}</p>
+              <p className="mt-1 text-emerald-900/80">
+                Shipping is already included in the price for{" "}
+                {regionPrice.targetMarket === "AE"
+                  ? "UAE (AED)"
+                  : regionPrice.targetMarket === "PH"
+                    ? "Philippines (PHP)"
+                    : "Myanmar (USD)"}{" "}
+                buyers.
+              </p>
+            </div>
+          ) : (
+            <CjLiveShippingEstimate
+              productId={product.id}
+              route={supplierRoute}
+              countryCode={sourcing.countryCode}
+              regionName={sourcing.regionName}
+              fromProfile={sourcing.fromProfile}
+              isAuthenticated={sourcing.isAuthenticated}
+              enableLiveCj={
+                product.catalog_kind === "cj_import" ||
+                Boolean(product.is_dropship)
+              }
+            />
+          )
         ) : null}
       </ProductDetailBuyLayout>
 
       <ImportToMyStorePanel
         productId={product.id}
         productVendorId={product.vendor_id}
-        productPrice={Number(product.price)}
+        productPrice={regionPrice.priceUsdt}
         isDropshipListing={product.is_dropship}
         sourceProductId={product.source_product_id}
       />

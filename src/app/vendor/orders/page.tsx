@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { SupplierUnavailableRefundForm } from "@/components/orders/supplier-unavailable-refund-form";
 import { VendorFulfillmentForm } from "@/components/orders/vendor-fulfillment-form";
+import {
+  VendorOrderMarketTabs,
+  orderMatchesMarket,
+  parseOrderMarketParam,
+  shippingTypeLabel,
+} from "@/components/orders/vendor-order-market-tabs";
 import { redirect } from "next/navigation";
 import { getSessionProfile } from "@/lib/auth/session";
 import { formatMoney } from "@/lib/money";
@@ -15,7 +21,11 @@ import { formatDateTime } from "@/lib/datetime";
 
 export const dynamic = "force-dynamic";
 
-export default async function VendorOrdersPage() {
+type Props = {
+  searchParams: Promise<{ market?: string }>;
+};
+
+export default async function VendorOrdersPage({ searchParams }: Props) {
   const session = await getSessionProfile();
 
   if (!session) {
@@ -44,20 +54,37 @@ export default async function VendorOrdersPage() {
     );
   }
 
-  const orders = await listManualOrdersForVendor(vendor.id);
+  const params = await searchParams;
+  const market = parseOrderMarketParam(params.market);
+  const allOrders = await listManualOrdersForVendor(vendor.id);
+  const orders = allOrders.filter((order) => orderMatchesMarket(order, market));
+  const counts = {
+    ALL: allOrders.length,
+    AE: allOrders.filter((o) => orderMatchesMarket(o, "AE")).length,
+    PH: allOrders.filter((o) => orderMatchesMarket(o, "PH")).length,
+    MM: allOrders.filter((o) => orderMatchesMarket(o, "MM")).length,
+    GLOBAL: allOrders.filter((o) => orderMatchesMarket(o, "GLOBAL")).length,
+  };
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
         <p className="text-zinc-600">
-          Custom-sourced orders you fulfill yourself. Tracking and disputes are under More.
+          Custom-sourced orders you fulfill yourself. Filter by destination
+          market (UAE / PH / MM Free Shipping vs Global plus shipping).
         </p>
       </div>
 
+      <VendorOrderMarketTabs
+        basePath="/vendor/orders"
+        active={market}
+        counts={counts}
+      />
+
       {orders.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-10 text-center">
-          <p className="text-zinc-700">No orders yet.</p>
+          <p className="text-zinc-700">No orders yet for this market.</p>
         </div>
       ) : (
         <ul className="divide-y divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 bg-white">
@@ -83,11 +110,17 @@ export default async function VendorOrdersPage() {
                         Sold from your store
                       </span>
                     ) : null}
-                    {order.vendor_id !== order.seller_vendor_id ? (
-                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 font-medium text-zinc-700 ring-1 ring-inset ring-zinc-200">
-                        Dropship routed
+                    {order.target_market || order.buyer_country_code ? (
+                      <span className="rounded-full bg-violet-50 px-2 py-0.5 font-medium text-violet-900 ring-1 ring-inset ring-violet-200">
+                        {order.target_market ?? order.buyer_country_code}
+                        {order.display_currency
+                          ? ` · ${order.display_currency}`
+                          : ""}
                       </span>
                     ) : null}
+                    <span className="rounded-full bg-zinc-50 px-2 py-0.5 font-medium text-zinc-700 ring-1 ring-inset ring-zinc-200">
+                      {shippingTypeLabel(order.shipping_type)}
+                    </span>
                     {order.payout_status &&
                     order.payout_status !== "not_applicable" ? (
                       <span
@@ -129,10 +162,6 @@ export default async function VendorOrdersPage() {
                         : ""}
                       {item.warehouse_country
                         ? ` · via ${item.warehouse_country}`
-                        : ""}
-                      {item.shipping_estimate_days_min != null ||
-                      item.shipping_estimate_days_max != null
-                        ? ` · ETA ${item.shipping_estimate_days_min ?? "?"}–${item.shipping_estimate_days_max ?? "?"}d`
                         : ""}
                     </span>
                   </li>

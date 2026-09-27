@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProductGrid } from "@/components/storefront/product-grid";
 import { listPublicProductsByVendorId } from "@/lib/products/queries";
+import { getBuyerSourcingContext } from "@/lib/sourcing/queries";
 import { getApprovedVendorBySlug } from "@/lib/vendors/queries";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,10 @@ export default async function VendorPublicStorePage({ params }: StorePageProps) 
     notFound();
   }
 
-  const products = await listPublicProductsByVendorId(vendor.id);
+  const [products, sourcing] = await Promise.all([
+    listPublicProductsByVendorId(vendor.id),
+    getBuyerSourcingContext(),
+  ]);
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
@@ -77,7 +81,7 @@ export default async function VendorPublicStorePage({ params }: StorePageProps) 
             {products.length} product{products.length === 1 ? "" : "s"}
           </p>
         </div>
-        <ProductGrid products={products} />
+        <ProductGrid products={products} countryCode={sourcing.countryCode} />
       </section>
     </div>
   );

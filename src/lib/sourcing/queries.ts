@@ -4,6 +4,7 @@ import { getSessionProfile } from "@/lib/auth/session";
 import {
   DEFAULT_BUYER_COUNTRY,
   DEFAULT_BUYER_REGION,
+  BUYER_COUNTRY_COOKIE,
   FALLBACK_REGIONS,
   isSourcingRegionUuid,
   matchRegionCodeForCountry,
@@ -94,7 +95,8 @@ export async function listSupplierProviders(): Promise<SupplierProvider[]> {
  * 1. Explicit `preferredCountry` override (e.g. checkout form)
  * 2. Signed-in buyer's default delivery address country
  * 3. Signed-in profile `preferred_country_code` / `preferred_region_id`
- * 4. Default region (GLOBAL) for guests
+ * 4. Buyer country cookie (guests / last preference)
+ * 5. Default country (MM)
  */
 export async function getBuyerSourcingContext(
   preferredCountry?: string | null,
@@ -122,10 +124,22 @@ export async function getBuyerSourcingContext(
   const profileCountry = session?.profile?.preferred_country_code ?? null;
   const profileRegionId = session?.profile?.preferred_region_id ?? null;
 
+  let cookieCountry: string | null = null;
+  if (!hasExplicitCountry && !defaultAddressCountry && !profileCountry) {
+    try {
+      const { cookies } = await import("next/headers");
+      const jar = await cookies();
+      cookieCountry = jar.get(BUYER_COUNTRY_COOKIE)?.value ?? null;
+    } catch {
+      cookieCountry = null;
+    }
+  }
+
   const countryCode = normalizeCountryCode(
     (hasExplicitCountry ? preferredCountry : null) ||
       defaultAddressCountry ||
       profileCountry ||
+      cookieCountry ||
       DEFAULT_BUYER_COUNTRY,
   );
 

@@ -65,10 +65,16 @@ const CJ_MOCK_PAGE_SIZE = 24;
 /** Mock pages available so Load more can be exercised without live keys. */
 const CJ_MOCK_TOTAL_PAGES = 5;
 
-function mockCatalog(query: string, page = 1): ExternalCatalogProduct[] {
+function mockCatalog(
+  query: string,
+  page = 1,
+  warehouseCountry?: string | null,
+): ExternalCatalogProduct[] {
   const q = query.trim() || "gadget";
   const safePage = Math.max(1, Math.floor(page) || 1);
   const startN = (safePage - 1) * CJ_MOCK_PAGE_SIZE + 1;
+  const warehouseRotation = ["CN", "US", "TH", "DE", "GB", "FR", "JP", "SG"] as const;
+  const filterWarehouse = warehouseCountry?.trim().toUpperCase() || null;
   return Array.from({ length: CJ_MOCK_PAGE_SIZE }, (_, index) => {
     const n = startN + index;
     const seed = `cj-${q.slice(0, 8)}-${n}`.replace(/\s+/g, "-");
@@ -87,6 +93,21 @@ function mockCatalog(query: string, page = 1): ExternalCatalogProduct[] {
       "Home & Living / Kitchen",
     ];
     const categoryName = categoryNames[n % categoryNames.length];
+    const warehouse =
+      filterWarehouse && /^[A-Z]{2,3}$/.test(filterWarehouse)
+        ? filterWarehouse
+        : warehouseRotation[n % warehouseRotation.length];
+    const isLocal = ["US", "DE", "GB", "FR", "TH", "SG"].includes(warehouse);
+    const shippingDaysMin = isLocal ? 2 : 5;
+    const shippingDaysMax = isLocal ? 7 : 15;
+    const warehouseLabel =
+      warehouse === "CN"
+        ? "China (CN)"
+        : warehouse === "US"
+          ? "United States (US)"
+          : warehouse === "TH"
+            ? "Thailand (TH)"
+            : warehouse;
     return {
       providerKind: "cj_dropshipping" as const,
       externalProductId: `CJ-MOCK-${q.slice(0, 12).toUpperCase()}-${n}`,
@@ -97,7 +118,7 @@ function mockCatalog(query: string, page = 1): ExternalCatalogProduct[] {
         `Premium ${q} sourced via CJ Dropshipping (mock catalog).`,
         "",
         "Highlights",
-        `• Warehouse: China (CN) with typical 5–15 day transit to Myanmar`,
+        `• Warehouse: ${warehouseLabel} with typical ${shippingDaysMin}–${shippingDaysMax} day transit`,
         `• Pack includes charging cable and quick-start guide`,
         `• Suitable for dropship listings with regional supplier routes`,
         "",
@@ -109,15 +130,16 @@ function mockCatalog(query: string, page = 1): ExternalCatalogProduct[] {
       priceUsdt: base,
       compareAtPriceUsdt: Number((7 + (n % 12) * 1.5).toFixed(2)),
       stockQuantity: 50 * stockFactor,
-      warehouseCountry: "CN",
+      warehouseCountry: warehouse,
       weightGrams: 120 + (n % 9) * 50,
-      shippingDaysMin: 5,
-      shippingDaysMax: 15,
+      shippingDaysMin,
+      shippingDaysMax,
       specifications: [
         { key: "Weight", value: `${120 + (n % 9) * 50} g` },
         { key: "Material", value: n % 2 === 0 ? "ABS plastic" : "Aluminum alloy" },
         { key: "Packaging", value: "Poly bag" },
         { key: "Unit", value: "piece" },
+        { key: "Warehouse", value: warehouse },
       ],
       externalCategoryId: `CJ-CAT-MOCK-${(n % 4) + 1}`,
       externalCategoryName: categoryName,
@@ -171,7 +193,7 @@ function mockCatalog(query: string, page = 1): ExternalCatalogProduct[] {
           imageUrl: images[2],
         },
       ],
-      raw: { mock: true, query: q, n, page: safePage },
+      raw: { mock: true, query: q, n, page: safePage, warehouseCountry: warehouse },
     };
   });
 }
@@ -1495,17 +1517,21 @@ async function fetchCjListV2Page(
   page: number,
   size = CJ_LIST_V2_PAGE_SIZE,
   categoryId?: string | null,
+  countryCode?: string | null,
 ): Promise<{
   rows: Record<string, unknown>[];
   totalPages: number | null;
   totalRecords: number | null;
   relatedCategories: CjRelatedCategory[];
 }> {
+  const warehouseCountry = countryCode?.trim().toUpperCase() || undefined;
   const json = await cjFetch("/product/listV2", {
     credentials,
     query: {
       keyWord: keyWord || undefined,
       categoryId: categoryId?.trim() || undefined,
+      // CJ filters products that have inventory in this warehouse country.
+      countryCode: warehouseCountry,
       page,
       size,
       orderBy: 0, // best match
@@ -1525,11 +1551,14 @@ async function fetchCjListV1Page(
   productNameEn: string,
   page: number,
   pageSize = CJ_LIST_V1_PAGE_SIZE,
+  countryCode?: string | null,
 ): Promise<Record<string, unknown>[]> {
+  const warehouseCountry = countryCode?.trim().toUpperCase() || undefined;
   const json = await cjFetch("/product/list", {
     credentials,
     query: {
       productNameEn: productNameEn || undefined,
+      countryCode: warehouseCountry,
       pageNum: page,
       pageSize,
     },
@@ -1553,20 +1582,22 @@ export type CjCatalogSearchPage = {
  * Paginated CJ catalog search. Each `page` maps 1:1 to a CJ listV2 `page`
  * (max 100 products). Pass page=2,3,… from the UI Load more control.
  * Optional `categoryId` is forwarded to CJ listV2 (third-level category).
+ * Optional `countryCode` filters products with inventory in that warehouse country.
  */
 export async function searchCjProductsPage(
   query: string,
   credentials?: SupplierCredentials | null,
   page = 1,
-  options?: { categoryId?: string | null },
+  options?: { categoryId?: string | null; countryCode?: string | null },
 ): Promise<CjCatalogSearchPage> {
   const startPage = Math.max(1, Math.floor(page) || 1);
   const pageSize = CJ_CATALOG_PAGE_SIZE;
   const categoryId = options?.categoryId?.trim() || null;
+  const countryCode = options?.countryCode?.trim().toUpperCase() || null;
 
   if (!useLiveSupplierApi("cj_dropshipping", credentials)) {
     return {
-      products: mockCatalog(query, startPage),
+      products: mockCatalog(query, startPage, countryCode),
       hasMore: mockCatalogHasMore(startPage),
       page: startPage,
       pageSize: CJ_MOCK_PAGE_SIZE,
@@ -1593,6 +1624,7 @@ export async function searchCjProductsPage(
       startPage,
       CJ_LIST_V2_PAGE_SIZE,
       categoryId,
+      countryCode,
     );
     allRows.push(...primaryResult.rows);
     totalPages = primaryResult.totalPages;
@@ -1619,6 +1651,8 @@ export async function searchCjProductsPage(
             keyword,
             startPage,
             CJ_LIST_V2_PAGE_SIZE,
+            null,
+            countryCode,
           );
           allRows.push(...result.rows);
           if (relatedCategories.length === 0 && result.relatedCategories.length) {
@@ -1643,6 +1677,7 @@ export async function searchCjProductsPage(
           primary,
           startPage,
           CJ_LIST_V1_PAGE_SIZE,
+          countryCode,
         );
         allRows.push(...classic);
       } catch {
@@ -1662,6 +1697,7 @@ export async function searchCjProductsPage(
           primary,
           startPage,
           CJ_LIST_V1_PAGE_SIZE,
+          countryCode,
         );
         allRows.push(...classic);
       } catch {
@@ -1669,10 +1705,18 @@ export async function searchCjProductsPage(
       }
     }
 
-    const products = dedupeCjRows(allRows)
+    let products = dedupeCjRows(allRows)
       .map((row) => mapCjProduct(row))
-      .filter((p) => Boolean(p.externalProductId))
-      .slice(0, pageSize);
+      .filter((p) => Boolean(p.externalProductId));
+
+    // Defense-in-depth: keep only rows whose mapped warehouse matches the filter.
+    if (countryCode) {
+      products = products.filter(
+        (product) =>
+          (product.warehouseCountry ?? "").trim().toUpperCase() === countryCode,
+      );
+    }
+    products = products.slice(0, pageSize);
 
     const hasMore =
       primaryPageWasFull ||
@@ -1691,7 +1735,7 @@ export async function searchCjProductsPage(
     };
   } catch (error) {
     const products = maybeMockFallback(credentials, error, () =>
-      mockCatalog(query, startPage),
+      mockCatalog(query, startPage, countryCode),
     );
     const usedMock = products.some(
       (product) =>
@@ -1713,7 +1757,7 @@ export async function searchCjProducts(
   query: string,
   credentials?: SupplierCredentials | null,
   page = 1,
-  options?: { categoryId?: string | null },
+  options?: { categoryId?: string | null; countryCode?: string | null },
 ): Promise<ExternalCatalogProduct[]> {
   const result = await searchCjProductsPage(query, credentials, page, options);
   return result.products;

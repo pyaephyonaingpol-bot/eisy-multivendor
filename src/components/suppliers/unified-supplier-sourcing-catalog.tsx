@@ -21,6 +21,8 @@ import { DEFAULT_CJ_SOURCING_REGION } from "@/lib/sourcing/constants";
 import {
   extractCatalogProducts,
   isLocalWarehouseCountry,
+  matchesWarehouseCountryFilter,
+  SOURCING_WAREHOUSE_OPTIONS,
 } from "@/lib/suppliers/client-catalog";
 import {
   ONE_CLICK_IMPORT_MARKUP,
@@ -123,6 +125,8 @@ export function UnifiedSupplierSourcingCatalog({
   );
   const [deliverySpeed, setDeliverySpeed] =
     useState<DeliverySpeedFilter>("any");
+  /** Warehouse origin filter — `any` or ISO country (CN, US, TH, …). */
+  const [warehouseCountry, setWarehouseCountry] = useState("any");
   /** Full multi-source result set — tabs filter this client-side for instant toggles. */
   const [catalog, setCatalog] = useState<ExternalCatalogProduct[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -200,9 +204,12 @@ export function UnifiedSupplierSourcingCatalog({
       if (!matchesSourceTab(product, sourceTab)) return false;
       if (deliverySpeed === "fast" && !isFastDispatch(product)) return false;
       if (deliverySpeed === "local" && !isLocalWarehouse(product)) return false;
+      if (!matchesWarehouseCountryFilter(product, warehouseCountry)) {
+        return false;
+      }
       return true;
     });
-  }, [catalog, sourceTab, deliverySpeed]);
+  }, [catalog, sourceTab, deliverySpeed, warehouseCountry]);
 
   const selectableVisible = useMemo(
     () =>
@@ -358,7 +365,10 @@ export function UnifiedSupplierSourcingCatalog({
   function runSearch(
     nextPage = 1,
     append = false,
-    overrides?: { categoryId?: string | null },
+    overrides?: {
+      categoryId?: string | null;
+      warehouseCountry?: string;
+    },
   ) {
     setError(null);
     setBulkError(null);
@@ -373,6 +383,10 @@ export function UnifiedSupplierSourcingCatalog({
       overrides && "categoryId" in overrides
         ? overrides.categoryId
         : categoryId;
+    const activeWarehouse =
+      overrides && "warehouseCountry" in overrides
+        ? overrides.warehouseCountry ?? "any"
+        : warehouseCountry;
     const run = append ? setIsLoadingMore : setIsSearching;
     const controller = append
       ? new AbortController()
@@ -397,6 +411,9 @@ export function UnifiedSupplierSourcingCatalog({
         });
         if (activeCategoryId) {
           params.set("categoryId", activeCategoryId);
+        }
+        if (activeWarehouse && activeWarehouse !== "any") {
+          params.set("warehouse", activeWarehouse);
         }
         const response = await fetch(`/api/suppliers/catalog?${params}`, {
           signal: controller.signal,
@@ -528,7 +545,7 @@ export function UnifiedSupplierSourcingCatalog({
         </p>
       </div>
 
-      <div className="grid w-full max-w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_10rem_10rem_10rem_auto] lg:items-end">
+      <div className="grid w-full max-w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.2fr)_9rem_9rem_9rem_9rem_auto] lg:items-end">
         <label className="min-w-0 text-xs font-medium text-zinc-600 sm:col-span-2 lg:col-span-1">
           {t("sourcing.search")}
           <input
@@ -570,6 +587,31 @@ export function UnifiedSupplierSourcingCatalog({
                 </option>
               ))
             )}
+          </select>
+        </label>
+        <label className="min-w-0 text-xs font-medium text-zinc-600">
+          {t("sourcing.warehouse")}
+          <select
+            value={warehouseCountry}
+            onChange={(event) => {
+              const next = event.target.value;
+              setWarehouseCountry(next);
+              setCategoryId(null);
+              runSearch(1, false, {
+                categoryId: null,
+                warehouseCountry: next,
+              });
+            }}
+            disabled={!isMounted}
+            suppressHydrationWarning
+            className="mt-1 block w-full max-w-full rounded-lg border border-zinc-200 px-3 py-2.5 text-base disabled:opacity-60"
+          >
+            <option value="any">{t("sourcing.anyWarehouse")}</option>
+            {SOURCING_WAREHOUSE_OPTIONS.map((warehouse) => (
+              <option key={warehouse.code} value={warehouse.code}>
+                {warehouse.label}
+              </option>
+            ))}
           </select>
         </label>
         <label className="min-w-0 text-xs font-medium text-zinc-600">

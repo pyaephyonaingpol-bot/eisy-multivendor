@@ -61,6 +61,8 @@
     "search": "Recherche",
     "searchPlaceholder": "Rechercher chez les fournisseurs",
     "shipToRegion": "Région de livraison",
+    "warehouse": "Entrepôt",
+    "anyWarehouse": "Tous les entrepôts",
     "deliverySpeed": "Vitesse de livraison",
     "anySpeed": "Toute vitesse",
     "fastDispatch": "Expédition rapide",

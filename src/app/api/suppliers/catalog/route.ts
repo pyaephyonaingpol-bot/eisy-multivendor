@@ -66,10 +66,22 @@ export async function GET(request: Request) {
   )
     .trim()
     .toUpperCase();
+  const warehouseCountry = String(
+    searchParams.get("warehouse") ??
+      searchParams.get("warehouse_country") ??
+      searchParams.get("countryCode") ??
+      searchParams.get("country_code") ??
+      "",
+  )
+    .trim()
+    .toUpperCase();
 
   const singleKind = parseSupplierKind(sourceRaw);
   const sourceTab = parseSourceTab(sourceRaw);
-  const searchOptions = { categoryId: categoryId || null };
+  const searchOptions = {
+    categoryId: categoryId || null,
+    countryCode: warehouseCountry || null,
+  };
 
   try {
     if (
@@ -93,6 +105,13 @@ export async function GET(request: Request) {
           productMatchesSourcingRegion(product, regionCode),
         );
       }
+      if (warehouseCountry) {
+        products = products.filter(
+          (product) =>
+            (product.warehouseCountry ?? "").trim().toUpperCase() ===
+            warehouseCountry,
+        );
+      }
       const clientProducts = toClientCatalogProducts(products);
       const liveAttempted = useLiveSupplierApi(singleKind, credentials);
       const usedMock =
@@ -104,6 +123,7 @@ export async function GET(request: Request) {
         source: sourceTab,
         query,
         region: regionCode || null,
+        warehouse: warehouseCountry || null,
         categoryId: pageResult.categoryId ?? (categoryId || null),
         page: pageResult.page,
         pageSize: pageResult.pageSize,
@@ -144,6 +164,13 @@ export async function GET(request: Request) {
           productMatchesSourcingRegion(product, regionCode),
         );
       }
+      if (warehouseCountry) {
+        products = products.filter(
+          (product) =>
+            (product.warehouseCountry ?? "").trim().toUpperCase() ===
+            warehouseCountry,
+        );
+      }
       const clientProducts = toClientCatalogProducts(products);
       const usedMock =
         clientProducts.length > 0 &&
@@ -158,6 +185,7 @@ export async function GET(request: Request) {
         source: sourceTab,
         query,
         region: regionCode || null,
+        warehouse: warehouseCountry || null,
         categoryId: pageResult.categoryId ?? (categoryId || null),
         page: pageResult.page,
         pageSize: pageResult.pageSize,
@@ -176,6 +204,7 @@ export async function GET(request: Request) {
       credentialsByKind,
       page,
       regionCode: regionCode || null,
+      countryCode: warehouseCountry || null,
     });
 
     const clientProducts = toClientCatalogProducts(products);
@@ -192,6 +221,7 @@ export async function GET(request: Request) {
       source: sourceTab,
       query,
       region: regionCode || null,
+      warehouse: warehouseCountry || null,
       categoryId: categoryId || null,
       page,
       hasMore: clientProducts.length >= 20,

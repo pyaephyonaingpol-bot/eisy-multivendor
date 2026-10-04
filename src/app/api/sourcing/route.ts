@@ -6,9 +6,12 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/sourcing
- * Fetch/filter external catalog by source (DSers/CJ/Spocket/POD) and delivery speed.
+ * Fetch/filter external catalog by source (DSers/CJ/Spocket/POD), warehouse,
+ * and delivery speed.
  *
- * Query: source|tab|provider, q, region, page, delivery_speed|speed (any|fast|local|standard|economy)
+ * Query: source|tab|provider, q, region, page,
+ *        warehouse|warehouse_country|countryCode,
+ *        delivery_speed|speed (any|fast|local|standard|economy)
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -21,6 +24,11 @@ export async function GET(request: Request) {
     query: searchParams.get("q") ?? searchParams.get("query"),
     region: searchParams.get("region") ?? searchParams.get("region_code"),
     page: Number(searchParams.get("page") ?? "1") || 1,
+    warehouseCountry:
+      searchParams.get("warehouse") ??
+      searchParams.get("warehouse_country") ??
+      searchParams.get("countryCode") ??
+      searchParams.get("country_code"),
     deliverySpeed:
       searchParams.get("delivery_speed") ??
       searchParams.get("speed") ??

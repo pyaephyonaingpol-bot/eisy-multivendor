@@ -69,7 +69,8 @@ export function isFastDispatch(product: ExternalCatalogProduct) {
 }
 
 export function isLocalWarehouse(product: ExternalCatalogProduct) {
-  return LOCAL_WAREHOUSE_COUNTRIES.has(product.warehouseCountry.toUpperCase());
+  const code = (product.warehouseCountry ?? "").trim().toUpperCase();
+  return code ? LOCAL_WAREHOUSE_COUNTRIES.has(code) : false;
 }
 
 export function isStandardShipping(product: ExternalCatalogProduct) {

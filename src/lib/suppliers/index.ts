@@ -139,7 +139,7 @@ export async function searchExternalProductsPage(
   query: string,
   credentials?: SupplierCredentials | null,
   page = 1,
-  options?: { categoryId?: string | null },
+  options?: { categoryId?: string | null; countryCode?: string | null },
 ): Promise<CjCatalogSearchPage> {
   if (kind === "cj_dropshipping") {
     return searchCjProductsPage(query, credentials, page, options);
@@ -150,8 +150,15 @@ export async function searchExternalProductsPage(
     credentials,
     page,
   );
+  const countryCode = options?.countryCode?.trim().toUpperCase() || null;
+  const filtered = countryCode
+    ? products.filter(
+        (product) =>
+          (product.warehouseCountry ?? "").trim().toUpperCase() === countryCode,
+      )
+    : products;
   return {
-    products,
+    products: filtered,
     hasMore: products.length >= 20,
     page: Math.max(1, Math.floor(page) || 1),
     pageSize: products.length || 20,
@@ -173,6 +180,7 @@ export async function searchExternalProductsForTab(
     >;
     page?: number;
     regionCode?: string | null;
+    countryCode?: string | null;
   },
 ): Promise<ExternalCatalogProduct[]> {
   const kinds = kindsForSourceTab(tab);
@@ -191,6 +199,13 @@ export async function searchExternalProductsForTab(
   if (options?.regionCode) {
     products = products.filter((product) =>
       productMatchesSourcingRegion(product, options.regionCode),
+    );
+  }
+  const countryCode = options?.countryCode?.trim().toUpperCase() || null;
+  if (countryCode) {
+    products = products.filter(
+      (product) =>
+        (product.warehouseCountry ?? "").trim().toUpperCase() === countryCode,
     );
   }
   return products;

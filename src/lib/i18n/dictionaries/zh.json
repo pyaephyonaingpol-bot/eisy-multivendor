@@ -61,6 +61,8 @@
     "search": "搜索",
     "searchPlaceholder": "跨供应商搜索商品",
     "shipToRegion": "配送地区",
+    "warehouse": "仓库",
+    "anyWarehouse": "全部仓库",
     "deliverySpeed": "配送速度",
     "anySpeed": "不限速度",
     "fastDispatch": "快速发货",

@@ -61,6 +61,8 @@
     "search": "Поиск",
     "searchPlaceholder": "Поиск по поставщикам",
     "shipToRegion": "Регион доставки",
+    "warehouse": "Склад",
+    "anyWarehouse": "Любой склад",
     "deliverySpeed": "Скорость доставки",
     "anySpeed": "Любая скорость",
     "fastDispatch": "Быстрая отправка",

@@ -219,9 +219,33 @@ export function extractCatalogProducts(payload: unknown): ExternalCatalogProduct
   return [];
 }
 
+/** Common CJ / supplier warehouse origins shown in the sourcing catalog filter. */
+export const SOURCING_WAREHOUSE_OPTIONS = [
+  { code: "CN", label: "China (CN)" },
+  { code: "US", label: "United States (US)" },
+  { code: "TH", label: "Thailand (TH)" },
+  { code: "DE", label: "Germany (DE)" },
+  { code: "GB", label: "United Kingdom (GB)" },
+  { code: "FR", label: "France (FR)" },
+  { code: "JP", label: "Japan (JP)" },
+  { code: "AU", label: "Australia (AU)" },
+  { code: "ID", label: "Indonesia (ID)" },
+  { code: "SG", label: "Singapore (SG)" },
+] as const;
+
 /** Safe warehouse check — never throw on missing country. */
 export function isLocalWarehouseCountry(country: string | null | undefined) {
   const code = (country ?? "").trim().toUpperCase();
   if (!code) return false;
   return ["US", "EU", "GB", "DE", "FR", "MM", "TH", "SG"].includes(code);
+}
+
+/** Client-side warehouse origin filter (ISO country code). */
+export function matchesWarehouseCountryFilter(
+  product: ExternalCatalogProduct,
+  warehouseCountry: string | null | undefined,
+) {
+  const filter = (warehouseCountry ?? "").trim().toUpperCase();
+  if (!filter || filter === "ANY" || filter === "ALL") return true;
+  return (product.warehouseCountry ?? "").trim().toUpperCase() === filter;
 }

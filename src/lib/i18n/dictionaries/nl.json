@@ -61,6 +61,8 @@
     "search": "Zoeken",
     "searchPlaceholder": "Zoek producten bij leveranciers",
     "shipToRegion": "Verzendregio",
+    "warehouse": "Magazijn",
+    "anyWarehouse": "Elk magazijn",
     "deliverySpeed": "Leversnelheid",
     "anySpeed": "Elke snelheid",
     "fastDispatch": "Snelle verzending",

@@ -61,6 +61,8 @@
     "search": "بحث",
     "searchPlaceholder": "ابحث عن منتجات عبر الموردين",
     "shipToRegion": "منطقة الشحن",
+    "warehouse": "المستودع",
+    "anyWarehouse": "أي مستودع",
     "deliverySpeed": "سرعة التسليم",
     "anySpeed": "أي سرعة",
     "fastDispatch": "شحن سريع",

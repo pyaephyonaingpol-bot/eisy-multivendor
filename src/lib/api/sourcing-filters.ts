@@ -1,4 +1,5 @@
 import type { ExternalCatalogProduct } from "@/lib/suppliers/types";
+import { SOURCING_WAREHOUSE_OPTIONS } from "@/lib/suppliers/client-catalog";
 
 export type DeliverySpeedFilter = "any" | "fast" | "local" | "standard" | "economy";
 
@@ -13,6 +14,36 @@ const LOCAL_WAREHOUSE_COUNTRIES = new Set([
   "SG",
 ]);
 
+export { SOURCING_WAREHOUSE_OPTIONS };
+
+const KNOWN_WAREHOUSE_CODES = new Set(
+  SOURCING_WAREHOUSE_OPTIONS.map((option) => option.code),
+);
+
+/** Normalize a warehouse country filter (`any` / empty → null). */
+export function parseWarehouseCountryFilter(
+  value: string | null | undefined,
+): string | null {
+  const code = (value ?? "").trim().toUpperCase();
+  if (!code || code === "ANY" || code === "ALL") return null;
+  // Accept ISO-ish 2–3 letter codes even if not in the preset list.
+  if (!/^[A-Z]{2,3}$/.test(code)) return null;
+  return code;
+}
+
+export function matchesWarehouseCountry(
+  product: ExternalCatalogProduct,
+  warehouseCountry: string | null | undefined,
+): boolean {
+  const filter = parseWarehouseCountryFilter(warehouseCountry);
+  if (!filter) return true;
+  return (product.warehouseCountry ?? "").trim().toUpperCase() === filter;
+}
+
+export function isKnownSourcingWarehouse(code: string | null | undefined) {
+  const normalized = (code ?? "").trim().toUpperCase();
+  return KNOWN_WAREHOUSE_CODES.has(normalized as (typeof SOURCING_WAREHOUSE_OPTIONS)[number]["code"]);
+}
 export function parseDeliverySpeedFilter(
   value: string | null | undefined,
 ): DeliverySpeedFilter {
@@ -38,7 +69,8 @@ export function isFastDispatch(product: ExternalCatalogProduct) {
 }
 
 export function isLocalWarehouse(product: ExternalCatalogProduct) {
-  return LOCAL_WAREHOUSE_COUNTRIES.has(product.warehouseCountry.toUpperCase());
+  const code = (product.warehouseCountry ?? "").trim().toUpperCase();
+  return code ? LOCAL_WAREHOUSE_COUNTRIES.has(code) : false;
 }
 
 export function isStandardShipping(product: ExternalCatalogProduct) {

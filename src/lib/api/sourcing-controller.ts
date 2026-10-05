@@ -1,7 +1,9 @@
 import { canAccessVendor, getSessionProfile } from "@/lib/auth/session";
 import {
   matchesDeliverySpeed,
+  matchesWarehouseCountry,
   parseDeliverySpeedFilter,
+  parseWarehouseCountryFilter,
   shippingSpeedTagsForProduct,
   type DeliverySpeedFilter,
 } from "@/lib/api/sourcing-filters";
@@ -67,11 +69,13 @@ export async function searchSourcingCatalog(input: {
   region?: string | null;
   page?: number | null;
   deliverySpeed?: string | null;
+  warehouseCountry?: string | null;
 }): Promise<
   SourcingControllerResult<{
     source: string;
     query: string;
     region: string | null;
+    warehouse: string | null;
     delivery_speed: DeliverySpeedFilter;
     count: number;
     products: ReturnType<typeof withSpeedMeta>[];
@@ -88,6 +92,7 @@ export async function searchSourcingCatalog(input: {
   const regionCode = String(input.region ?? "")
     .trim()
     .toUpperCase();
+  const warehouseCountry = parseWarehouseCountryFilter(input.warehouseCountry);
   const deliverySpeed = parseDeliverySpeedFilter(input.deliverySpeed);
   const singleKind = parseSupplierKind(sourceRaw);
   const sourceTab = parseSourceTab(sourceRaw);
@@ -129,11 +134,13 @@ export async function searchSourcingCatalog(input: {
         credentialsByKind,
         page,
         regionCode: regionCode || null,
+        countryCode: warehouseCountry,
       });
     }
 
     const filtered = products
       .filter((product) => matchesDeliverySpeed(product, deliverySpeed))
+      .filter((product) => matchesWarehouseCountry(product, warehouseCountry))
       .map(withSpeedMeta);
 
     return {
@@ -142,6 +149,7 @@ export async function searchSourcingCatalog(input: {
         source: sourceTab,
         query,
         region: regionCode || null,
+        warehouse: warehouseCountry,
         delivery_speed: deliverySpeed,
         count: filtered.length,
         products: filtered,
